@@ -31,7 +31,7 @@ export default function Decision() {
             <p className="record mt-3 text-[19px] leading-snug text-halide">
               {claim ? `${claim.claim_id} was not refused, so there is nothing to appeal.` : "No such claim."}
             </p>
-            <Link to="/atlas" className="console mt-5 inline-block border-b border-carmine pb-0.5 text-[9px] text-carmine">Back to the atlas</Link>
+            <Link to="/atlas" className="console mt-5 inline-block border-b border-brass pb-0.5 text-[9px] text-brass">Back to the atlas</Link>
           </div>
         </div>
       </Shell>
@@ -157,7 +157,7 @@ export default function Decision() {
               </div>
 
               <Link to={`/dossier/${id}`}
-                className="group mt-5 flex items-center justify-between rounded-[2px] bg-carmine px-4 py-3 text-void transition-colors hover:bg-[#F05A7E]">
+                className="group mt-5 flex items-center justify-between rounded-[2px] bg-brass px-4 py-3 text-void transition-colors hover:bg-[#E9B75C]">
                 <span className="console text-[9px]">Assemble the dossier</span>
                 <IconArrow size={15} className="transition-transform group-hover:translate-x-1" />
               </Link>
@@ -209,7 +209,7 @@ export default function Decision() {
               <Eyebrow>Priority model · configurable by department</Eyebrow>
               <div className="mt-4 flex items-baseline gap-2">
                 <span className="readout text-[42px] leading-none text-halide"><Counter to={profile.priority} decimals={2} /></span>
-                <span className="console text-[8.5px]" style={{ color: profile.priorityBand === "critical" ? "#E8446B" : profile.priorityBand === "high" ? "#D0873E" : "#8B9AA3" }}>
+                <span className="console text-[8.5px]" style={{ color: profile.priorityBand === "critical" ? "#E8446B" : profile.priorityBand === "high" ? "#D9A441" : "#8B9AA3" }}>
                   {profile.priorityBand} priority
                 </span>
               </div>
@@ -265,7 +265,7 @@ function Row({ k, v }: { k: string; v: string }) {
 
 function DeadlineRing({ frac, lapsed, days }: { frac: number; lapsed: boolean; days: number }) {
   const R = 50, C = 2 * Math.PI * R;
-  const tone = lapsed ? "#E8446B" : frac > 0.7 ? "#D0873E" : "#4FA86B";
+  const tone = lapsed ? "#E8446B" : frac > 0.7 ? "#D9A441" : "#4FA86B";
   return (
     <div className="relative mx-auto mt-5 h-[152px] w-[152px]">
       <svg viewBox="0 0 152 152" className="h-full w-full -rotate-90">

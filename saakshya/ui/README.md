@@ -25,14 +25,31 @@ Two surfaces, always. A cold graphite **deck** is the satellite side; a warm
 archival **paper** sheet is the legal record. Every screen carries both,
 because the product is imagery joined to paperwork.
 
-**Colour comes from the subject.** Archive frames are rendered in real Landsat
-false-colour infrared — band combination 4-3-2, where vegetation returns
-strongly in the near infrared and prints *red*, worked soil prints *cyan*, and
-water prints near-black. That is why the forest is crimson. Interface status
-colours follow Survey of India toposheet convention: survey green for
-recognised, contour sienna for pending, settlement carmine for refused.
-Carmine is also the single interactive accent, because in this product a
-refusal is the call to action.
+**The frame has to be readable before it is clever.** Archive frames render in
+natural colour by default: dry-season central India, where closed sal canopy is
+a dark olive green and worked ground is a mosaic of golden stubble, standing
+rabi crop and bare laterite the colour of brick. Forest and farm cannot be
+mistaken for one another, and that distinction *is* the finding.
+
+Landsat **false-colour infrared** (bands 4-3-2, vegetation in red, worked soil
+in cyan) sits on a toggle in the corner of every frame. It is what a
+change-detection analyst actually works in and it separates crop vigour better
+than the eye can — but it needs a sentence of explanation, so it is not the
+default.
+
+**Nothing on screen is left for the viewer to guess.** Every frame is read back
+through a flat land-class pass and reported in words: a ground-cover bar under
+the viewport gives the proportion of canopy, cultivation, homestead and water
+in the frame you are looking at, and a ribbon under the Chronoscope shows that
+proportion for all fifty-eight years at once — green shrinking, tan growing,
+with the cutoff drawn through it. Features in the frame carry an interpreter's
+markup: a ring, a leader, and a terse label.
+
+**Interface colour follows Survey of India toposheet convention** — survey
+green for recognised, slate for pending, settlement carmine for refused. Brass
+is the interactive accent, the colour of a survey benchmark plate and of the
+worked ground itself. Carmine is never chrome: it means exactly two things,
+a refused claim and the 13 December 2005 cutoff.
 
 **Type.** Archivo (variable, using its width axis for console labels), 
 Newsreader for anything set on paper, IBM Plex Mono for every number the system
@@ -58,6 +75,7 @@ the parcel frame, the spectral trace and the verdict all move together.
 | `/sabha/:id` | Gram Sabha view — full paper, plain language, English / हिन्दी |
 | `/dossier/:id` | The dossier assembling, then `Ctrl-P` prints a real A4 filing |
 | `/method` | Pipeline, what is running versus designed, glossary |
+| `/lab` | Development only — a contact sheet of the frame renderer across sensor, canopy and palette, so a regression shows up in one screenshot |
 
 ## A two-minute demo path
 
@@ -86,7 +104,9 @@ src/engine/
   setu.ts      scheme rules, priority weights
   data.ts      district derivation: parcels, villages, conflicts, profiles
 src/lib/
-  parcelRenderer.ts   the false-colour archive frame renderer (WebGL)
+  parcelRenderer.ts   the archive frame renderer (WebGL): natural and infrared
+                      palettes, sensor-era simulation, and the classify pass
+                      that lets the interface describe a frame in words
 ```
 
 `runKaal()` emits exactly the schema the real Earth Engine run emits, so

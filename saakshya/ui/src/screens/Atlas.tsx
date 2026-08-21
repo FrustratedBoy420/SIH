@@ -35,7 +35,11 @@ export default function Atlas() {
   return (
     <Shell claimId={selected ?? undefined}>
       <div className="relative h-full w-full">
-        <AtlasMap filters={filters} basemap={basemap} selected={selected} onSelect={setSelected} />
+        <AtlasMap
+          filters={filters} basemap={basemap} selected={selected} onSelect={setSelected}
+          /* handle for scripted walkthroughs and for debugging projections */
+          onReady={(m) => ((window as unknown as { saakshyaMap?: unknown }).saakshyaMap = m)}
+        />
 
         {/* ── controls ─────────────────────────────────────────────── */}
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
@@ -76,7 +80,7 @@ export default function Atlas() {
                   </Group>
 
                   <Group title="Analysis overlays">
-                    <Toggle on={filters.strength} color="#7FD4D9" onClick={() => setFilters((f) => ({ ...f, strength: !f.strength }))}>
+                    <Toggle on={filters.strength} color="#D9A441" onClick={() => setFilters((f) => ({ ...f, strength: !f.strength }))}>
                       Evidence strength
                     </Toggle>
                     <Toggle on={filters.conflicts} color="#E8446B" count={CONFLICTS.length}
@@ -93,7 +97,7 @@ export default function Atlas() {
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden border-t border-line">
                         <div className="px-4 py-3">
-                          <div className="h-[6px] rounded-[1px]" style={{ background: "linear-gradient(90deg,#3A2430,#8C3350,#E8446B,#F08A6A,#7FD4D9)" }} />
+                          <div className="h-[6px] rounded-[1px]" style={{ background: "linear-gradient(90deg,#3A2A30,#8C4A50,#C8763F,#D9A441,#8FC98A)" }} />
                           <div className="readout mt-1.5 flex justify-between text-[8px] text-dim2"><span>weak</span><span>strong</span></div>
                           <p className="mt-2 text-[10.5px] leading-relaxed text-dim2">
                             Strength combines archive confidence with whether the finding actually answers the
@@ -125,7 +129,7 @@ export default function Atlas() {
             </AnimatePresence>
 
             <div className="pointer-events-auto ml-auto hidden max-w-[300px] rounded-[3px] border border-line bg-deck/92 px-4 py-3 backdrop-blur-xl lg:block">
-              <Eyebrow tone="#E8446B">Read the map</Eyebrow>
+              <Eyebrow tone="#D9A441">Read the map</Eyebrow>
               <p className="mt-2 text-[11.5px] leading-relaxed text-dim">
                 Every dot is one claim under the Forest Rights Act. The carmine ones were refused —
                 click any of them to see what the satellite archive holds for that ground.
@@ -138,8 +142,8 @@ export default function Atlas() {
             <Stat label="Claims in view" value={shown.length} tone="#F5EFE2" />
             <Stat label="Refused" value={DISTRICT_STATS.rejected} tone="#E8446B" />
             <Stat label="Archive answers the ground" value={DISTRICT_STATS.recoverable} tone="#4FA86B" />
-            <Stat label="Appeal window closed" value={DISTRICT_STATS.lapsed} tone="#D0873E" />
-            <Stat label="Hectares under refusal" value={DISTRICT_STATS.recoverableHa} tone="#7FD4D9" suffix=" ha" />
+            <Stat label="Appeal window closed" value={DISTRICT_STATS.lapsed} tone="#D9A441" />
+            <Stat label="Hectares under refusal" value={DISTRICT_STATS.recoverableHa} tone="#D9A441" suffix=" ha" />
             <div className="flex-1" />
             <Link to="/district" className="group flex items-center gap-2 self-stretch border-l border-line px-5 text-dim transition-colors hover:bg-deckh hover:text-halide">
               <span className="console text-[8.5px]">District view</span>
@@ -294,7 +298,7 @@ function Drawer({ id, onClose }: { id: string; onClose: () => void }) {
       </div>
 
       <div className="grid grid-cols-2 gap-px border-t border-line bg-line">
-        <Link to={`/claim/${id}`} className="group flex items-center justify-center gap-2 bg-carmine py-3.5 text-void transition-colors hover:bg-[#F05A7E]">
+        <Link to={`/claim/${id}`} className="group flex items-center justify-center gap-2 bg-brass py-3.5 text-void transition-colors hover:bg-[#E9B75C]">
           <span className="console text-[8.5px]">Open the archive</span>
           <IconArrow size={14} className="transition-transform group-hover:translate-x-1" />
         </Link>

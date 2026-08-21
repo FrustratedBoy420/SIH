@@ -12,7 +12,7 @@ export function ParcelFrame({
   rounded?: boolean;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const { seed, canopy, sensor, trajectory, year, obs } = params;
+  const { seed, canopy, sensor, trajectory, year, obs, palette, detail, res } = params;
 
   useEffect(() => {
     const cv = ref.current;
@@ -24,7 +24,7 @@ export function ParcelFrame({
       const w = Math.round(r.width * dpr);
       const h = Math.round(r.height * dpr);
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-      const src = renderParcel({ seed, canopy, sensor, trajectory, year, obs, res: Math.min(768, Math.max(320, w)) });
+      const src = renderParcel({ seed, canopy, sensor, trajectory, year, obs, palette, detail, res: res ?? Math.min(768, Math.max(320, w)) });
       const ctx = cv.getContext("2d");
       if (!ctx) return;
       if (!src) { ctx.fillStyle = "#151D24"; ctx.fillRect(0, 0, w, h); return; }
@@ -34,7 +34,7 @@ export function ParcelFrame({
     const ro = new ResizeObserver(draw);
     ro.observe(cv);
     return () => ro.disconnect();
-  }, [seed, canopy, sensor, trajectory, year, obs]);
+  }, [seed, canopy, sensor, trajectory, year, obs, palette, detail, res]);
 
   return (
     <canvas

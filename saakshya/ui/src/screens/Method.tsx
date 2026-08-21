@@ -37,7 +37,7 @@ const GLOSSARY: [string, string][] = [
   ["Rule 13", "The rule listing what counts as evidence for a claim. Satellite imagery is on the list, as a supplement."],
 ];
 
-const TONE = { ok: "#4FA86B", warn: "#D0873E", bad: "#8B9AA3" };
+const TONE = { ok: "#4FA86B", warn: "#D9A441", bad: "#8B9AA3" };
 
 export default function Method() {
   return (
@@ -91,7 +91,7 @@ export default function Method() {
                 ))}
               </div>
               <div className="mt-7 rounded-[3px] border border-line bg-deck p-6">
-                <Eyebrow tone="#E8446B">The legal footing</Eyebrow>
+                <Eyebrow tone="#D9A441">The legal footing</Eyebrow>
                 <p className="record mt-3 text-[15px] leading-[1.6] text-dim">{RULE_13}</p>
                 <p className="mt-4 text-[12.5px] leading-relaxed text-dim2">
                   Which is exactly the standard the platform is built to: it produces a supplement, sits beside
@@ -109,7 +109,7 @@ export default function Method() {
               <dl className="mt-6 divide-y divide-ink/12 border-t border-ink/20">
                 {GLOSSARY.map(([k, v]) => (
                   <div key={k} className="py-3.5">
-                    <dt className="console text-[8px] text-carmine2">{k}</dt>
+                    <dt className="console text-[8px] text-brass2">{k}</dt>
                     <dd className="record mt-1.5 text-[13.5px] leading-relaxed text-ink">{v}</dd>
                   </div>
                 ))}
@@ -118,7 +118,7 @@ export default function Method() {
           </div>
 
           <div className="mt-14 flex flex-wrap gap-3 border-t border-line pt-8">
-            <Link to="/atlas" className="group flex items-center gap-3 bg-carmine px-5 py-3 text-void transition-colors hover:bg-[#F05A7E]">
+            <Link to="/atlas" className="group flex items-center gap-3 bg-brass px-5 py-3 text-void transition-colors hover:bg-[#E9B75C]">
               <span className="console text-[9px]">Open the atlas</span>
               <IconArrow size={15} className="transition-transform group-hover:translate-x-1" />
             </Link>

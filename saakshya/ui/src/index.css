@@ -25,12 +25,22 @@
   --color-dim:       #8B9AA3;
   --color-dim2:      #5D6D77;
 
+  /* Carmine means exactly two things and nothing else: a claim was refused,
+     and the 13 December 2005 cutoff. It is never chrome. */
   --color-carmine:   #E8446B;
   --color-carmine2:  #B32B4D;
-  --color-survey:    #4FA86B;
+
+  /* Brass is the interactive accent — the colour of a survey benchmark plate,
+     and of the worked ground the archive is looking at. */
+  --color-brass:     #D9A441;
+  --color-brass2:    #8A6520;
+
+  --color-survey:    #4FA86B;   /* recognised */
+  --color-slate:     #6E8BA8;   /* pending — a waiting state, not an alarm */
   --color-sienna:    #D0873E;
 
-  --color-ir:        #F2405C;
+  --color-canopy:    #3E5A28;
+  --color-tilled:    #B0A070;
   --color-soil:      #7FD4D9;
 
   --font-display: "Archivo", "Helvetica Neue", sans-serif;
@@ -58,10 +68,10 @@ body {
   text-rendering: optimizeLegibility;
   overscroll-behavior: none;
 }
-::selection { background: var(--color-carmine); color: #fff; }
+::selection { background: var(--color-brass); color: #14100a; }
 
 :focus-visible {
-  outline: 2px solid var(--color-carmine);
+  outline: 2px solid var(--color-brass);
   outline-offset: 2px;
   border-radius: 1px;
 }

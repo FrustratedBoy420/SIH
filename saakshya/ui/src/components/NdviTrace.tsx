@@ -115,8 +115,8 @@ export function NdviTrace({
       <motion.g initial={{ opacity: 0, scaleY: 0.4 }} animate={{ opacity: 1, scaleY: 1 }}
         transition={{ duration: 0.5, delay: 2.25, ease: [0.34, 1.56, 0.64, 1] }} style={{ transformOrigin: `${X(kaal.conversion_year)}px ${H}px` }}>
         <line x1={X(kaal.conversion_year)} x2={X(kaal.conversion_year)} y1={padT - 6} y2={H - padB}
-          stroke="#7FD4D9" strokeWidth="1.4" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-        <polygon points={`${X(kaal.conversion_year) - 5},${padT - 6} ${X(kaal.conversion_year) + 5},${padT - 6} ${X(kaal.conversion_year)},${padT + 2}`} fill="#7FD4D9" />
+          stroke="#D9A441" strokeWidth="1.4" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+        <polygon points={`${X(kaal.conversion_year) - 5},${padT - 6} ${X(kaal.conversion_year) + 5},${padT - 6} ${X(kaal.conversion_year)},${padT + 2}`} fill="#D9A441" />
       </motion.g>
 
       {/* live readout, tied to the Chronoscope */}

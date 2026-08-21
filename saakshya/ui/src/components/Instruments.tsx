@@ -30,7 +30,7 @@ export function ConfidenceDial({ value, size = 168, label = "Evidence confidence
   const circ = 2 * Math.PI * R;
   const dash = useTransform(sp, (v) => `${(v * SWEEP / 360) * circ} ${circ}`);
   const needle = useTransform(sp, (v) => START + v * SWEEP);
-  const tone = value >= 0.75 ? "#4FA86B" : value >= 0.55 ? "#D0873E" : "#E8446B";
+  const tone = value >= 0.75 ? "#4FA86B" : value >= 0.55 ? "#D9A441" : "#E8446B";
 
   return (
     <div className="flex flex-col items-center" style={{ width: size }}>

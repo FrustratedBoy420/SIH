@@ -62,11 +62,11 @@ export default function District() {
           <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-[3px] border border-line bg-line md:grid-cols-3 xl:grid-cols-6">
             <Kpi label="Claims on record" value={DISTRICT_STATS.total} tone="#F5EFE2" />
             <Kpi label="Recognised" value={DISTRICT_STATS.granted} tone="#4FA86B" />
-            <Kpi label="Pending" value={DISTRICT_STATS.pending} tone="#D0873E" />
+            <Kpi label="Pending" value={DISTRICT_STATS.pending} tone="#6E8BA8" />
             <Kpi label="Refused" value={DISTRICT_STATS.rejected} tone="#E8446B" />
-            <Kpi label="Archive answers the ground" value={DISTRICT_STATS.recoverable} tone="#7FD4D9"
+            <Kpi label="Archive answers the ground" value={DISTRICT_STATS.recoverable} tone="#4FA86B"
               foot={`${Math.round((DISTRICT_STATS.recoverable / DISTRICT_STATS.rejected) * 100)}% of refusals`} />
-            <Kpi label="Appeal window closed" value={DISTRICT_STATS.lapsed} tone="#E8446B"
+            <Kpi label="Appeal window closed" value={DISTRICT_STATS.lapsed} tone="#D9A441"
               foot="condonation or fresh claim" />
           </div>
 
@@ -93,7 +93,7 @@ export default function District() {
                       <motion.div className="absolute inset-y-0 left-0 w-full bg-carmine/35"
                         initial={{ scaleX: 0 }} animate={{ scaleX: val.total / maxReason }} style={{ originX: 0 }}
                         transition={{ duration: 0.8, delay: 0.1 + i * 0.08, ease: [0.16, 1, 0.3, 1] }} />
-                      <motion.div className="absolute inset-y-0 left-0 w-full bg-soil"
+                      <motion.div className="absolute inset-y-0 left-0 w-full bg-brass"
                         initial={{ scaleX: 0 }} animate={{ scaleX: val.answered / maxReason }} style={{ originX: 0 }}
                         transition={{ duration: 0.8, delay: 0.35 + i * 0.08, ease: [0.16, 1, 0.3, 1] }} />
                     </div>
@@ -101,7 +101,7 @@ export default function District() {
                 ))}
               </div>
               <div className="flex items-center gap-4 border-t border-line px-5 py-3">
-                <Legend color="#7FD4D9">archive speaks to it</Legend>
+                <Legend color="#D9A441">archive speaks to it</Legend>
                 <Legend color="rgba(232,68,107,0.5)">it does not</Legend>
               </div>
 
@@ -116,7 +116,7 @@ export default function District() {
                       <span className="flex-1 text-[12.5px] text-halide">{p.name}</span>
                       <span className="h-[3px] w-16 bg-line">
                         <motion.span className="block h-full"
-                          style={{ originX: 0, background: p.priorityBand === "critical" ? "#E8446B" : p.priorityBand === "high" ? "#D0873E" : "#8B9AA3" }}
+                          style={{ originX: 0, background: p.priorityBand === "critical" ? "#E8446B" : p.priorityBand === "high" ? "#D9A441" : "#8B9AA3" }}
                           initial={{ scaleX: 0 }} animate={{ scaleX: p.priority }}
                           transition={{ duration: 0.7, delay: 0.4 + i * 0.05 }} />
                       </span>
@@ -135,7 +135,7 @@ export default function District() {
                   <p className="mt-1.5 text-[11.5px] text-dim2">
                     {queue.length} refused claims{reason !== "all" && ` on the ground “${REASONS[reason].short}”`}
                     {reason !== "all" && (
-                      <button onClick={() => setReason("all")} className="console ml-2 text-[7.5px] text-carmine">clear</button>
+                      <button onClick={() => setReason("all")} className="console ml-2 text-[7.5px] text-brass">clear</button>
                     )}
                   </p>
                 </div>

@@ -77,7 +77,7 @@ export function runKaal(claim: Claim): KaalResult {
   else if (claim.claim_type === "IFR" && r() < 0.22) trajectory = "forest_to_settlement";
 
   const transition = 2 + Math.floor(r() * 3); // years the clearing takes
-  const preCanopy = 0.82 + r() * 0.1;
+  const preCanopy = 0.87 + r() * 0.08;
   const postCanopy = trajectory === "forest_to_settlement" ? 0.12 + r() * 0.08 : 0.28 + r() * 0.12;
 
   const years: number[] = [];

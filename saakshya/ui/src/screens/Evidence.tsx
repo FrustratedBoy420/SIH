@@ -5,6 +5,8 @@ import { Shell } from "../components/Shell";
 import { Chronoscope } from "../components/Chronoscope";
 import { ParcelViewport } from "../components/ParcelViewport";
 import { NdviTrace } from "../components/NdviTrace";
+import { CoverBar } from "../components/CoverBar";
+import { sampleCover, type Palette } from "../lib/parcelRenderer";
 import { ConfidenceDial, Counter, Driver, Eyebrow, Stamp } from "../components/Instruments";
 import { Sheet, SheetHead, Field, Quoted } from "../components/Sheet";
 import { IconArrow, IconDoc } from "../components/Icons";
@@ -20,6 +22,7 @@ export default function Evidence() {
   const kaal = useMemo(() => (claim ? kaalFor(id) : null), [claim, id]);
   const nyaya = useMemo(() => (claim ? nyayaFor(id) : null), [claim, id]);
   const [year, setYear] = useState(1967);
+  const [palette, setPalette] = useState<Palette>("natural");
 
   useEffect(() => { setYear(1967); }, [id]);
 
@@ -27,6 +30,18 @@ export default function Evidence() {
 
   const frame = kaal.frames.find((f) => f.year === year) ?? kaal.frames[0];
   const beforeCutoff = year < CUTOFF;
+
+  // The frame is read back and classified so the interface can say what is in
+  // it, and compare that against the oldest frame in the archive.
+  const cover = useMemo(
+    () => sampleCover({ seed: kaal.seed, canopy: frame.canopy, sensor: frame.sensor, trajectory: kaal.trajectory_class, year: frame.year, obs: frame.obs, detail: 1.7 }),
+    [kaal.seed, kaal.trajectory_class, frame],
+  );
+  const first = kaal.frames[0];
+  const baseline = useMemo(
+    () => sampleCover({ seed: kaal.seed, canopy: first.canopy, sensor: first.sensor, trajectory: kaal.trajectory_class, year: first.year, obs: first.obs, detail: 1.7 }),
+    [kaal.seed, kaal.trajectory_class, first],
+  );
   const conv = kaal.conversion_year;
   const v = nyaya ? VERDICT_UI[nyaya.verdict] : null;
   const strength = evidenceStrength(id);
@@ -36,23 +51,26 @@ export default function Evidence() {
       <div className="h-full overflow-y-auto lg:grid lg:h-full lg:grid-cols-[minmax(0,1fr)_468px] lg:overflow-hidden">
         {/* ── the archive side ─────────────────────────────────────── */}
         <div className="px-5 pt-5 pb-10 lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:pb-16">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-            <div>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
               <Eyebrow>KAAL · historic evidence engine</Eyebrow>
-              <h1 className="display-xl mt-2 text-[46px] text-halide">
-                {villageName(claim.village_lgd)}
-                <span className="readout ml-3 align-middle text-[15px] font-normal tracking-normal text-dim2">{claim.claim_id}</span>
-              </h1>
-              <p className="mt-1.5 max-w-[62ch] text-[13.5px] leading-relaxed text-dim">
-                {claim.claim_type} claim over {claim.area_ha} ha, filed by a {claim.claimant_category} household.
-                The archive was read back to 1967 to date when this ground stopped being canopy.
-              </p>
+              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h1 className="display-xl text-[38px] text-halide">{villageName(claim.village_lgd)}</h1>
+                <span className="readout text-[14px] text-dim2">{claim.claim_id}</span>
+                <span className="text-[12.5px] text-dim">
+                  {claim.claim_type} over {claim.area_ha} ha · {claim.claimant_category} household · archive read back to 1967
+                </span>
+              </div>
             </div>
             <ClaimSwitcher current={id} onPick={(n) => nav(`/claim/${n}`)} />
           </div>
 
           <div className="relative">
-            <ParcelViewport claim={claim} kaal={kaal} frame={frame} className="aspect-[16/7.6] w-full rounded-[3px] ring-1 ring-line2" />
+            <ParcelViewport
+              claim={claim} kaal={kaal} frame={frame} cover={cover}
+              palette={palette} onPalette={setPalette} aspect={16 / 6}
+              className="aspect-[16/6] w-full rounded-[3px] ring-1 ring-line2"
+            />
 
             {/* the moment that matters: which side of the cutoff you are on */}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center">
@@ -71,17 +89,17 @@ export default function Evidence() {
                       ? `${CUTOFF - year} years before the statutory cutoff`
                       : `${year - CUTOFF} years after the statutory cutoff`}
                   </span>
-                  <span className="h-3 w-px bg-halide/25" />
-                  <span className="readout text-[10.5px] text-dim">
-                    canopy {(frame.canopy * 100).toFixed(0)}%
-                  </span>
                 </motion.div>
               </AnimatePresence>
             </div>
           </div>
 
-          <div className="mt-5">
-            <Chronoscope kaal={kaal} year={year} onYear={setYear} />
+          <div className="mt-3">
+            <CoverBar cover={cover} baseline={baseline} palette={palette} baselineYear={kaal.frames[0].year} />
+          </div>
+
+          <div className="mt-4">
+            <Chronoscope kaal={kaal} year={year} onYear={setYear} palette={palette} />
           </div>
 
           {/* the trace */}
@@ -96,8 +114,8 @@ export default function Evidence() {
               </div>
               <div className="hidden shrink-0 gap-5 text-right sm:flex">
                 <div>
-                  <div className="console text-[8px] text-soil">Break detected</div>
-                  <div className="readout text-[26px] leading-none text-soil"><Counter to={conv} duration={1.2} delay={2.2} /></div>
+                  <div className="console text-[8px] text-brass">Break detected</div>
+                  <div className="readout text-[26px] leading-none text-brass"><Counter to={conv} duration={1.2} delay={2.2} /></div>
                 </div>
                 <div>
                   <div className="console text-[8px] text-carmine">Cutoff</div>

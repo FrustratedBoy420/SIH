@@ -7,6 +7,7 @@ import { Counter, Eyebrow } from "../components/Instruments";
 import { Sigil } from "../components/Shell";
 import { IconArrow } from "../components/Icons";
 import { CLAIMS, DISTRICT_STATS, FEATURED, kaalFor } from "../engine/data";
+import { COVER_CLASSES } from "../lib/parcelRenderer";
 import { CUTOFF, SENSOR_LABEL } from "../engine/kaal";
 
 export default function Landing() {
@@ -63,7 +64,7 @@ export default function Landing() {
         <div className="flex-1" />
         <Link to="/method" className="console text-[8.5px] text-dim2 transition-colors hover:text-halide">Method</Link>
         <Link to="/atlas"
-          className="group ml-5 flex items-center gap-2 rounded-[2px] border border-carmine/60 px-4 py-2 text-carmine transition-colors hover:bg-carmine hover:text-void">
+          className="group ml-5 flex items-center gap-2 rounded-[2px] border border-brass/60 px-4 py-2 text-brass transition-colors hover:bg-brass hover:text-void">
           <span className="console text-[8.5px]">Enter the atlas</span>
           <IconArrow size={13} className="transition-transform group-hover:translate-x-1" />
         </Link>
@@ -74,7 +75,7 @@ export default function Landing() {
         <motion.div style={{ y: heroY, opacity: heroFade }} className="absolute inset-0">
           <ParcelFrame params={{ seed: kaal.seed, canopy: f.canopy, sensor: f.sensor, trajectory: kaal.trajectory_class, year: f.year, obs: f.obs, res: 900, detail: 2.6 }} />
           <div className="scanlines absolute inset-0 opacity-25" />
-          <div className="absolute inset-0 bg-gradient-to-t from-void via-void/42 to-void/62" />
+          <div className="absolute inset-0 bg-gradient-to-t from-void via-void/34 to-void/55" />
           <div className="absolute inset-0 bg-gradient-to-r from-void/85 via-transparent to-void/40" />
         </motion.div>
 
@@ -86,7 +87,15 @@ export default function Landing() {
           <div className="console mt-2 text-[8px] text-dim2">{SENSOR_LABEL[f.sensor]}</div>
           <div className="mt-4 flex items-center justify-end gap-2">
             <span className="h-px w-14 bg-line2" />
-            <span className="readout text-[10px] text-dim2">canopy {(f.canopy * 100).toFixed(0)}%</span>
+            <span className="readout text-[10px] text-dim2">one claim parcel, Dindori</span>
+          </div>
+          <div className="mt-5 flex flex-col items-end gap-1.5">
+            {COVER_CLASSES.slice(0, 3).map((c) => (
+              <span key={c.key} className="flex items-center gap-2">
+                <span className="console text-[7.5px] text-halide/60">{c.label}</span>
+                <span className="h-[10px] w-[10px] rounded-[1px] ring-1 ring-halide/25" style={{ background: c.natural }} />
+              </span>
+            ))}
           </div>
         </div>
 
@@ -108,20 +117,20 @@ export default function Landing() {
 
         <div className="absolute inset-x-0 bottom-0 px-6 pb-14 lg:px-10">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}>
-            <Eyebrow tone="#E8446B">Forest Rights Act, 2006</Eyebrow>
+            <Eyebrow tone="#D9A441">Forest Rights Act, 2006</Eyebrow>
             <h1 className="display-xl mt-4 max-w-[15ch] text-[clamp(46px,8.2vw,124px)] text-halide">
               Existing tools map the claims that were granted.
             </h1>
             <motion.p
               initial={{ opacity: 0 }} animate={{ opacity: held ? 1 : 0 }} transition={{ duration: 0.8, delay: 0.3 }}
-              className="record mt-6 max-w-[36ch] text-[clamp(21px,2.4vw,34px)] leading-[1.22] text-carmine">
-              Saakshya rebuilds the proof for the claims that were refused.
+              className="record mt-6 max-w-[36ch] text-[clamp(21px,2.4vw,34px)] leading-[1.22] text-halide">
+              Saakshya rebuilds the proof for the claims that were <span className="text-carmine">refused</span>.
             </motion.p>
 
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: held ? 1 : 0 }} transition={{ duration: 0.7, delay: 0.7 }}
               className="mt-8 flex flex-wrap items-center gap-5">
               <Link to="/atlas"
-                className="group flex items-center gap-3 bg-carmine px-6 py-3.5 text-void transition-colors hover:bg-[#F05A7E]">
+                className="group flex items-center gap-3 bg-brass px-6 py-3.5 text-void transition-colors hover:bg-[#E9B75C]">
                 <span className="console text-[9.5px]">Open the district atlas</span>
                 <IconArrow size={16} className="transition-transform group-hover:translate-x-1.5" />
               </Link>
@@ -200,7 +209,7 @@ export default function Landing() {
                 transition={{ duration: 0.65, delay: i * 0.11, ease: [0.16, 1, 0.3, 1] }}
                 className="group relative bg-deck p-8">
                 <div className="flex items-baseline justify-between">
-                  <span className="console text-[8px] text-carmine">{c.era}</span>
+                  <span className="console text-[8px] text-brass">{c.era}</span>
                   <span className="console text-[7.5px] text-dim2">{c.bands}</span>
                 </div>
                 <h3 className="record mt-4 text-[30px] leading-none text-halide">{c.title}</h3>
@@ -230,7 +239,7 @@ export default function Landing() {
       <section className="border-t border-line px-6 py-24 lg:px-10">
         <div className="mx-auto grid max-w-[1400px] gap-14 lg:grid-cols-[minmax(0,1fr)_460px]">
           <div>
-            <Eyebrow tone="#D0873E">Stated limits</Eyebrow>
+            <Eyebrow tone="#D9A441">Stated limits</Eyebrow>
             <h2 className="display-xl mt-4 max-w-[18ch] text-[clamp(30px,3.6vw,52px)] text-halide">
               What this does not do, said out loud.
             </h2>

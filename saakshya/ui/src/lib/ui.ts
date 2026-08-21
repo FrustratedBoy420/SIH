@@ -18,10 +18,11 @@ export const stackItem = {
   show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.6, ease: EASE_DECK } },
 };
 
-export const STATUS_COLOR = { granted: "#4FA86B", pending: "#D0873E", rejected: "#E8446B" } as const;
+export const STATUS_COLOR = { granted: "#4FA86B", pending: "#6E8BA8", rejected: "#E8446B" } as const;
 export const STATUS_LABEL = { granted: "Recognised", pending: "Pending", rejected: "Rejected" } as const;
 
-export const TONE_COLOR = { ok: "#4FA86B", warn: "#D0873E", bad: "#E8446B", mute: "#8B9AA3" } as const;
+export const TONE_COLOR = { ok: "#4FA86B", warn: "#D9A441", bad: "#E8446B", mute: "#8B9AA3" } as const;
+export const BRASS = "#D9A441";
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 

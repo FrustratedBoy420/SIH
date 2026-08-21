@@ -9,6 +9,7 @@ import Village from "./screens/Village";
 import GramSabha from "./screens/GramSabha";
 import Dossier from "./screens/Dossier";
 import Method from "./screens/Method";
+import Lab from "./screens/Lab";
 
 // The atlas carries MapLibre. Keeping it out of the first load means the
 // landing paints immediately.
@@ -24,7 +25,7 @@ function Booting() {
   return (
     <div className="flex h-dvh items-center justify-center bg-void">
       <div className="console flex items-center gap-3 text-[8.5px] text-dim2">
-        <span className="h-1.5 w-1.5 animate-[blink_0.9s_steps(1,end)_infinite] rounded-full bg-carmine" />
+        <span className="h-1.5 w-1.5 animate-[blink_0.9s_steps(1,end)_infinite] rounded-full bg-brass" />
         Loading the district
       </div>
     </div>
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="/sabha/:id" element={<GramSabha />} />
             <Route path="/dossier/:id" element={<Dossier />} />
             <Route path="/method" element={<Method />} />
+            <Route path="/lab" element={<Lab />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

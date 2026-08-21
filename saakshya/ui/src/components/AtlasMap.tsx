@@ -72,13 +72,13 @@ const conflictFC = () => ({
 const STATUS_MATCH: maplibregl.ExpressionSpecification = [
   "match", ["get", "status"],
   "granted", "#4FA86B",
-  "pending", "#D0873E",
+  "pending", "#6E8BA8",
   "rejected", "#E8446B",
   "#8B9AA3",
 ];
 const STRENGTH_RAMP: maplibregl.ExpressionSpecification = [
   "interpolate", ["linear"], ["get", "strength"],
-  0.2, "#3A2430", 0.45, "#8C3350", 0.65, "#E8446B", 0.8, "#F08A6A", 0.95, "#7FD4D9",
+  0.2, "#3A2A30", 0.45, "#8C4A50", 0.65, "#C8763F", 0.8, "#D9A441", 0.95, "#8FC98A",
 ];
 
 function styleFor(base: Basemap): maplibregl.StyleSpecification {

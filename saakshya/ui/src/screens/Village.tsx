@@ -113,7 +113,7 @@ export default function Village() {
                   <span className="readout text-[15px] text-halide">{p.st_pct}%</span>
                 </div>
                 {p.dajgua_target && (
-                  <div className="console rounded-[2px] border border-sienna/40 bg-sienna/10 px-2.5 py-1.5 text-[7.5px] text-sienna">
+                  <div className="console rounded-[2px] border border-brass/40 bg-brass/10 px-2.5 py-1.5 text-[7.5px] text-brass">
                     On the DAJGUA target list
                   </div>
                 )}
@@ -144,7 +144,7 @@ export default function Village() {
                   </div>
                 ))}
               </div>
-              <Link to="/atlas" className="console mt-4 inline-flex items-center gap-1.5 border-b border-carmine pb-0.5 text-[8px] text-carmine">
+              <Link to="/atlas" className="console mt-4 inline-flex items-center gap-1.5 border-b border-brass pb-0.5 text-[8px] text-brass">
                 See them on the map <IconArrow size={12} />
               </Link>
             </Card>
@@ -163,7 +163,7 @@ export default function Village() {
               <div className="text-right">
                 <div className="console text-[7.5px] text-dim2">Priority score</div>
                 <div className="readout text-[34px] leading-none"
-                  style={{ color: p.priorityBand === "critical" ? "#E8446B" : p.priorityBand === "high" ? "#D0873E" : "#8B9AA3" }}>
+                  style={{ color: p.priorityBand === "critical" ? "#E8446B" : p.priorityBand === "high" ? "#D9A441" : "#8B9AA3" }}>
                   <Counter to={p.priority} decimals={2} />
                 </div>
               </div>
@@ -262,7 +262,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function Meter({ label, value }: { label: string; value: number }) {
-  const tone = value < 0.3 ? "#E8446B" : value < 0.55 ? "#D0873E" : "#4FA86B";
+  const tone = value < 0.3 ? "#E8446B" : value < 0.55 ? "#D9A441" : "#4FA86B";
   return (
     <div>
       <div className="flex items-baseline justify-between">
@@ -281,7 +281,7 @@ function Step({ n, children, delay }: { n: string; children: React.ReactNode; de
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay }}
       className="bg-deck px-5 py-5">
-      <div className="console text-[7.5px] text-carmine">{n}</div>
+      <div className="console text-[7.5px] text-brass">{n}</div>
       <div className="mt-3">{children}</div>
     </motion.div>
   );

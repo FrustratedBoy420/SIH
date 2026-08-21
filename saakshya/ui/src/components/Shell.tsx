@@ -71,18 +71,18 @@ export function Shell({ children, claimId }: { children: React.ReactNode; claimI
                   {on && (
                     <motion.span
                       layoutId="band-index"
-                      className="absolute inset-x-0 bottom-0 h-[2px] bg-carmine"
+                      className="absolute inset-x-0 bottom-0 h-[2px] bg-brass"
                       transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     />
                   )}
-                  {on && <span className="absolute inset-0 -z-10 bg-carmine/[0.07]" />}
+                  {on && <span className="absolute inset-0 -z-10 bg-brass/[0.07]" />}
                 </Link>
               );
             })}
           </nav>
 
           <div className="flex shrink-0 items-center gap-3 border-l border-line px-4">
-            <span className="console rounded-[2px] border border-sienna/40 bg-sienna/10 px-2 py-1 text-[8px] text-sienna">
+            <span className="console rounded-[2px] border border-brass/40 bg-brass/10 px-2 py-1 text-[8px] text-brass">
               Prototype data
             </span>
           </div>

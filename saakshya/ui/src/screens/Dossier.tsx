@@ -6,6 +6,7 @@ import { ParcelFrame } from "../components/ParcelFrame";
 import { Stamp, Eyebrow } from "../components/Instruments";
 import { IconCheck, IconDoc } from "../components/Icons";
 import { claimById, kaalFor, nyayaFor, parcelRing, villageName, DISTRICT } from "../engine/data";
+import { COVER_CLASSES, sampleCover } from "../lib/parcelRenderer";
 import { CUTOFF, SENSOR_LABEL, TRAJECTORY_LABEL } from "../engine/kaal";
 import { REASONS, RULE_13, VERDICT_UI } from "../engine/nyaya";
 import { fmtDate } from "../lib/ui";
@@ -81,7 +82,7 @@ export default function Dossier() {
               {built && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-2">
                   <button onClick={() => window.print()}
-                    className="flex w-full items-center justify-between rounded-[2px] bg-carmine px-4 py-3 text-void transition-colors hover:bg-[#F05A7E]">
+                    className="flex w-full items-center justify-between rounded-[2px] bg-brass px-4 py-3 text-void transition-colors hover:bg-[#E9B75C]">
                     <span className="console text-[9px]">Print or save the dossier</span>
                     <IconDoc size={15} />
                   </button>
@@ -169,16 +170,34 @@ export default function Dossier() {
               <div className="border-t border-ink/20 py-5">
                 <div className="console text-[7.5px] text-ink2">Decade frame strip</div>
                 <div className="mt-2.5 grid grid-cols-7 gap-1.5">
-                  {strip.map((f, i) => (
-                    <motion.figure key={f.year}
-                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.4, delay: 0.1 + i * 0.07, ease: [0.16, 1, 0.3, 1] }}>
-                      <div className="relative aspect-square bg-void">
-                        <ParcelFrame params={{ seed: kaal.seed, canopy: f.canopy, sensor: f.sensor, trajectory: kaal.trajectory_class, year: f.year, obs: f.obs, res: 288, detail: 1.15 }} />
-                      </div>
-                      <figcaption className="readout mt-1 text-[9px] text-ink2">{f.year}</figcaption>
-                      <div className="console text-[5.5px] leading-tight text-ink2/70">{SENSOR_LABEL[f.sensor]}</div>
-                    </motion.figure>
+                  {strip.map((f, i) => {
+                    const c = sampleCover({ seed: kaal.seed, canopy: f.canopy, sensor: f.sensor, trajectory: kaal.trajectory_class, year: f.year, obs: f.obs, detail: 1.15 });
+                    return (
+                      <motion.figure key={f.year}
+                        initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.4, delay: 0.1 + i * 0.07, ease: [0.16, 1, 0.3, 1] }}>
+                        <div className="relative aspect-square bg-void">
+                          <ParcelFrame params={{ seed: kaal.seed, canopy: f.canopy, sensor: f.sensor, trajectory: kaal.trajectory_class, year: f.year, obs: f.obs, res: 288, detail: 1.15 }} />
+                        </div>
+                        {/* the same frame, read back as proportion of ground */}
+                        <div className="mt-[3px] flex h-[5px] overflow-hidden bg-ink/15">
+                          {c && (["forest", "cultivated", "homestead", "water"] as const).map((k, ci) => (
+                            <span key={k} style={{ width: `${c[k] * 100}%`, background: COVER_CLASSES[ci].natural }} />
+                          ))}
+                        </div>
+                        <figcaption className="readout mt-1 text-[9px] text-ink2">{f.year}</figcaption>
+                        <div className="console text-[5.5px] leading-tight text-ink2/70">{SENSOR_LABEL[f.sensor]}</div>
+                      </motion.figure>
+                    );
+                  })}
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="console text-[6.5px] text-ink2">Bar under each frame — ground cover in that year</span>
+                  {COVER_CLASSES.map((c) => (
+                    <span key={c.key} className="flex items-center gap-1.5">
+                      <span className="h-[7px] w-[7px]" style={{ background: c.natural }} />
+                      <span className="console text-[6.5px] text-ink2">{c.label}</span>
+                    </span>
                   ))}
                 </div>
               </div>

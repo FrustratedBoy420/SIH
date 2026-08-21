@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { blitCover, renderParcel } from "../lib/parcelRenderer";
+import { COVER_CLASSES, blitCover, renderParcel, sampleCover, type Cover, type Palette } from "../lib/parcelRenderer";
 import { SENSOR_LABEL } from "../engine/kaal";
 import type { Frame, KaalResult } from "../engine/types";
 
@@ -37,12 +37,14 @@ export function Chronoscope({
   onYear,
   height = 74,
   showTransport = true,
+  palette = "natural",
 }: {
   kaal: KaalResult;
   year: number;
   onYear: (y: number) => void;
   height?: number;
   showTransport?: boolean;
+  palette?: Palette;
 }) {
   const frames = kaal.frames;
   const n = frames.length;
@@ -53,6 +55,7 @@ export function Chronoscope({
   const [head, setHead] = useState(idx); // fractional playhead, for smooth transport
   const [dragging, setDragging] = useState(false);
   const [developed, setDeveloped] = useState(0);
+  const [covers, setCovers] = useState<(Cover | null)[]>([]);
 
   const yearMin = frames[0].year;
   const yearMax = frames[n - 1].year;
@@ -78,6 +81,7 @@ export function Chronoscope({
       ctx.fillRect(0, 0, cv.width, cv.height);
       const slot = cv.width / n;
       let i = 0;
+      const acc: (Cover | null)[] = [];
       const chunk = () => {
         if (cancelled) return;
         const t0 = performance.now();
@@ -85,7 +89,7 @@ export function Chronoscope({
           const f = frames[i];
           const src = renderParcel({
             seed: kaal.seed, canopy: f.canopy, sensor: f.sensor,
-            trajectory: kaal.trajectory_class, year: f.year, obs: f.obs, detail: 0.68, res: 176,
+            trajectory: kaal.trajectory_class, year: f.year, obs: f.obs, detail: 0.42, res: 144, palette,
           });
           const x = Math.floor(i * slot);
           const w = Math.ceil(slot) + 1;
@@ -93,9 +97,16 @@ export function Chronoscope({
           else { ctx.fillStyle = "#151D24"; ctx.fillRect(x, 0, w, cv.height); }
           ctx.fillStyle = "rgba(6,9,12,0.5)";
           ctx.fillRect(x, 0, 1, cv.height);
+          // read the same frame back so the ribbon below can show the
+          // proportion of ground under canopy year by year
+          acc[i] = sampleCover({
+            seed: kaal.seed, canopy: f.canopy, sensor: f.sensor,
+            trajectory: kaal.trajectory_class, year: f.year, obs: f.obs, detail: 0.42,
+          });
           i++;
         }
         setDeveloped(i / n);
+        setCovers([...acc]);
         if (i < n) raf = requestAnimationFrame(chunk);
       };
       raf = requestAnimationFrame(chunk);
@@ -105,7 +116,7 @@ export function Chronoscope({
     const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); paint(); });
     ro.observe(cv);
     return () => { cancelled = true; cancelAnimationFrame(raf); ro.disconnect(); };
-  }, [frames, kaal.seed, kaal.trajectory_class, n]);
+  }, [frames, kaal.seed, kaal.trajectory_class, n, palette]);
 
   /* transport */
   useEffect(() => {
@@ -162,7 +173,7 @@ export function Chronoscope({
         <div className="mb-2.5 flex flex-wrap items-end gap-3">
           <button
             onClick={() => setPlaying((p) => !p)}
-            className="group flex h-9 items-center gap-2 rounded-[2px] border border-line2 bg-deckr px-3 text-halide transition-colors hover:border-carmine hover:bg-deckh"
+            className="group flex h-9 items-center gap-2 rounded-[2px] border border-line2 bg-deckr px-3 text-halide transition-colors hover:border-brass hover:bg-deckh"
             aria-label={playing ? "Pause the archive sweep" : "Sweep the archive"}
           >
             {playing ? (
@@ -246,7 +257,7 @@ export function Chronoscope({
           {/* where the archive says the land changed */}
           {breakX !== null && (
             <div className="pointer-events-none absolute inset-y-0 z-10" style={{ left: `${breakX}%` }}>
-              <div className="h-full w-px bg-soil/90 shadow-[0_0_8px_rgba(127,212,217,0.8)]" />
+              <div className="h-full w-px bg-brass/90 shadow-[0_0_8px_rgba(217,164,65,0.8)]" />
             </div>
           )}
 
@@ -263,6 +274,36 @@ export function Chronoscope({
           </motion.div>
         </div>
         <Sprockets count={Math.min(46, n)} />
+      </div>
+
+      {/* the whole archive as proportion of ground, year by year */}
+      <div className="relative mt-1 flex h-[15px] gap-px overflow-hidden rounded-[1px]" aria-hidden>
+        {frames.map((f, i) => {
+          const c = covers[i];
+          return (
+            <div key={f.year} className="flex min-w-0 flex-1 flex-col justify-end bg-line/60">
+              {c &&
+                (["forest", "cultivated", "homestead", "water"] as const).map((k, ci) => (
+                  <div key={k}
+                    style={{
+                      height: `${c[k] * 100}%`,
+                      background: palette === "infrared" ? COVER_CLASSES[ci].infrared : COVER_CLASSES[ci].natural,
+                    }} />
+                ))}
+            </div>
+          );
+        })}
+        <div className="pointer-events-none absolute inset-y-0 w-px bg-carmine" style={{ left: `${cutoffX}%` }} />
+      </div>
+      <div className="mt-1.5 flex items-center gap-4">
+        <span className="console text-[7px] text-dim2">Ground cover, year by year</span>
+        {[0, 1].map((ci) => (
+          <span key={ci} className="flex items-center gap-1.5">
+            <span className="h-[7px] w-[7px] rounded-[1px]"
+              style={{ background: palette === "infrared" ? COVER_CLASSES[ci].infrared : COVER_CLASSES[ci].natural }} />
+            <span className="console text-[7px] text-dim2">{COVER_CLASSES[ci].label}</span>
+          </span>
+        ))}
       </div>
 
       {/* rulers */}
