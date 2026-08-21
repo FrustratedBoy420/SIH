@@ -1,0 +1,859 @@
+{
+ "district": {
+  "name": "Dindori",
+  "state": "Madhya Pradesh",
+  "note": "SYNTHETIC / ILLUSTRATIVE demo data. Real village names; fabricated claim geometries, names, rejection texts. Real per-claim data is not openly available.",
+  "center": [
+   22.94,
+   81.15
+  ]
+ },
+ "villages": [
+  {
+   "lgd_code": "D-BAJAG",
+   "name": "Bajag",
+   "sc_pct": 12,
+   "st_pct": 71,
+   "water_index": 0.22,
+   "irrigation": 0.14,
+   "cultivable_area_ha": 290,
+   "road_connectivity": 0.33,
+   "dajgua_target": true
+  },
+  {
+   "lgd_code": "D-SAMNAPUR",
+   "name": "Samnapur",
+   "sc_pct": 12,
+   "st_pct": 71,
+   "water_index": 0.28,
+   "irrigation": 0.19,
+   "cultivable_area_ha": 340,
+   "road_connectivity": 0.4,
+   "dajgua_target": true
+  },
+  {
+   "lgd_code": "D-KARANJIA",
+   "name": "Karanjia",
+   "sc_pct": 12,
+   "st_pct": 66,
+   "water_index": 0.35,
+   "irrigation": 0.31,
+   "cultivable_area_ha": 410,
+   "road_connectivity": 0.55,
+   "dajgua_target": true
+  },
+  {
+   "lgd_code": "D-MEHANDWANI",
+   "name": "Mehandwani",
+   "sc_pct": 12,
+   "st_pct": 59,
+   "water_index": 0.41,
+   "irrigation": 0.38,
+   "cultivable_area_ha": 520,
+   "road_connectivity": 0.62,
+   "dajgua_target": false
+  },
+  {
+   "lgd_code": "D-SHAHPURA",
+   "name": "Shahpura",
+   "sc_pct": 12,
+   "st_pct": 64,
+   "water_index": 0.3,
+   "irrigation": 0.22,
+   "cultivable_area_ha": 300,
+   "road_connectivity": 0.5,
+   "dajgua_target": true
+  },
+  {
+   "lgd_code": "D-GADASARAI",
+   "name": "Gada Sarai",
+   "sc_pct": 12,
+   "st_pct": 69,
+   "water_index": 0.25,
+   "irrigation": 0.17,
+   "cultivable_area_ha": 270,
+   "road_connectivity": 0.35,
+   "dajgua_target": true
+  }
+ ],
+ "claims": [
+  {
+   "claim_id": "FRA-DND-0007",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8176,
+    81.182
+   ],
+   "area_ha": 1.8,
+   "rejection_order": {
+    "order_date": "2021-11-03",
+    "rejecting_body": "SDLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.82
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0012",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9399,
+    81.0705
+   ],
+   "area_ha": 2.3,
+   "rejection_order": {
+    "order_date": "2020-09-15",
+    "rejecting_body": "SDLC",
+    "reason_category": "boundary_dispute",
+    "raw_text": "Claim contested. Portion overlaps an adjoining claim / falls within notified forest compartment boundary.",
+    "ocr_confidence": 0.89
+   },
+   "conflict_with": "FRA-DND-0111"
+  },
+  {
+   "claim_id": "FRA-DND-0021",
+   "village_lgd": "D-KARANJIA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9047,
+    81.1255
+   ],
+   "area_ha": 14.6,
+   "rejection_order": {
+    "order_date": "2019-12-22",
+    "rejecting_body": "DLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.85
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0034",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "OTFD",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.7932,
+    81.1897
+   ],
+   "area_ha": 1.2,
+   "rejection_order": {
+    "order_date": "2021-07-30",
+    "rejecting_body": "SDLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.86
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0055",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9321,
+    81.049
+   ],
+   "area_ha": 2.0,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0101",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CFR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8174,
+    81.2196
+   ],
+   "area_ha": 8.1,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0102",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.7913,
+    81.2284
+   ],
+   "area_ha": 12.7,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0103",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8026,
+    81.1869
+   ],
+   "area_ha": 3.4,
+   "rejection_order": {
+    "order_date": "2022-09-04",
+    "rejecting_body": "DLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.84
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0104",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8037,
+    81.1825
+   ],
+   "area_ha": 9.0,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0105",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8333,
+    81.223
+   ],
+   "area_ha": 1.8,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0106",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "OTFD",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8033,
+    81.2112
+   ],
+   "area_ha": 1.5,
+   "rejection_order": {
+    "order_date": "2020-09-24",
+    "rejecting_body": "DLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.85
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0107",
+   "village_lgd": "D-BAJAG",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8015,
+    81.2171
+   ],
+   "area_ha": 11.7,
+   "rejection_order": {
+    "order_date": "2019-06-13",
+    "rejecting_body": "SDLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.81
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0108",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.951,
+    81.0841
+   ],
+   "area_ha": 2.5,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0109",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9547,
+    81.0468
+   ],
+   "area_ha": 3.5,
+   "rejection_order": {
+    "order_date": "2022-06-08",
+    "rejecting_body": "DLC",
+    "reason_category": "incomplete_form",
+    "raw_text": "Claim returned. Form-A incomplete; khasra details and sketch map missing.",
+    "ocr_confidence": 0.8
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0110",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9302,
+    81.0406
+   ],
+   "area_ha": 2.4,
+   "rejection_order": {
+    "order_date": "2019-07-13",
+    "rejecting_body": "DLC",
+    "reason_category": "incomplete_form",
+    "raw_text": "Claim returned. Form-A incomplete; khasra details and sketch map missing.",
+    "ocr_confidence": 0.85
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0111",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9439,
+    81.0745
+   ],
+   "area_ha": 14.1,
+   "rejection_order": {
+    "order_date": "2021-02-10",
+    "rejecting_body": "DLC",
+    "reason_category": "boundary_dispute",
+    "raw_text": "Claim contested. Portion overlaps an adjoining claim / falls within notified forest compartment boundary.",
+    "ocr_confidence": 0.85
+   },
+   "conflict_with": "FRA-DND-0012"
+  },
+  {
+   "claim_id": "FRA-DND-0112",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9667,
+    81.0615
+   ],
+   "area_ha": 1.1,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0113",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9302,
+    81.0768
+   ],
+   "area_ha": 15.6,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0114",
+   "village_lgd": "D-SAMNAPUR",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9569,
+    81.0603
+   ],
+   "area_ha": 9.6,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0115",
+   "village_lgd": "D-KARANJIA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8735,
+    81.146
+   ],
+   "area_ha": 1.0,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0116",
+   "village_lgd": "D-KARANJIA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.891,
+    81.1195
+   ],
+   "area_ha": 2.6,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0117",
+   "village_lgd": "D-KARANJIA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9113,
+    81.1374
+   ],
+   "area_ha": 1.4,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0118",
+   "village_lgd": "D-KARANJIA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8829,
+    81.1523
+   ],
+   "area_ha": 1.8,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0119",
+   "village_lgd": "D-KARANJIA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CFR",
+   "claimant_category": "OTFD",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8725,
+    81.1323
+   ],
+   "area_ha": 16.2,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0120",
+   "village_lgd": "D-KARANJIA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "OTFD",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9015,
+    81.1155
+   ],
+   "area_ha": 1.4,
+   "rejection_order": {
+    "order_date": "2021-02-17",
+    "rejecting_body": "SDLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.89
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0121",
+   "village_lgd": "D-MEHANDWANI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9626,
+    81.0314
+   ],
+   "area_ha": 13.7,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0122",
+   "village_lgd": "D-MEHANDWANI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9727,
+    81.0548
+   ],
+   "area_ha": 18.2,
+   "rejection_order": {
+    "order_date": "2019-01-13",
+    "rejecting_body": "DLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.91
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0123",
+   "village_lgd": "D-MEHANDWANI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "OTFD",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9749,
+    81.0283
+   ],
+   "area_ha": 3.0,
+   "rejection_order": {
+    "order_date": "2020-02-15",
+    "rejecting_body": "SDLC",
+    "reason_category": "boundary_dispute",
+    "raw_text": "Claim contested. Portion overlaps an adjoining claim / falls within notified forest compartment boundary.",
+    "ocr_confidence": 0.92
+   },
+   "conflict_with": "FRA-DND-0124"
+  },
+  {
+   "claim_id": "FRA-DND-0124",
+   "village_lgd": "D-MEHANDWANI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9789,
+    81.0323
+   ],
+   "area_ha": 11.0,
+   "rejection_order": {
+    "order_date": "2022-08-16",
+    "rejecting_body": "SDLC",
+    "reason_category": "boundary_dispute",
+    "raw_text": "Claim contested. Portion overlaps an adjoining claim / falls within notified forest compartment boundary.",
+    "ocr_confidence": 0.84
+   },
+   "conflict_with": "FRA-DND-0123"
+  },
+  {
+   "claim_id": "FRA-DND-0125",
+   "village_lgd": "D-MEHANDWANI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CFR",
+   "claimant_category": "OTFD",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9714,
+    81.0586
+   ],
+   "area_ha": 21.9,
+   "rejection_order": {
+    "order_date": "2022-12-24",
+    "rejecting_body": "SDLC",
+    "reason_category": "non_st_otfd",
+    "raw_text": "Rejected. Claimant eligibility as ST/OTFD not established.",
+    "ocr_confidence": 0.87
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0126",
+   "village_lgd": "D-SHAHPURA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    23.0031,
+    81.3048
+   ],
+   "area_ha": 2.4,
+   "rejection_order": {
+    "order_date": "2021-01-02",
+    "rejecting_body": "DLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.86
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0127",
+   "village_lgd": "D-SHAHPURA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "OTFD",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9755,
+    81.3211
+   ],
+   "area_ha": 1.0,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0128",
+   "village_lgd": "D-SHAHPURA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    23.0015,
+    81.3042
+   ],
+   "area_ha": 2.4,
+   "rejection_order": {
+    "order_date": "2019-07-22",
+    "rejecting_body": "DLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.86
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0129",
+   "village_lgd": "D-SHAHPURA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9639,
+    81.2859
+   ],
+   "area_ha": 1.2,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0130",
+   "village_lgd": "D-SHAHPURA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CFR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9901,
+    81.2744
+   ],
+   "area_ha": 14.4,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0131",
+   "village_lgd": "D-SHAHPURA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "OTFD",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9578,
+    81.2859
+   ],
+   "area_ha": 3.3,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0132",
+   "village_lgd": "D-SHAHPURA",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.9545,
+    81.32
+   ],
+   "area_ha": 2.7,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0133",
+   "village_lgd": "D-GADASARAI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "OTFD",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.871,
+    81.266
+   ],
+   "area_ha": 17.3,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0134",
+   "village_lgd": "D-GADASARAI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8754,
+    81.2925
+   ],
+   "area_ha": 1.2,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0135",
+   "village_lgd": "D-GADASARAI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8342,
+    81.2861
+   ],
+   "area_ha": 0.9,
+   "rejection_order": {
+    "order_date": "2022-05-28",
+    "rejecting_body": "DLC",
+    "reason_category": "boundary_dispute",
+    "raw_text": "Claim contested. Portion overlaps an adjoining claim / falls within notified forest compartment boundary.",
+    "ocr_confidence": 0.88
+   }
+  },
+  {
+   "claim_id": "FRA-DND-0136",
+   "village_lgd": "D-GADASARAI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "OTFD",
+   "status": "pending",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8683,
+    81.2862
+   ],
+   "area_ha": 1.5,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0137",
+   "village_lgd": "D-GADASARAI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "CR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8557,
+    81.2547
+   ],
+   "area_ha": 21.2,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0138",
+   "village_lgd": "D-GADASARAI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "granted",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.8721,
+    81.283
+   ],
+   "area_ha": 1.2,
+   "rejection_order": null
+  },
+  {
+   "claim_id": "FRA-DND-0139",
+   "village_lgd": "D-GADASARAI",
+   "claimant_name": "[synthetic]",
+   "claim_type": "IFR",
+   "claimant_category": "ST",
+   "status": "rejected",
+   "filed_date": "2019-05-05",
+   "geometry_centroid": [
+    22.878,
+    81.3063
+   ],
+   "area_ha": 2.6,
+   "rejection_order": {
+    "order_date": "2020-11-08",
+    "rejecting_body": "SDLC",
+    "reason_category": "no_pre_2005_proof",
+    "raw_text": "Claim rejected. Claimant failed to produce documentary evidence of occupation prior to 13.12.2005.",
+    "ocr_confidence": 0.84
+   }
+  }
+ ]
+}

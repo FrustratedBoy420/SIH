@@ -1,0 +1,260 @@
+# SAAKSHYA — Product Requirements Document (PRD)
+
+**Project:** SAAKSHYA ("evidence") — FRA claim-recovery & decision-support platform
+**Problem Statement:** SIH PS **25108**, Ministry of Tribal Affairs — *AI-powered FRA Atlas + WebGIS DSS for integrated monitoring of Forest Rights Act implementation.*
+**Target states:** Madhya Pradesh, Tripura, Odisha, Telangana.
+
+| | |
+|---|---|
+| **Version** | 1.0 (finalised for team circulation) |
+| **Status** | Approved concept → build |
+| **Owner** | [Team lead — MVP/tech] |
+| **Companion docs** | `02_PPT_Content_Pack.md`, `03_MVP_Build_Spec.md`, `04_Team_Brief.md`, `../SAAKSHYA_Concept_Review.md` (audited concept + Claims Ledger) |
+| **Source of truth for facts** | `../SAAKSHYA_Concept_Review.md` §13 Claims Ledger. Every stat on any slide must trace there. |
+
+> **Read order for the team:** `04_Team_Brief` (2 min) → this PRD → your role's companion doc.
+
+---
+
+## 1. Vision & positioning
+
+**One line:** *"Existing FRA tools map the claims that were **granted**. SAAKSHYA rebuilds the proof for the claims that were **rejected**."*
+
+Every shipped FRA system (Bhuvan FRA layers, emerging state atlases, the open-source PS-25108 clones) maps granted claims forward and delivers schemes to title-holders. SAAKSHYA inverts the center of gravity to the **rejection / dispute / appeal** side — where the human impact and the novelty both sit — while still delivering all four PS-mandated components so it is never off-brief.
+
+**Why we win the rubric:** occupies the empty quadrant (backward evidence-recovery × Gram-Sabha-facing); a defensible technical wedge (50-year satellite time-series); a court-grounded ethics story (the C14 flip); and honest, disclosed limits (which reads as rigor, not weakness).
+
+---
+
+## 2. Problem (scoped honestly)
+
+FRA 2006 recognises rights of forest-dwelling STs and OTFDs over land occupied before **13 Dec 2005** [Ledger C1]. The documented failure is **mass rejection**: **≈47,901 community (CFR/CFRR) claims rejected** nationally [C3], driven by claimants unable to prove pre-2005 occupation, arbitrary/opaque rejections, forest-department resistance, ignored Gram Sabha recommendations, and weak appeal support [C4–C6].
+
+**What SAAKSHYA does and does NOT solve (must stay honest — see §11 risks):**
+- ✅ Reconstructs *when* forest became farm/settlement from satellite archives → answers the **"no pre-2005 proof"** and **boundary-dispute** rejection categories.
+- ✅ Fully serves **ST** claims (bar = pre-2005, inside the 1972 archive).
+- ⚠️ **OTFD** claims need ~75 years of occupation (~1930) — beyond any satellite; KAAL *strengthens continuity*, never proves the 75-year test [C17].
+- ❌ Does not resolve eligibility (non-ST status), procedural defects, or incomplete-form rejections by imagery — those flow through the VAANI/NYAYA workflow, not KAAL [C16].
+
+---
+
+## 3. Goals & non-goals
+
+**Goals**
+- G1. Win the internal blind round (top-50) with a differentiated, rubric-optimised idea PDF + one real evidence dossier.
+- G2. Be genuinely buildable by a 6-person team if selected for SIH.
+- G3. Deliver all four PS components (digitization, satellite asset-mapping, WebGIS atlas, DSS) so we are brief-compliant.
+- G4. Produce a real, dated evidence dossier for one district as the proof artifact.
+
+**Non-goals (explicitly out)**
+- Legal adjudication — output is an *evidence bundle*, never a proof of right.
+- Production deployment, real claimant PII, field data collection (internal round).
+- Blockchain, court-filing integration, offline mobile app (roadmap only).
+- Rendering "absence of evidence" as a user artifact (dual-use safeguard — §11).
+- Drifting into a generic tribal-welfare super-app.
+
+---
+
+## 4. Users & personas (DUAL-USER — first-class both)
+
+The PS names officers/ministries as users; our differentiator adds the Gram Sabha. We serve **both** — officer keeps parity (protects Criterion-1 relevance), Gram Sabha is the added novelty.
+
+| Persona | Role | Primary jobs in SAAKSHYA |
+|---|---|---|
+| **P1 — District Tribal-Welfare / DAJGUA officer** (PS-named, first-class) | Monitors FRA implementation, drives scheme convergence | Rejection heatmap, appeal-deadline queue, scheme-gap dashboard (SETU), progress tracking |
+| **P2 — Gram Sabha / FRA facilitator / NGO** (the differentiator) | Prepares & defends claims, files appeals | Pull an evidence dossier for a rejected claim, boundary-dispute view, appeal next-action (NYAYA) |
+| **P3 — Forest / Revenue dept** (secondary) | Verification | Conflict/overlap layer, evidence-strength view |
+| **P4 — MoTA / State planning** (secondary) | Policy | State/district rejection analytics, evidence-recovery potential |
+
+Design principle: **officer dashboard and Gram-Sabha view are peers, not a hierarchy.** Never phrase the officer as an afterthought.
+
+---
+
+## 5. Scope
+
+### 5.1 Internal round (by 21 Aug) — what MUST exist
+- The 6-slide blind PDF (see `02_PPT_Content_Pack.md`).
+- **One real evidence dossier** generated by the KAAL spike on one district (the proof artifact).
+- High-fidelity mockups of the atlas + dual-user views + NYAYA panel.
+- No live demo (blind, online, PDF only). Optional QR → 60-sec walkthrough video.
+
+### 5.2 SIH build (if selected, by ~Sept) — MVP vertical slice
+Claim polygon in → **dossier PDF out** (dated finding + confidence + rejection-reason match + scheme-gap), one district, no manual intervention beyond Corona georef. Everything else = roadmap.
+
+---
+
+## 6. Functional requirements (by band, MoSCoW)
+
+Legend: **M**ust / **S**hould / **C**ould. "PS" = satisfies a mandated PS component.
+
+### Band A — KAAL (historic evidence engine) — *the flagship*
+- **M** A1. Pull annual cloud-masked Landsat stack (MSS 1972→, TM/ETM+/OLI) for a parcel via Google Earth Engine. `PS(b)`
+- **M** A2. Compute annual NDVI/NBR/Tasseled-Cap-Wetness series.
+- **M** A3. Run LandTrendr/CCDC temporal segmentation → detect breakpoint year(s) [C11].
+- **M** A4. Classify break direction/trajectory: forest→cultivation vs forest→settlement vs stable.
+- **M** A5. Emit per parcel: `conversion_year`, `confidence`, `evidence_strip` (decade chips).
+- **M** A6. Surface confidence always; never output a date without it. **Confidence basis defined in §8.**
+- **S** A7. Corona KH-4B (1967–72) georeferenced overlay for pre-1972 settlement.
+- **S** A8. Model **shifting cultivation (podu/jhum)** as a *positive* traditional-occupation class, not noise [risk].
+- **C** A9. SAR (Sentinel-1) confirmation for cloud-heavy parcels.
+
+### Band B — SEEMA (present-day assets + conflict)
+- **M** B1. PyTorch segmentation on Sentinel-2 (10 m): farms/forest/water/homesteads. `PS(b)`
+- **M** B2. Load result polygons into PostGIS.
+- **M** B3. Detect claim-vs-claim overlaps and claim-vs-forest-boundary conflicts (`ST_Intersects`/`ST_Area`).
+- **S** B4. Flag legitimate IFR-inside-CFR as NOT a conflict (edge case).
+
+### Band C — VAANI (document intelligence)
+- **M** C1. Indic OCR (PaddleOCR/Tesseract) on Form A/B/C + rejection orders. `PS(a)`
+- **M** C2. NER: extract village, claimant, coordinates, claim type, status. `PS(a)`
+- **M** C3. Classify **rejection reason** into ≥5 categories (no-pre-2005-proof / boundary-dispute / Gram-Sabha-procedure-defect / non-ST-OTFD / incomplete-form).
+- **C** C4. IndicWhisper ASR for oral Gram-Sabha testimony.
+
+### Band D — NYAYA (appeal DSS) + SETU (scheme DSS)
+- **M** D1. Rule table: each rejection reason → the evidence type that answers it. `PS(d)`
+- **M** D2. Match: does KAAL/SEEMA output answer the stated reason? → "evidence held / gap / next action."
+- **M** D3. Appeal logic: given rejection reason + order date → correct forum (SDLC/DLC) + **60-day deadline** [C2].
+- **M** D4. SETU: link title-holders to eligible schemes (PM-KISAN/JJM/MGNREGA/DAJGUA). `PS(d)`
+- **S** D5. Rules encoded as declarative JSON DSL (amendments = config, not code).
+
+### Band E — Atlas (WebGIS glue)
+- **M** E1. Map with IFR/CR/CFR layers + village/block/district boundaries. `PS(c)`
+- **M** E2. New layers: **Rejection**, **Conflict**, **Evidence-strength** choropleth.
+- **M** E3. Filters: state/district/village/claim-type; progress tracking. `PS(c)`
+- **M** E4. Claim drawer: click parcel → profile + evidence timeline + dossier button.
+- **S** E5. Dual views: officer dashboard (heatmap/queue) vs Gram-Sabha view (dossier/testimony).
+
+### Band F — Dossier generator (the money-shot)
+- **M** F1. One-click PDF: claim ID, parcel map, decade image strip, conversion-year finding, confidence band, cited Rule-13 category, rejection-reason match table, testimony slot, Gram-Sabha-resolution slot.
+- **S** F2. Bilingual template (Hindi/Odia/Kokborok/Telugu + English).
+
+---
+
+## 7. DSS logic (detailed — the novel core)
+
+### 7.1 Rejection-reason → evidence rule table (NYAYA D1/D2)
+| Rejection reason | Evidence that answers it | Which band produces it | KAAL can help? |
+|---|---|---|---|
+| No pre-2005 occupation proof | Dated land-conversion before 2005 + decade strip | KAAL | ✅ (ST); ⚠️ partial (OTFD) |
+| Boundary / overlap dispute | Segmented parcel + topology conflict map | SEEMA | ✅ |
+| Gram-Sabha procedure defect | Corrected resolution / re-filing checklist | VAANI/NYAYA workflow | ❌ |
+| Non-ST/OTFD eligibility | Caste/community records (out of scope for imagery) | External | ❌ |
+| Incomplete / defective form | Field-completeness check + re-submission | VAANI | ❌ |
+
+Output per claim: `{reason, evidence_available: [..], evidence_gap: [..], next_action, appeal_forum, deadline_date}`.
+
+### 7.2 Appeal routing (NYAYA D3)
+```
+if rejected_by == GramSabha/SDLC:  forum = SDLC (Sec 6(2)); deadline = order_date + 60d
+if rejected_by == SDLC:            forum = DLC  (Sec 6(4)); deadline = order_date + 60d
+flag if (today > deadline) -> "appeal window LAPSED — advise fresh claim / condonation"
+```
+
+### 7.3 SETU scheme eligibility (D4)
+Declarative rules per scheme, e.g.:
+```
+JalJeevanMission: village.water_access_index < THRESHOLD  -> recommend borewell/piped-water
+PM-KISAN:        holder.has_title AND holder.cultivable_area > 0 -> eligible
+MGNREGA-on-FRA:  holder.has_title -> land-development works eligible
+DAJGUA:          village in DAJGUA-target AND holder.has_title -> convergence bundle
+```
+> Note: SETU serves **granted** title-holders (brief-compliance for PS-d). The rejection-recovery bands serve the un-titled. Keep this distinction clear — SETU is the compliance layer, not the differentiator.
+
+### 7.4 KAAL confidence formula (A6 — define it, judges will ask)
+`confidence = f(valid_observation_count_per_epoch, break_magnitude, classifier_probability, registration_RMSE)` — low when: few cloud-free years near the break, weak break magnitude, or high Corona georef error. Surface the drivers, not just a number.
+
+---
+
+## 8. Data model (core entities)
+
+```
+Village(lgd_code, name, district, state, sc_pct, water_index, dajgua_target)
+Claim(claim_id, village_lgd, claimant_name, claim_type[IFR|CR|CFR], status[granted|pending|rejected],
+      claimant_category[ST|OTFD], filed_date, geometry(polygon|point))
+RejectionOrder(claim_id, order_date, rejecting_body[GS|SDLC|DLC], reason_category, raw_text, ocr_confidence)
+Parcel/EvidenceResult(claim_id, conversion_year, break_direction, trajectory_class, confidence,
+      evidence_strip[urls], corona_available[bool], registration_rmse)
+AssetPolygon(id, village_lgd, class[farm|forest|water|homestead], geometry, iou_reported)
+Conflict(claim_id_a, claim_id_b|boundary_id, type[claim-claim|claim-forest], overlap_area)
+SchemeRecommendation(claim_id, scheme, eligible[bool], reason)
+AppealAdvice(claim_id, forum, deadline_date, window_status)
+```
+
+---
+
+## 9. Data sources (all free/public — see Concept Review §8)
+Landsat MSS/TM/ETM+/OLI 1972→ (GEE) · Corona KH-4B 1967–72 (USGS EarthExplorer) · Sentinel-2 (Copernicus/GEE) · Bhuvan base/LULC · SRTM/CartoDEM · Census village directory + LGD codes · MoTA MPR rejection stats · FSI forest cover. **Georef caveat:** Corona needs manual georeferencing. **Input caveat:** per-claim polygons + rejection orders are often not digitized — MVP uses digitized/synthetic claims for one district (see risk §11.3).
+
+---
+
+## 10. Tech stack & justification (Criterion 6)
+
+| Layer | Choice | FRA-specific justification |
+|---|---|---|
+| Archive compute | Google Earth Engine + STAC/rasterio/xarray | 50-yr petabyte archive, zero local storage; can't self-host |
+| Change detection | LandTrendr / CCDC (custom runs for pre-1999) | Peer-reviewed; not hand-rolled. *Note: GEE precomputed CCDC is 1999–2019 only; pre-1999 = custom runs* |
+| Present-day CV | PyTorch U-Net/DeepLab on Sentinel-2 | 10 m is where asset mapping is valid |
+| Spatial DB | PostGIS | topology for overlap/conflict |
+| Map | MapLibre GL + TiTiler/COG + PMTiles | open; no Mapbox lock; offline packs |
+| OCR/NER | PaddleOCR/Tesseract + IndicNER | Devanagari/Odia/Telugu forms + rejection orders |
+| Oral testimony | AI4Bharat IndicWhisper | low-literacy Gram-Sabha users |
+| Rules | Declarative JSON DSL | FRA amendments = config not code |
+| API/Backend | FastAPI + PostgreSQL/PostGIS | Python-native, shares ML stack |
+| Frontend | React + MapLibre | dual-user dashboards |
+
+**Rejected alternatives (state on slide):** not ArcGIS (licence, undeployable to a Gram Sabha); not YOLO-on-Landsat (object detection is the wrong tool — the task is *temporal segmentation*).
+
+---
+
+## 11. Non-functional requirements & safeguards
+- **NFR1 — Explainability:** every recommendation carries reasons + evidence + confidence + rule/model version + officer override.
+- **NFR2 — Dual-use safety:** emit only *corroborating* evidence; **never render absence-of-signal** as an artifact; dossiers Gram-Sabha-owned + consent-gated. (Design principle, converts risk → Criterion-4 point.)
+- **NFR3 — Privacy:** public tier = village-level aggregates; parcel geometry gated behind consent (habitation polygons could enable eviction targeting).
+- **NFR4 — Scalability:** GEE + COG tiling scales to 4 states without re-architecture; one district end-to-end before adding states.
+- **NFR5 — Offline:** PMTiles packs for low-connectivity blocks (roadmap).
+
+---
+
+## 12. Expected outcomes / metrics (⚠️ PROJECTED targets — not results)
+The internal round is a blind PDF with no build; label every number "target / spike-validated." Presenting a target as achieved = Criterion-8 integrity risk.
+- Conversion-year accuracy: within **±3 years** of truth on ≥70% of a labelled subset (spike). *Validation caveat: high-res reference imagery often starts ~2003–06; pre-2000 dates cross-validated Corona↔Landsat, accuracy reported only where reference exists.*
+- Rejection-reason NER: **≥80%** correct category on a holdout.
+- Asset segmentation: per-class IoU reported (not aggregate).
+- Dossier: one claim polygon in → complete dossier PDF out, no manual step (beyond Corona georef).
+- Coverage: ≥30-year annual composite stack for the demo district.
+
+---
+
+## 13. Milestones (aligned to VIT Bhopal timeline)
+
+| Date | Milestone | Owner |
+|---|---|---|
+| 8 Aug ✅ | Team + domain + title registered | Lead |
+| ~14–20 Aug | KAAL spike on 1 district → real dossier; mockups; deck content | MVP lead + GIS/ML + design |
+| **21 Aug** | **Submit 6-slide idea PDF (blind)** | Deck owner |
+| 22–30 Aug | (blind assessment window — nothing to do) | — |
+| 31 Aug | Internal result (top 50) | — |
+| 8 Sep | (if selected) refine to SIH format | All |
+| 13 Sep | Upload to SIH portal | Lead |
+
+---
+
+## 14. Acceptance criteria (MVP vertical slice)
+- AC1. Given a claim polygon in the demo district, the system returns a dossier PDF with: dated conversion finding, confidence + drivers, decade evidence strip, rejection-reason match table, appeal forum + deadline. No manual step beyond Corona georef.
+- AC2. Negative control: on a parcel of continuous dense forest, KAAL returns "no conversion detected" — never fabricates a break. (Internal test only; never a user artifact.)
+- AC3. Conflict test: synthetic overlapping IFR/CFR polygons → PostGIS detects overlap + area.
+- AC4. NER: rejection-reason category ≥80% on labelled holdout.
+- AC5. Every number in the deck traces to Ledger (§13 of Concept Review); nothing unsourced.
+
+---
+
+## 15. Open questions (resolve before finalising the deck)
+1. **[Highest]** Any documented FRA appeal citing remote-sensing evidence *for* a claimant? (Ledger C14 — currently no; keep "strengthens the bundle" wording.)
+2. Is the 47,901 figure on the primary MoTA MPR? (C3)
+3. Verbatim Rule 13 sub-clause text. (C12)
+4. Are rejection orders obtainable in bulk (RTI/state portal) for NER training, or must we synthesize?
+5. Corona KH-4B scene coverage over the chosen district — confirm on EarthExplorer *before* committing (C10).
+6. Does the rubric award marks for an appendix past slide 6?
+
+---
+*All facts trace to `../SAAKSHYA_Concept_Review.md` §13. Anything not there is NEEDS-CHECK and stays off the slides until confirmed.*

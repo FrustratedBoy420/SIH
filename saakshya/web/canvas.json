@@ -1,0 +1,17 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "Landing — Hero", "x": 0, "y": 0, "w": 1280, "h": 820 },
+    { "file": "Atlas.dc.html", "title": "Atlas — WebGIS (Slide 5)", "x": 1360, "y": 0, "w": 1280, "h": 820 },
+    { "file": "Claim.dc.html", "title": "KAAL — Evidence engine (Slide 4)", "x": 2720, "y": 0, "w": 1000, "h": 820 },
+    { "file": "Nyaya.dc.html", "title": "NYAYA — Appeal DSS (Slide 5)", "x": 3800, "y": 0, "w": 900, "h": 820 },
+    { "file": "Dual.dc.html", "title": "Dual-user: Officer | Gram Sabha (Slide 3)", "x": 4780, "y": 0, "w": 1280, "h": 820 }
+  ],
+  "annotations": [
+    { "id": "note-hero", "x": 0, "y": -74, "w": 460, "text": "LANDING — public hero, signed-out only. Real India-centred satellite globe (rotating video in the real build), wordmark, sign-in." },
+    { "id": "note-atlas", "x": 1360, "y": -74, "w": 460, "text": "ATLAS — WebGIS. IFR/CR/CFR + Rejected/Conflict/Evidence-strength layers, crosshair-selected rejected claim, KAAL readout." },
+    { "id": "note-kaal", "x": 2720, "y": -74, "w": 420, "text": "KAAL — the flagship. Decade strip + LandTrendr breakpoint (1996, pre-2005) + confidence dial. Slide-4 money-shot." },
+    { "id": "note-nyaya", "x": 3800, "y": -74, "w": 400, "text": "NYAYA — rejection-reason match -> appeal forum + 60-day deadline (LAPSED) + SETU scheme gap." },
+    { "id": "note-dual", "x": 4780, "y": -74, "w": 460, "text": "DUAL-USER — officer dashboard (PS-named, first-class) | Gram Sabha view (differentiator). Protects Criterion-1." }
+  ],
+  "launch": { "view": "canvas" }
+}

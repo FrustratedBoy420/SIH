@@ -1,0 +1,19 @@
+# --- offline demo (dossier + NYAYA + mock KAAL) — installed & working ---
+numpy>=2.0
+matplotlib>=3.9
+reportlab>=4.0
+Pillow>=10.0
+
+# --- REAL KAAL spike (install when wiring Earth Engine) ---
+# earthengine-api>=1.0
+# geemap>=0.32
+
+# --- SEEMA (present-day segmentation, post-selection) ---
+# torch
+# segmentation-models-pytorch
+# rasterio
+# geopandas
+# shapely
+
+# --- VAANI (OCR/NER, post-selection) ---
+# paddleocr    OR   pytesseract
