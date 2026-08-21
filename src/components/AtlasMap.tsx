@@ -2,6 +2,11 @@ import { useEffect, useRef } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MLMap, MapLayerMouseEvent, MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+// MapLibre fetches its worker at runtime, and that worker imports a sibling
+// shared chunk by relative path — so the pair has to ship verbatim, at stable
+// names, or every GeoJSON source silently stays empty in a production build.
+// scripts/copy-maplibre-worker.mjs puts them in public/ before dev and build.
+maplibregl.setWorkerUrl(`${import.meta.env.BASE_URL}maplibre/maplibre-gl-worker.mjs`);
 import {
   CLAIMS, CONFLICTS, DISTRICT, VILLAGE_RING, VILLAGES, VILLAGE_CENTER,
   evidenceStrength, isRecoverable, parcelRing, villageName,
