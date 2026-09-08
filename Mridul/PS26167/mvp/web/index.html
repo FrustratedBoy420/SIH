@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SatQuery AI — Modality Workstation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* ============================================================
+   TOKENS — see docs/06_Design_System.md §2
+   Palette derived from false-colour infrared composites:
+   vegetation crimson, water near-black, built-up cyan, soil tan.
+   ============================================================ */
+:root{
+  --paper:#F3F5F4; --surface:#FFFFFF; --surface-2:#E9EDEB;
+  --rule:#D3DAD7; --rule-2:#B9C3BF;
+  --ink:#0F1613; --ink-2:#4A5551; --ink-3:#7C8783;
+  --accent:#0E7C86; --accent-2:#0A5C64; --accent-bg:#DDEEF0;
+  --optical:#B8763A; --sar:#2C7A8C; --fusion:#6B5CA5;
+  --nir:#C4342A; --good:#2F7D5A; --warn:#A1740F;
+  --e2:0 1px 2px rgba(15,22,19,.04), 0 8px 24px rgba(15,22,19,.06);
+  --ease:cubic-bezier(.2,.7,.3,1);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:14px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+/* ============================================================ LAYOUT */
+.app{display:grid;grid-template-rows:auto 1fr auto;height:100vh}
+
+/* -- instrument header -- */
+header{
+  display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+  padding:11px 18px;background:var(--surface);border-bottom:1px solid var(--rule);
+}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand h1{
+  font-family:"Bricolage Grotesque",Georgia,serif;font-weight:600;
+  font-size:19px;letter-spacing:-.015em;margin:0;
+}
+.brand .ps{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  border:1px solid var(--rule);padding:2px 6px;border-radius:2px}
+.meta{display:flex;gap:20px;flex-wrap:wrap}
+.meta div{display:flex;flex-direction:column;gap:1px}
+.meta .k{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.meta .v{font-family:"IBM Plex Mono",monospace;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.status{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(47,125,90,.15)}
+
+/* prototype banner — integrity requirement, see ADR-007 */
+.proto{
+  background:#FDF6E3;border-bottom:1px solid #E8DCC0;color:#6B5A2B;
+  padding:6px 18px;font-size:11.5px;display:flex;gap:8px;align-items:center;
+}
+.proto b{color:#4A3E1C}
+
+/* -- main three-column bento -- */
+main{display:grid;grid-template-columns:236px 1fr 300px;min-height:0}
+aside{background:var(--surface);display:flex;flex-direction:column;min-height:0;overflow-y:auto}
+aside.left{border-right:1px solid var(--rule)}
+aside.right{border-left:1px solid var(--rule)}
+.sect{padding:14px 16px;border-bottom:1px solid var(--rule)}
+.sect h2{margin:0 0 10px;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+
+/* -- input layer rows -- */
+.layer{
+  display:flex;align-items:center;gap:9px;padding:8px 9px;margin-bottom:5px;
+  border:1px solid var(--rule);border-left:3px solid var(--c,var(--rule-2));
+  background:var(--surface);cursor:pointer;transition:background .18s var(--ease);
+}
+.layer:hover{background:var(--surface-2)}
+.layer[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent)}
+.layer .sw{width:9px;height:9px;border-radius:1px;background:var(--c)}
+.layer .nm{flex:1;min-width:0}
+.layer .nm b{display:block;font-size:12.5px;font-weight:500}
+.layer .nm span{display:block;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-3)}
+
+/* -- metadata readout -- */
+.kv{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dotted var(--rule)}
+.kv:last-child{border-bottom:0}
+.kv dt{font-size:11.5px;color:var(--ink-3)}
+.kv dd{margin:0;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-variant-numeric:tabular-nums}
+.ok{color:var(--good)}
+
+/* -- 3D stage -- */
+.stage{position:relative;min-height:0;background:
+  radial-gradient(120% 90% at 50% 0%, #FFFFFF 0%, var(--paper) 60%, #E7EBE9 100%)}
+#gl{display:block;width:100%;height:100%}
+.gl-label{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.04em;
+  color:var(--ink);background:rgba(255,255,255,.86);border:1px solid var(--rule);
+  padding:3px 7px;white-space:nowrap;pointer-events:none;text-transform:uppercase;
+}
+.gl-label b{font-weight:600}
+.gl-label.opt{border-left:3px solid var(--optical)}
+.gl-label.sar{border-left:3px solid var(--sar)}
+.gl-label.fus{border-left:3px solid var(--fusion)}
+
+/* the ONE place glass is permitted — floating over the scene (§4) */
+.floatbar{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:16px;
+  display:flex;align-items:center;gap:16px;padding:9px 14px;
+  background:rgba(255,255,255,.62);backdrop-filter:blur(14px) saturate(1.4);
+  -webkit-backdrop-filter:blur(14px) saturate(1.4);
+  border:1px solid rgba(255,255,255,.9);box-shadow:var(--e2);border-radius:3px;
+}
+.floatbar .label{color:var(--ink-2)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:150px;height:3px;background:var(--rule-2);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--surface);border:2px solid var(--accent);cursor:grab}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--surface);
+  border:2px solid var(--accent);cursor:grab}
+.ghost{background:transparent;border:1px solid var(--rule-2);padding:5px 11px;font-size:12px;cursor:pointer;
+  border-radius:2px;transition:background .18s var(--ease)}
+.ghost:hover{background:var(--surface-2)}
+.hint{position:absolute;top:14px;left:16px;font-size:11px;color:var(--ink-3);
+  background:rgba(255,255,255,.7);padding:4px 8px;border:1px solid var(--rule);border-radius:2px}
+
+/* -- trace -- */
+.trace{display:flex;flex-direction:column;gap:0}
+.tr{display:grid;grid-template-columns:16px 1fr;gap:8px;padding:6px 0;
+  border-bottom:1px dotted var(--rule);opacity:0;transform:translateY(6px);
+  animation:in .14s var(--ease) forwards}
+@keyframes in{to{opacity:1;transform:none}}
+.tr .mk{color:var(--good);font-size:12px;line-height:1.5}
+.tr.no .mk{color:var(--nir)}
+.tr .tx b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.tr .tx span{display:block;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink);word-break:break-word}
+
+/* -- evidence -- */
+.ev{border:1px solid var(--rule);border-left:3px solid var(--nir);padding:10px 11px;margin-bottom:8px;background:var(--surface)}
+.ev .claim{font-size:13px;font-weight:500;margin-bottom:6px}
+.conf{display:flex;align-items:center;gap:8px;margin:8px 0 6px}
+.bar{flex:1;height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--good);border-radius:2px;transition:width .5s var(--ease)}
+.geo{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.empty{color:var(--ink-3);font-size:12.5px;padding:6px 0}
+
+/* -- query bar -- */
+footer{background:var(--surface);border-top:1px solid var(--rule);padding:11px 18px}
+.qwrap{display:flex;gap:10px;align-items:center;max-width:1400px;margin:0 auto}
+#q{flex:1;padding:10px 13px;background:var(--paper);border:1px solid var(--rule-2);border-radius:2px;font-size:14px}
+#q::placeholder{color:var(--ink-3)}
+.go{padding:10px 20px;background:var(--accent);color:#fff;border:0;border-radius:2px;font-weight:500;cursor:pointer;
+  transition:background .18s var(--ease)}
+.go:hover{background:var(--accent-2)}
+.go:disabled{opacity:.5;cursor:default}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;max-width:1400px;margin-inline:auto}
+.chip{background:transparent;border:1px solid var(--rule);padding:4px 9px;font-size:11.5px;cursor:pointer;
+  border-radius:2px;color:var(--ink-2);transition:all .18s var(--ease)}
+.chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.chip.refuse{border-style:dashed}
+
+/* -- answer -- */
+.answer{padding:12px 16px;border-bottom:1px solid var(--rule);background:var(--accent-bg)}
+.answer p{margin:0;font-size:13.5px;line-height:1.55}
+.answer .src{margin-top:7px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-2)}
+.answer.refused{background:#FBEAE8;border-left:3px solid var(--nir)}
+
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media (max-width:1080px){
+  main{grid-template-columns:1fr;grid-template-rows:auto 46vh auto}
+  aside.left,aside.right{border:0;border-bottom:1px solid var(--rule);max-height:30vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <h1>SatQuery&nbsp;AI</h1>
+      <span class="ps">PS 26167 · ISRO</span>
+    </div>
+    <div class="meta">
+      <div><span class="k">Scene</span><span class="v">S2A_T43RGN_20240115</span></div>
+      <div><span class="k">CRS</span><span class="v">EPSG:4326</span></div>
+      <div><span class="k">Bands</span><span class="v">13 + VV/VH</span></div>
+      <div><span class="k">GSD</span><span class="v">10 m</span></div>
+    </div>
+    <div class="status"><span class="dot"></span><span>co-registered</span></div>
+  </header>
+
+  <div class="proto">
+    <b>Prototype.</b>
+    <span>Responses are staged and no model is running. The rasters are procedurally generated, not real acquisitions. Every architectural behaviour shown — routing, validation, refusal, evidence gating, the trace — is real.</span>
+  </div>
+
+  <main>
+    <!-- ─────────────────────────── INPUTS ─────────────────────────── -->
+    <aside class="left">
+      <div class="sect">
+        <h2>Input layers</h2>
+        <button class="layer" style="--c:var(--optical)" aria-pressed="true" data-layer="optical">
+          <span class="sw"></span>
+          <span class="nm"><b>Optical</b><span>Sentinel-2 · 13 bands</span></span>
+        </button>
+        <button class="layer" style="--c:var(--sar)" aria-pressed="true" data-layer="sar">
+          <span class="sw"></span>
+          <span class="nm"><b>SAR</b><span>Sentinel-1 · VV/VH</span></span>
+        </button>
+        <button class="layer" style="--c:var(--fusion)" aria-pressed="true" data-layer="fusion">
+          <span class="sw"></span>
+          <span class="nm"><b>Fusion</b><span>derived</span></span>
+        </button>
+      </div>
+
+      <div class="sect">
+        <h2>Scene metadata</h2>
+        <dl style="margin:0">
+          <div class="kv"><dt>Acquired</dt><dd>2024-01-15 05:42Z</dd></div>
+          <div class="kv"><dt>Extent</dt><dd>0.18° × 0.18°</dd></div>
+          <div class="kv"><dt>Centre</dt><dd>23.41N 85.32E</dd></div>
+          <div class="kv"><dt>Cloud</dt><dd>34 %</dd></div>
+          <div class="kv"><dt>Registered</dt><dd class="ok">✓ &lt; 0.5 px</dd></div>
+        </dl>
+      </div>
+
+      <div class="sect" style="border-bottom:0">
+        <h2>Why two sensors</h2>
+        <p style="margin:0;font-size:12px;line-height:1.5;color:var(--ink-2)">
+          Cloud covers the north-east of the optical scene. Radar passes through it, and
+          built structures return strongly from corner reflection — so SAR recovers what
+          optical cannot see. <b>Pull the stack apart to compare.</b>
+        </p>
+      </div>
+    </aside>
+
+    <!-- ─────────────────────────── 3D STAGE ─────────────────────────── -->
+    <section class="stage">
+      <canvas id="gl"></canvas>
+      <div class="hint">drag to orbit · scroll to zoom</div>
+      <div class="floatbar">
+        <span class="label">Separation</span>
+        <input id="sep" type="range" min="0" max="100" value="46" aria-label="Layer separation">
+        <button class="ghost" id="reset">Reset view</button>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────── TRACE + EVIDENCE ─────────────────────────── -->
+    <aside class="right">
+      <div id="answerSlot"></div>
+      <div class="sect">
+        <h2>Execution trace</h2>
+        <div class="trace" id="trace">
+          <p class="empty">Ask a question, or pick one below.</p>
+        </div>
+      </div>
+      <div class="sect" style="border-bottom:0">
+        <h2>Evidence</h2>
+        <div id="evidence"><p class="empty">No evidence yet.</p></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ─────────────────────────── QUERY ─────────────────────────── -->
+  <footer>
+    <div class="qwrap">
+      <input id="q" placeholder="Ask about this imagery — e.g. use the optical and SAR images together to identify built-up regions">
+      <button class="go" id="go">Analyse</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </footer>
+</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/* ============================================================
+   1. PROCEDURAL SCENE
+   One underlying terrain, rendered three ways. The point is that
+   the SAME ground truth produces different images per sensor —
+   which is the complementarity requirement 5.4 asks us to show.
+   ============================================================ */
+const N = 512;
+
+function hash(x, y){ const s = Math.sin(x*127.1 + y*311.7) * 43758.5453; return s - Math.floor(s); }
+function noise(x, y){
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x-xi, yf = y-yi;
+  const u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);
+  return (hash(xi,yi)*(1-u)+hash(xi+1,yi)*u)*(1-v) + (hash(xi,yi+1)*(1-u)+hash(xi+1,yi+1)*u)*v;
+}
+function fbm(x, y, oct=5){
+  let a=.5, f=1, s=0;
+  for(let i=0;i<oct;i++){ s += a*noise(x*f, y*f); f*=2; a*=.5; }
+  return s;
+}
+
+/* class map: 0 water · 1 vegetation · 2 bare soil · 3 built-up */
+const cls = new Uint8Array(N*N);
+const rough = new Float32Array(N*N);      // surface roughness -> drives backscatter
+const cloud = new Float32Array(N*N);
+
+(function buildTerrain(){
+  for(let y=0;y<N;y++){
+    for(let x=0;x<N;x++){
+      const i=y*N+x, u=x/N, v=y/N;
+      // meandering river
+      const river = Math.abs(v - (0.62 + 0.13*Math.sin(u*7.5) + 0.05*Math.sin(u*17)));
+      // agricultural parcels — hard rectangular edges, the signature of farmland
+      const parcel = Math.floor(u*11) * 31 + Math.floor(v*9) * 17;
+      const pv = hash(parcel, parcel*0.37);
+      // built-up cluster, north-east
+      const bx = u-0.70, by = v-0.26;
+      const built = Math.sqrt(bx*bx + by*by);
+      const grain = fbm(u*9, v*9);
+
+      let c;
+      if (river < 0.017) c = 0;
+      else if (built < 0.17 && grain > 0.36) c = 3;
+      else if (pv > 0.62) c = 2;
+      else c = 1;
+      cls[i] = c;
+
+      // roughness: water is specular (dark on radar), buildings are corner reflectors (bright)
+      rough[i] = c===0 ? 0.02 : c===1 ? 0.42 + 0.18*grain
+               : c===2 ? 0.30 + 0.12*grain
+               : 0.88 + 0.12*hash(x*0.7, y*0.7);
+
+      // cloud deck over the north-east — exactly where the built-up cluster is
+      const cx = u-0.68, cy = v-0.30;
+      const cd = 1 - Math.min(1, Math.sqrt(cx*cx+cy*cy)/0.34);
+      cloud[i] = Math.max(0, cd*cd * (0.55 + 0.45*fbm(u*4.5+11, v*4.5+7)));
+    }
+  }
+})();
+
+function makeCanvas(paint){
+  const c = document.createElement('canvas'); c.width = c.height = N;
+  const ctx = c.getContext('2d'); const img = ctx.createImageData(N,N);
+  paint(img.data); ctx.putImageData(img,0,0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+
+/* ---- OPTICAL: natural-ish colour, with the cloud deck obscuring the north-east ---- */
+const texOptical = makeCanvas(d=>{
+  const P = { 0:[38,58,74], 1:[104,132,72], 2:[168,146,104], 3:[142,144,140] };
+  for(let i=0;i<N*N;i++){
+    const g = fbm((i%N)/N*22, Math.floor(i/N)/N*22);
+    let [r,gr,b] = P[cls[i]];
+    r*= .86+.28*g; gr*= .86+.28*g; b*= .86+.28*g;
+    const cv = cloud[i];
+    r = r*(1-cv) + 246*cv; gr = gr*(1-cv) + 247*cv; b = b*(1-cv) + 249*cv;
+    d[i*4]=r; d[i*4+1]=gr; d[i*4+2]=b; d[i*4+3]=255;
+  }
+});
+
+/* ---- SAR: backscatter in greyscale + multiplicative speckle. No cloud — radar passes through ---- */
+const texSar = makeCanvas(d=>{
+  for(let i=0;i<N*N;i++){
+    const speckle = 0.72 + 0.56*hash(i*0.017, i*0.029);   // multiplicative, not additive
+    let s = rough[i] * speckle;
+    s = Math.pow(Math.min(1, s), 0.85) * 232 + 12;
+    d[i*4]=s; d[i*4+1]=s*1.01; d[i*4+2]=s*1.05; d[i*4+3]=255;   // faint cool cast
+  }
+});
+
+/* ---- FUSION: optical base + structures SAR recovered under the cloud, in NIR crimson ---- */
+const detections = [];
+const texFusion = makeCanvas(d=>{
+  const P = { 0:[46,66,82], 1:[118,146,86], 2:[178,158,118], 3:[150,152,148] };
+  for(let i=0;i<N*N;i++){
+    const g = fbm((i%N)/N*22, Math.floor(i/N)/N*22);
+    let [r,gr,b] = P[cls[i]];
+    r*= .88+.24*g; gr*= .88+.24*g; b*= .88+.24*g;
+    // where SAR says "hard structure" AND optical was blinded by cloud, mark the recovery
+    if (cls[i]===3){
+      const under = cloud[i] > 0.28;
+      const k = under ? 0.62 : 0.26;
+      r = r*(1-k) + 196*k; gr = gr*(1-k) + 52*k; b = b*(1-k) + 42*k;
+    }
+    const cv = cloud[i]*0.22;                       // cloud shown, but transparent
+    r = r*(1-cv)+246*cv; gr = gr*(1-cv)+247*cv; b = b*(1-cv)+249*cv;
+    d[i*4]=r; d[i*4+1]=gr; d[i*4+2]=b; d[i*4+3]=255;
+  }
+});
+
+/* derive three detection boxes from the built-up cluster, in normalised UV */
+(function deriveDetections(){
+  const seeds = [[0.66,0.22],[0.75,0.30],[0.62,0.33]];
+  seeds.forEach(([u,v],k)=>{
+    detections.push({
+      u, v, w: 0.085 + 0.03*hash(k,3), h: 0.07 + 0.025*hash(k,9),
+      lat: (23.50 - v*0.18).toFixed(4), lon: (85.24 + u*0.18).toFixed(4),
+      conf: [0.93,0.88,0.81][k],
+      under: cloud[Math.floor(v*N)*N + Math.floor(u*N)] > 0.28
+    });
+  });
+})();
+
+/* ============================================================
+   2. THREE.JS — the modality stack
+   ============================================================ */
+const stage  = document.querySelector('.stage');
+const canvas = document.getElementById('gl');
+let renderer, labelRenderer, scene, camera, controls, planes = {}, boxGroup, idle = true;
+
+const PLANE = [
+  { key:'optical', tex:texOptical, y: 1, color:0xB8763A, name:'OPTICAL', sub:'S2 · 13 bands' },
+  { key:'fusion',  tex:texFusion,  y: 0, color:0x6B5CA5, name:'FUSION',  sub:'derived' },
+  { key:'sar',     tex:texSar,     y:-1, color:0x2C7A8C, name:'SAR',     sub:'S1 · VV/VH' },
+];
+
+function init3D(){
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+  labelRenderer = new CSS2DRenderer();
+  labelRenderer.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none';
+  stage.appendChild(labelRenderer.domElement);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(3.5, 3.0, 4.6);
+
+  controls = new OrbitControls(camera, labelRenderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.07;
+  controls.minDistance = 3; controls.maxDistance = 13;
+  controls.maxPolarAngle = Math.PI * 0.86;
+  controls.addEventListener('start', ()=> idle = false);
+  labelRenderer.domElement.style.pointerEvents = 'auto';
+
+  scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+  const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(4,7,4); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xD8E4E6, .55); fill.position.set(-5,2,-3); scene.add(fill);
+
+  const geo = new THREE.PlaneGeometry(3, 3, 1, 1);
+  PLANE.forEach(p=>{
+    const g = new THREE.Group();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      map:p.tex, transparent:true, opacity:1, side:THREE.DoubleSide
+    }));
+    mesh.rotation.x = -Math.PI/2;
+    g.add(mesh);
+
+    // cartographic edge — a plate border, not a card border
+    const edge = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color:p.color, transparent:true, opacity:.85 })
+    );
+    edge.rotation.x = -Math.PI/2; g.add(edge);
+
+    const el = document.createElement('div');
+    el.className = 'gl-label ' + p.key.slice(0,3);
+    el.innerHTML = `<b>${p.name}</b> · ${p.sub}`;
+    const lab = new CSS2DObject(el); lab.position.set(-1.5, .04, -1.68); g.add(lab);
+
+    scene.add(g);
+    planes[p.key] = { group:g, mesh, edge, baseY:p.y, label:lab };
+  });
+
+  boxGroup = new THREE.Group(); scene.add(boxGroup);
+  buildDetectionBoxes();
+  boxGroup.visible = false;
+
+  addEventListener('resize', resize); resize(); animate();
+}
+
+function buildDetectionBoxes(){
+  detections.forEach(d=>{
+    const w = d.w*3, h = d.h*3;
+    const pts = [
+      new THREE.Vector3(-w/2,0,-h/2), new THREE.Vector3(w/2,0,-h/2),
+      new THREE.Vector3(w/2,0,h/2),   new THREE.Vector3(-w/2,0,h/2),
+      new THREE.Vector3(-w/2,0,-h/2)
+    ];
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color:0xC4342A, linewidth:2 })
+    );
+    line.position.set((d.u-.5)*3, 0.012, (d.v-.5)*3);
+    boxGroup.add(line);
+  });
+}
+
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  if(!w || !h) return;
+  renderer.setSize(w,h,false); labelRenderer.setSize(w,h);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+}
+
+let sep = 0.46;
+function animate(){
+  requestAnimationFrame(animate);
+  PLANE.forEach(p=>{
+    const t = planes[p.key];
+    t.group.position.y += (p.y * sep * 2.1 - t.group.position.y) * 0.14;
+  });
+  boxGroup.position.y = planes.fusion.group.position.y;
+  if(idle && !matchMedia('(prefers-reduced-motion: reduce)').matches){
+    const a = 0.0016;
+    const x = camera.position.x, z = camera.position.z;
+    camera.position.x = x*Math.cos(a) - z*Math.sin(a);
+    camera.position.z = x*Math.sin(a) + z*Math.cos(a);
+    camera.lookAt(0,0,0);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+/* graceful degradation — the interface still works without WebGL (§7) */
+try { init3D(); }
+catch(e){
+  stage.innerHTML = '<div style="padding:32px;color:var(--ink-2);max-width:44ch;margin:auto">'+
+    '<b>WebGL unavailable.</b><br>The modality stack needs it. Every other part of the '+
+    'interface — routing, validation, trace and evidence — works without it.</div>';
+}
+
+/* ============================================================
+   3. THE PIPELINE — routing, validation, refusal, evidence
+   Staged responses. The ARCHITECTURE is real: the router classifies,
+   validates inputs against a registry, and refuses when they do not
+   support the question. See docs/05_System_Design.md §5.
+   ============================================================ */
+const REGISTRY = {
+  rs_vqa:      { tasks:['single_vqa'],     needs:'single'      },
+  grounding:   { tasks:['grounding'],      needs:'single'      },
+  change_vqa:  { tasks:['temporal_change'],needs:'bi_temporal' },
+  optical_sar: { tasks:['cross_modal'],    needs:'optical_sar' },
+};
+const AVAILABLE = 'optical_sar';   // this scene holds one optical + one SAR image
+
+const SCENARIOS = [
+  {
+    chip:'Use the optical and SAR images together to identify built-up regions',
+    task:'cross_modal', tool:'optical_sar',
+    trace:[
+      ['Input validated','2 rasters · EPSG:4326 · co-registration Δ &lt; 0.5 px'],
+      ['Task identified','cross_modal'],
+      ['Tool selected','optical_sar (late fusion, v0.4)'],
+      ['Parameters','sar_threshold=0.72 · min_region_px=48'],
+      ['Optical evidence','blinded over 34 % of scene — cloud deck NE'],
+      ['SAR evidence','3 high-backscatter clusters · corner-reflector signature'],
+      ['Fusion','2 of 3 clusters lie under cloud — recovered by SAR alone'],
+      ['Confidence','0.88 · modalities agree'],
+    ],
+    answer:'Three built-up clusters are present. Two of them lie beneath the cloud deck in the north-east and are invisible to the optical sensor — they were recovered from SAR backscatter, where corner reflection from structures returns strongly. The optical image contributes land-cover context for the third.',
+    src:'optical_sar v0.4 · 3 regions · GeoJSON EPSG:4326',
+    boxes:true, focus:'fusion'
+  },
+  {
+    chip:'How many distinct built-up clusters are visible?',
+    task:'single_vqa', tool:'rs_vqa',
+    trace:[
+      ['Input validated','1 raster accepted for single-image task'],
+      ['Task identified','single_vqa'],
+      ['Tool selected','rs_vqa (adapter A · BigEarthNet.txt)'],
+      ['Parameters','max_tokens=32'],
+      ['Result','3'],
+      ['Confidence','0.81'],
+    ],
+    answer:'Three distinct built-up clusters were detected.',
+    src:'rs_vqa · adapter A · counted by the vision model, not the language layer',
+    boxes:true, focus:'fusion'
+  },
+  {
+    chip:'Highlight the water body',
+    task:'grounding', tool:'grounding',
+    trace:[
+      ['Input validated','1 raster · georeferenced'],
+      ['Task identified','grounding'],
+      ['Tool selected','grounding (adapter B · VRSBench)'],
+      ['Parameters','score_threshold=0.35'],
+      ['Result','1 region · linear feature, 4.1 km traced'],
+      ['Confidence','0.90'],
+    ],
+    answer:'One water body was located — a meandering channel crossing the scene from west to east, traced over roughly 4.1 km.',
+    src:'grounding · adapter B · box → EPSG:4326 via geotransform',
+    boxes:false, focus:'optical'
+  },
+  {
+    chip:'What changed between these two dates?',
+    task:'temporal_change', tool:'change_vqa', refuse:true,
+    trace:[
+      ['Input inspected','1 optical + 1 SAR, same acquisition window'],
+      ['Task identified','temporal_change'],
+      ['Compatibility check','requires bi_temporal — found cross-modal pair'],
+      ['Refused','no model invoked'],
+    ],
+    answer:'Change analysis needs a bi-temporal pair — two images of the same area from different dates. This scene holds one optical and one SAR image from the same acquisition window. Upload an image for T1 and an image for T2.',
+    src:'router · validation failed before dispatch',
+    boxes:false
+  }
+];
+
+const $ = s => document.querySelector(s);
+const traceEl = $('#trace'), evEl = $('#evidence'), ansEl = $('#answerSlot');
+
+$('#chips').innerHTML = SCENARIOS.map((s,i)=>
+  `<button class="chip${s.refuse?' refuse':''}" data-i="${i}">${s.refuse?'⚠ ':''}${s.chip}</button>`).join('');
+$('#chips').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  const s = SCENARIOS[+b.dataset.i]; $('#q').value = s.chip; run(s);
+});
+$('#go').addEventListener('click', ()=> run(match($('#q').value)));
+$('#q').addEventListener('keydown', e=>{ if(e.key==='Enter') run(match($('#q').value)); });
+
+/* crude intent match — the real router is a trained classifier, see 03 §8 */
+function match(text){
+  const t = (text||'').toLowerCase();
+  if(/chang|differ|between these two|since/.test(t))      return SCENARIOS[3];
+  if(/highlight|where is|show me|locate|water/.test(t))    return SCENARIOS[2];
+  if(/sar|both|together|complement|radar/.test(t))         return SCENARIOS[0];
+  if(/how many|count|number of/.test(t))                   return SCENARIOS[1];
+  return SCENARIOS[0];
+}
+
+function run(s){
+  if(!s) return;
+  traceEl.innerHTML = ''; evEl.innerHTML = ''; ansEl.innerHTML = '';
+  boxGroup.visible = false;
+  $('#go').disabled = true;
+
+  s.trace.forEach(([k,v],i)=>{
+    setTimeout(()=>{
+      const row = document.createElement('div');
+      const bad = s.refuse && i === s.trace.length-1;
+      row.className = 'tr' + (bad?' no':'');
+      row.innerHTML = `<span class="mk">${bad?'✕':'✓'}</span>
+        <span class="tx"><b>${k}</b><span>${v}</span></span>`;
+      traceEl.appendChild(row);
+    }, i*95);
+  });
+
+  setTimeout(()=>{
+    ansEl.innerHTML =
+      `<div class="answer${s.refuse?' refused':''}">
+         <p>${s.answer}</p>
+         <div class="src">${s.src}</div>
+       </div>`;
+
+    if(s.refuse){
+      evEl.innerHTML = `<p class="empty">No evidence — the request was refused before any
+        model ran, so there is nothing to show. That is the correct outcome.</p>`;
+    } else if (s.boxes){
+      boxGroup.visible = true;
+      evEl.innerHTML = detections.map((d,i)=>`
+        <div class="ev">
+          <div class="claim">Built-up structure ${i+1}${d.under?' <span style="color:var(--nir);font-size:11px">· under cloud</span>':''}</div>
+          <div class="geo">${d.lat}N  ${d.lon}E</div>
+          <div class="conf">
+            <span class="label" style="font-size:10px">conf</span>
+            <span class="bar"><i style="width:${d.conf*100}%"></i></span>
+            <span class="geo">${d.conf.toFixed(2)}</span>
+          </div>
+          <div class="geo">source: ${d.under?'SAR backscatter':'optical + SAR'}</div>
+        </div>`).join('');
+    } else {
+      evEl.innerHTML = `<div class="ev" style="border-left-color:var(--accent)">
+          <div class="claim">Water body · linear feature</div>
+          <div class="geo">23.3902N 85.2680E → 23.3781N 85.4110E</div>
+          <div class="conf">
+            <span class="label" style="font-size:10px">conf</span>
+            <span class="bar"><i style="width:90%"></i></span>
+            <span class="geo">0.90</span>
+          </div>
+          <div class="geo">source: optical · adapter B</div>
+        </div>`;
+    }
+
+    if(s.focus){
+      sep = 0.20; $('#sep').value = 20;
+      Object.entries(planes).forEach(([k,p])=>{
+        p.mesh.material.opacity = (k === s.focus) ? 1 : 0.30;
+      });
+    }
+    $('#go').disabled = false;
+  }, s.trace.length*95 + 180);
+}
+
+/* ---- layer toggles, separation, reset ---- */
+document.querySelectorAll('.layer').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    btn.setAttribute('aria-pressed', String(on));
+    const p = planes[btn.dataset.layer];
+    p.group.visible = on; p.label.visible = on;
+  });
+});
+$('#sep').addEventListener('input', e=>{ sep = e.target.value/100; idle = false; });
+$('#reset').addEventListener('click', ()=>{
+  camera.position.set(3.5,3.0,4.6); controls.target.set(0,0,0);
+  sep = 0.46; $('#sep').value = 46; idle = true;
+  Object.values(planes).forEach(p=>{ p.mesh.material.opacity = 1; });
+});
+</script>
+</body>
+</html>
