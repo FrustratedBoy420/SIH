@@ -52,15 +52,15 @@ def track_coverage(region_lonlat, lon, lat, plane, corridor_m=CORRIDOR_M, n=90):
     Normalised by the region -- a long track through empty water gets no credit
     for its length, only for the part of the region it actually covered.
     """
-    region = np.asarray(region_lonlat, dtype=float)
-    if len(region) < 3 or len(lon) == 0:
+    bb = geo.region_bbox(region_lonlat)
+    if bb is None or len(lon) == 0:
         return 0.0
-    lo, hi = region.min(axis=0), region.max(axis=0)
+    lo, hi = bb
     gx = np.linspace(lo[0], hi[0], n)
     gy = np.linspace(lo[1], hi[1], n)
     mx, my = np.meshgrid(gx, gy)
     pts = np.stack([mx.ravel(), my.ravel()], axis=1)
-    inside = geo.points_in_polygon(pts, region)
+    inside = geo.points_in_rings(pts, region_lonlat)
     if not inside.any():
         return 0.0
     qx, qy = plane.to_xy(pts[inside, 0], pts[inside, 1])

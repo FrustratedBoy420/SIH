@@ -932,13 +932,30 @@ This system points at a named vessel. That is the whole value and the whole haza
 
 The honest difficulty: **no ground-truth dataset of attributed spills exists.** We therefore validate the three stages independently rather than pretending to validate the whole chain.
 
-| Stage | Method | Target |
-|---|---|---|
-| Detection | Held-out split of the Zenodo dataset. **Per-class IoU**, not an aggregate. | IoU ≥ 0.70 |
-| Look-alike rejection | Same holdout, restricted to labelled look-alikes. | FPR ≤ 0.15 |
-| **Drift — the real one** | Global Drifter Program buoys: take a drifter's known position, hindcast it backward 24 h through our forcing, measure the distance to its actual position then. **Validates the advection scheme against reality with no spill involved.** | 90 % inside r₉₅ |
-| Attribution | Synthetic scenes with an injected culprit, swept over horizon and traffic density. | top-1 ≥ 0.70 @ 24 h |
-| Refusal | Adversarial scenes built to fire each gate. | 5 of 5 fire |
+| Stage | Method | Target | Measured in this build |
+|---|---|---|---|
+| Detection | Held-out split of the Zenodo dataset. **Per-class IoU**, not an aggregate. | IoU ≥ 0.70 | **0.939 mean IoU on retained**, but against *our own simulator*, not Zenodo — see the caveat below |
+| Look-alike rejection | Same holdout, restricted to labelled look-alikes. | FPR ≤ 0.15 | **0.000** (0 of 471 look-alike candidates retained), same caveat |
+| Detection precision / recall | Scene-disjoint holdout of the generated corpus | — | precision **1.00** [0.89, 1.00], recall **0.914** [0.78, 0.97], n = 506 candidates, 35 positive |
+| **Drift — the real one** | Global Drifter Program buoys: take a drifter's known position, hindcast it backward 24 h through our forcing, measure the distance to its actual position then. **Validates the advection scheme against reality with no spill involved.** | 90 % inside r₉₅ | **Method implemented and running, on synthetic drifters.** 30/30 inside r₉₅, median centroid error 0.14 km against a median r₉₅ of 7.0 km. **This does not satisfy AC-7** — see below. |
+| Attribution | Synthetic scenes with an injected culprit, swept over horizon and traffic density. | top-1 ≥ 0.70 @ 24 h | top-1 correct on every scenario that reaches attribution; the sweep is not yet run |
+| Refusal | Adversarial scenes built to fire each gate. | 5 of 5 fire | **5 of 5**, plus a sixth scenario for the kinematic check |
+
+### What those detection numbers do and do not mean
+
+They were produced by `darktransit.fit`, which generates a labelled corpus of synthetic scenes, fits the six discriminator coefficients on a **scene-disjoint** training split (never a candidate split — two candidates from one scene share a wind field and a speckle realisation, so splitting by candidate would leak), and evaluates on the held-out scenes.
+
+**They measure the model against our own simulator.** They are a floor on method validity — the pipeline can separate the populations it was shown — and they are not an accuracy claim about Sentinel-1 imagery. Refit on the Zenodo dataset before quoting any of this as detection performance. The pack states this in its own `caveat` field, and the dossier prints the provenance of the coefficients in force.
+
+**Two fitted coefficients disagree with the physics prior**: `wind_ms` and `homogeneity` come out with the opposite sign to what the physics says they should have. Both are small. The honest reading is that they are weakly identified in this corpus — the two strong features, edge gradient and contrast, are doing the work — and not that the physics is wrong. `detector.v1.json` records the disagreement rather than hiding it.
+
+### On the drift validation
+
+The harness runs the AC-7 *method*. It does not satisfy AC-7. The buoys are advected through the same analytic forcing the hindcast then uses, so there is no forcing error for the ensemble to be sized against, and coverage of 30/30 against a 90 % target means the ensemble is **over-dispersed**, not that it is correct: median error 0.14 km inside a median r₉₅ of 7.0 km is a ratio of 0.02.
+
+What it does establish: the integrator round-trips, and the harness is sensitive to a wrong object model. Re-run with `--alpha 0.03` — oil's leeway applied to a drogued buoy — and coverage collapses to 0/30 with a median error of 19.6 km, which is `0.03 × U₁₀ × 24 h` to within a few per cent. A validation that cannot detect a wrong leeway coefficient would be worth nothing; this one detects it at the right magnitude.
+
+AC-7 is satisfied when `validate.drifter_truth` is pointed at real Global Drifter Program trajectories. No other line of that module changes.
 
 ### The ablation
 
@@ -1065,7 +1082,9 @@ Run it:
 cd mvp
 python3 -m darktransit.cli run --scenario kutch
 python3 -m darktransit.cli selftest              # the acceptance criteria of section 19
-python3 -m darktransit.cli serve                 # then open http://127.0.0.1:8000/
+python3 -m darktransit.cli fit                   # refit the discriminator and measure it
+python3 -m darktransit.cli validate              # hindcast known drifter tracks
+python3 -m darktransit.cli serve                 # narrative view, and /workstation.html
 ```
 
 ### 22.1 What is real, and what is simulated
@@ -1076,13 +1095,15 @@ python3 -m darktransit.cli serve                 # then open http://127.0.0.1:80
 | Speckle filter, land mask | **Real** — Lee filter implemented on the generated raster |
 | Adaptive threshold, connected components | **Real** |
 | Look-alike features and discriminator | **Real** — features per §10.3, logistic combination, per-candidate rejection basis |
-| U-Net segmentation | **Not in MVP** — the classical path stands in; the degradation is logged, per §10.4 |
+| Look-alike discriminator coefficients | **Fitted and measured** — `darktransit.fit` generates a labelled corpus, fits on a scene-disjoint split, and reports precision/recall/FPR/IoU with Wilson intervals into `detector.v1.json`. The detector loads that pack and reports `source: fitted`; absent the pack it falls back to the hand-set constants and says so. |
+| U-Net segmentation | **Not in MVP** — the classical path plus the fitted linear model stand in; the degradation is logged, per §10.4 |
 | Geometry, PCA axis, elongation | **Real** |
 | Age from lateral spreading, with its `K_h` bracket | **Real** |
 | Forcing fields | **Simulated** — analytic tidal + mean current and a rotating wind field on a real grid, interpolated trilinearly like the real thing |
 | RK4 advection, leeway, random walk | **Real** |
 | Origin region, r₉₅ series, density quantile contour | **Real** |
-| Forward run, landfall flag | **Real** against a synthetic coastline |
+| Forward run, landfall flag | **Real** — a synthetic coastline, land as an absorbing boundary, first-contact and 5 %-ashore times, cumulative ashore fraction |
+| Land mask in detection (DT-1) | **Real** — land is in the raster and is masked with a 2 km buffer before thresholding |
 | AIS archive | **Simulated** — generator per TR-7, with a parameterised culprit and a broadcast gap |
 | Cadence baseline, gap detection | **Real** |
 | Reachable-set ellipse, overlap fraction | **Real** |
@@ -1090,8 +1111,10 @@ python3 -m darktransit.cli serve                 # then open http://127.0.0.1:80
 | Five-factor scoring, weight pack, leader margin | **Real** |
 | All five gates | **Real**, each with an adversarial scenario that fires it |
 | Dossier, limitations page first | **Real**, HTML (WeasyPrint upgrade is one call) |
-| API | **Stdlib HTTP server** standing in for FastAPI; same routes as §12 |
+| Drift validation harness | **Real**, on synthetic drifters — the AC-7 method, not AC-7 |
+| API | **Stdlib HTTP server** standing in for FastAPI; same routes as §12, plus the run's own files |
 | Narrative front end | **Real** — `artifacts/forty-hours-back.html` rewired to read `run.json`; no number is hardcoded |
+| Workstation front end | **Real** — `web/workstation.html`, seven stage panels, the SAR scene as the basemap, pan/zoom, a time slider over the whole horizon, live weight sliders, the run log. No map tiles and no network. |
 
 ### 22.2 Requirement traceability
 
@@ -1099,11 +1122,11 @@ python3 -m darktransit.cli serve                 # then open http://127.0.0.1:80
 |---|---|---|
 | IN-1…IN-5, IN-7 | ✅ | Synthetic scene and archive, provenance declared everywhere |
 | DT-1, DT-2, DT-4, DT-5, DT-7 | ✅ | Classical path |
-| DT-3 | ⬜ | Phase 1 |
-| DT-6 | ◐ | Wind field present and used; ERA5 pull is Phase 1 |
+| DT-3 | ◐ | No U-Net. A **fitted** linear discriminator over six named features stands in, with a measured scene-disjoint holdout |
+| DT-6 | ◐ | Wind field present and used by both the scene and the discriminator; the ERA5 pull is Phase 1 |
 | CH-1…CH-5 | ✅ | One age estimate, reported as a `K_h` bracket |
 | CH-6 | ⬜ | No second independent age estimator exists in this build |
-| DR-1…DR-6 | ✅ | Analytic forcing |
+| DR-1…DR-6 | ✅ | Analytic forcing; DR-5 runs a real landfall test against a coastline with land as an absorbing boundary |
 | DR-7 | ⬜ | OpenDrift integration is Phase 1 |
 | DR-8 | ✅ | Per-particle ensemble over current amplitude and leeway |
 | TR-1…TR-8 | ✅ | |
@@ -1111,13 +1134,15 @@ python3 -m darktransit.cli serve                 # then open http://127.0.0.1:80
 | DK-1…DK-5 | ✅ | |
 | SC-1…SC-5 | ✅ | Ablation in `cli ablate` |
 | RP-1…RP-4 | ✅ | HTML dossier |
-| UI-1, UI-2 | ⬜ | Workstation study is a mockup; MapLibre build is Phase 1 |
+| UI-1, UI-2 | ✅ | Live workstation. The basemap is the emitted SAR raster rather than map tiles, which is offline by construction and shows the measurement instead of a cartoon of it. MapLibre remains Phase 1 and is not needed for the demo. |
 | UI-3 | ✅ | Weight sliders re-rank live via `/rescore` |
-| UI-4 | ✅ | Run log panel |
+| UI-4 | ✅ | Run log drawer in the workstation, gate state on every stage in the rail |
 | UI-5 | ✅ | Narrative view reads `run.json` |
 | NFR-1…NFR-9 | ✅ | Enforced by `mvp/tests` |
-| AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8, AC-10, AC-11 | ✅ | `python3 -m darktransit.cli selftest` |
-| AC-7, AC-9 | ⬜ | Needs real drifters / real data volumes |
+| AC-1…AC-6, AC-8, AC-10, AC-11 | ✅ | `python3 -m darktransit.cli selftest` — **48 checks**, including 19 layer-0 primitive and property checks |
+| TR-8 | ✅ | A `spoofed` scenario forges a run of positions; the kinematic check flags both seams |
+| AC-7 | ◐ | The method runs, on synthetic drifters, and detects a wrong leeway at the right magnitude. Real Global Drifter Program trajectories are still needed. |
+| AC-9 | ⬜ | Needs real data volumes |
 
 Legend: ✅ implemented · ◐ partial · ⬜ Phase 1.
 

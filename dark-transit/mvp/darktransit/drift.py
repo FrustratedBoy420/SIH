@@ -52,6 +52,7 @@ class CloudSnapshot:
     r95_km: float
     polygon: list = field(default_factory=list)   # [[lon, lat], ...]
     alive: int = 0
+    beached: int = 0
 
 
 def _velocity(lon, lat, t_h, current, wind, alpha, pert=None):
@@ -91,9 +92,16 @@ def step_rk4(lon, lat, t_h, dt_s, current, wind, params: DriftParams, rng=None, 
 
 
 def integrate(lon, lat, t0_h, hours, current, wind, params: DriftParams, rng=None,
-              snapshot_every_h=1.0, pert=None):
+              snapshot_every_h=1.0, pert=None, land=None):
     """Integrate for `hours` (negative = backward). Returns snapshots at every
-    `snapshot_every_h` hours, including the start."""
+    `snapshot_every_h` hours, including the start.
+
+    `land`, when supplied, is an absorbing boundary: a particle that enters it
+    is beached and stops moving. Only the forward run passes one. Without this
+    the cloud advects straight through the coast and the ashore fraction falls
+    again on the far side, which would report a slick as having left a beach it
+    is in fact sitting on.
+    """
     lon = np.asarray(lon, dtype=float).copy()
     lat = np.asarray(lat, dtype=float).copy()
     direction = 1.0 if hours >= 0 else -1.0
@@ -101,21 +109,40 @@ def integrate(lon, lat, t0_h, hours, current, wind, params: DriftParams, rng=Non
     total_steps = int(round(abs(hours) * 3600.0 / params.dt_s))
     every = max(1, int(round(snapshot_every_h * 3600.0 / params.dt_s)))
 
-    snaps = [_snapshot(0.0, lon, lat)]
+    land_poly = np.asarray(land, dtype=float) if (land is not None and len(land) >= 3) else None
+    beached = np.zeros(len(lon), dtype=bool)
+    hold_lon = np.zeros(len(lon)); hold_lat = np.zeros(len(lat))
+
+    snaps = [_snapshot(0.0, lon, lat, beached)]
     t = t0_h
     for i in range(1, total_steps + 1):
         lon, lat = step_rk4(lon, lat, t, dt, current, wind, params, rng, pert)
         t += dt / 3600.0
+        if land_poly is not None:
+            if beached.any():                       # hold the ones already ashore
+                lon = np.where(beached, hold_lon, lon)
+                lat = np.where(beached, hold_lat, lat)
+            ok = np.isfinite(lon) & np.isfinite(lat)
+            newly = np.zeros_like(beached)
+            if ok.any():
+                hit = geo.points_in_polygon(
+                    np.stack([np.where(ok, lon, 0.0), np.where(ok, lat, 0.0)], axis=1), land_poly)
+                newly = hit & ok & ~beached
+            if newly.any():
+                hold_lon[newly] = lon[newly]
+                hold_lat[newly] = lat[newly]
+                beached |= newly
         if i % every == 0 or i == total_steps:
-            snaps.append(_snapshot(direction * i * params.dt_s / 3600.0, lon, lat))
+            snaps.append(_snapshot(direction * i * params.dt_s / 3600.0, lon, lat, beached))
     return snaps
 
 
-def _snapshot(hour, lon, lat) -> CloudSnapshot:
+def _snapshot(hour, lon, lat, beached=None) -> CloudSnapshot:
     ok = np.isfinite(lon) & np.isfinite(lat)
     lo, la = lon[ok], lat[ok]
+    nb = 0 if beached is None else int((beached & ok).sum())
     return CloudSnapshot(hour=float(hour), lons=lo, lats=la,
-                         r95_km=r95_km(lo, la), alive=int(ok.sum()))
+                         r95_km=r95_km(lo, la), alive=int(ok.sum()), beached=nb)
 
 
 def r95_km(lons, lats) -> float:
@@ -128,12 +155,20 @@ def r95_km(lons, lats) -> float:
     return float(np.percentile(r, 95) / 1000.0)
 
 
-def density_region(lons, lats, cell_m=500.0, quantile=0.95, simplify_m=250.0):
+def density_region(lons, lats, cell_m=500.0, quantile=0.95, simplify_m=250.0,
+                   min_component_frac=0.05):
     """The smallest set of cells holding `quantile` of the particles, taken in
-    descending density order, returned as a ring in lon/lat.
+    descending density order, returned as a LIST of rings in lon/lat.
 
-    A convex hull over a bimodal cloud invents water that no particle visited,
-    so this is a density quantile contour instead (PRD 10.9).
+    A convex hull was rejected: over a bimodal cloud it invents water no
+    particle visited, and the containment factor is normalised by region area,
+    so invented area directly deflates every vessel's score.
+
+    Every connected component holding at least `min_component_frac` of the
+    retained cells is returned, not just the largest. A genuinely bimodal
+    origin region -- two plausible release areas either side of an eddy, say --
+    is a real outcome of backward advection, and dropping a lobe would quietly
+    clear whatever vessel was in it.
     """
     if len(lons) < 8:
         return []
@@ -158,16 +193,60 @@ def density_region(lons, lats, cell_m=500.0, quantile=0.95, simplify_m=250.0):
     lab, n = raster.label(mask)
     if n == 0:
         return []
-    sizes = [(lab == k).sum() for k in range(1, n + 1)]
-    big = int(np.argmax(sizes)) + 1
-    ring_px = raster.trace_boundary(lab == big)
-    if len(ring_px) < 4:
-        return []
-    ring_px = geo.simplify(ring_px, tol_m=simplify_m / cell_m)
-    rx = x.min() + (ring_px[:, 0] - pad + 0.5) * cell_m
-    ry = y.min() + (ring_px[:, 1] - pad + 0.5) * cell_m
-    rlon, rlat = plane.to_lonlat(rx, ry)
-    return [[round(float(a), 6), round(float(b), 6)] for a, b in zip(rlon, rlat)]
+    sizes = [(int((lab == k).sum()), k) for k in range(1, n + 1)]
+    total = sum(s for s, _ in sizes)
+    rings = []
+    for size, k in sorted(sizes, reverse=True):
+        if size < max(2, min_component_frac * total):
+            continue
+        ring_px = raster.trace_boundary(lab == k)
+        if len(ring_px) < 4:
+            continue
+        ring_px = geo.simplify(ring_px, tol_m=simplify_m / cell_m)
+        rx = x.min() + (ring_px[:, 0] - pad + 0.5) * cell_m
+        ry = y.min() + (ring_px[:, 1] - pad + 0.5) * cell_m
+        rlon, rlat = plane.to_lonlat(rx, ry)
+        rings.append([[round(float(a), 6), round(float(b), 6)]
+                      for a, b in zip(rlon, rlat)])
+    return rings
+
+
+def landfall(snaps, land_lonlat, frac_threshold=0.05):
+    """First forward hour at which the cloud reaches the coast (DR-5).
+
+    Reported as the hour at which `frac_threshold` of surviving particles are
+    ashore, together with the whole fraction series, because "the leading edge
+    touched land" and "the slick is ashore" are different operational
+    statements and the watch officer needs both.
+
+    Particles that reach land are counted, not removed: this is a forecast of
+    where the oil goes, not a beaching model.
+    """
+    if not land_lonlat or len(land_lonlat) < 3:
+        return dict(available=False,
+                    reason="no coastline supplied for this domain",
+                    landfall=False)
+    series, eta_hour, first_touch = [], None, None
+    for sn in snaps:
+        if sn.alive == 0:
+            continue
+        f = sn.beached / float(sn.alive)
+        series.append(dict(hour=round(sn.hour, 1), ashore_fraction=round(f, 4),
+                           beached=sn.beached, alive=sn.alive))
+        if f > 0 and first_touch is None:
+            first_touch = sn.hour
+        if f >= frac_threshold and eta_hour is None:
+            eta_hour = sn.hour
+    return dict(available=True, landfall=eta_hour is not None,
+                eta_hour=None if eta_hour is None else round(eta_hour, 1),
+                first_contact_hour=None if first_touch is None else round(first_touch, 1),
+                frac_threshold=frac_threshold,
+                ashore_series=series,
+                note=("Hour at which the stated fraction of surviving particles has "
+                      "reached the coastline polygon. Land is an absorbing boundary in "
+                      "the forward run, so the fraction is cumulative and cannot fall. "
+                      "Forward advection is well posed, so unlike the origin region "
+                      "this is a genuine forecast."))
 
 
 def seed_in_polygon(poly_lonlat, n, rng):

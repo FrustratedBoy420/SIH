@@ -43,6 +43,7 @@ class Scene:
     looks: float
     noise_floor_db: float
     truth: dict
+    land_mask: np.ndarray = None
 
     @property
     def shape(self):
@@ -85,7 +86,7 @@ def _blob(X, Y, cx, cy, rx, ry, rot_deg, rng=None, roughness=0.0):
 
 def make_scene(scene_id, centre_lon, centre_lat, half_width_m, pixel_m, acquired_h,
                wind_field, slick_lonlat=None, slick_damping_db=12.0,
-               biogenic=(), ship_lonlat=(), rng=None, looks=4.0,
+               biogenic=(), ship_lonlat=(), land_lonlat=None, rng=None, looks=4.0,
                sensor="Sentinel-1 (synthetic analogue)", mode="IW", polarisation="VV"):
     """Build one calibrated sigma-nought scene.
 
@@ -104,7 +105,18 @@ def make_scene(scene_id, centre_lon, centre_lat, half_width_m, pixel_m, acquired
     wind = wind_field.speed(lon.ravel(), lat.ravel(), acquired_h).reshape(X.shape)
     sigma_db = _sea_db(wind)
 
-    truth = {"oil_pixels": 0, "biogenic_pixels": 0, "ships": 0}
+    truth = {"oil_pixels": 0, "biogenic_pixels": 0, "ships": 0, "land_pixels": 0}
+
+    # --- land: bright, rough, and not water ---
+    land_mask = np.zeros(X.shape, dtype=bool)
+    if land_lonlat is not None and len(land_lonlat) >= 3:
+        inside = geo.points_in_polygon(
+            np.stack([lon.ravel(), lat.ravel()], axis=1), np.asarray(land_lonlat, dtype=float))
+        land_mask = inside.reshape(X.shape)
+        if land_mask.any():
+            terrain = 3.0 * raster.box_mean(rng.standard_normal(X.shape), 4)
+            sigma_db = np.where(land_mask, -6.5 + terrain, sigma_db)
+            truth["land_pixels"] = int(land_mask.sum())
 
     # --- oil: kernel density of the advected particle cloud, sharply edged ---
     if slick_lonlat is not None and len(slick_lonlat[0]) > 8:
@@ -124,12 +136,18 @@ def make_scene(scene_id, centre_lon, centre_lat, half_width_m, pixel_m, acquired
             truth["oil_pixels"] = int(core.sum())
             truth["oil_mask"] = core
 
-    # --- biogenic film: same darkness, no edge ---
-    for (blon, blat, rx, ry, rot, damp) in biogenic:
+    # --- biogenic film: same darkness, edge softness varies ---
+    # A natural film is usually diffuse, but not always: a fresh surfactant
+    # slick can hold a boundary nearly as sharp as oil. Fixing the blur at
+    # 900 m made every look-alike soft-edged and handed the discriminator its
+    # single best feature for free, so softness is a parameter.
+    for bio in biogenic:
+        blon, blat, rx, ry, rot, damp = bio[:6]
+        soft_m = bio[6] if len(bio) > 6 else 900.0
         bx, by = plane.to_xy(blon, blat)
         r = _blob(X, Y, float(bx), float(by), rx, ry, rot, roughness=0.35)
-        soft = np.clip(1.6 - r, 0.0, 1.0)                # wide, gradual falloff
-        soft = raster.box_mean(soft, max(3, int(round(900.0 / pixel_m))))
+        soft = np.clip(1.6 - r, 0.0, 1.0)
+        soft = raster.box_mean(soft, max(1, int(round(soft_m / pixel_m))))
         sigma_db = sigma_db - damp * soft
         truth["biogenic_pixels"] += int((soft > 0.5).sum())
 
@@ -159,4 +177,4 @@ def make_scene(scene_id, centre_lon, centre_lat, half_width_m, pixel_m, acquired
     return Scene(scene_id=scene_id, sigma0_db=sigma_db, wind_ms=wind, plane=plane,
                  x=x, y=y, pixel_m=pixel_m, acquired_h=acquired_h, sensor=sensor,
                  mode=mode, polarisation=polarisation, looks=looks,
-                 noise_floor_db=noise_floor, truth=truth)
+                 noise_floor_db=noise_floor, truth=truth, land_mask=land_mask)

@@ -230,11 +230,11 @@ Grouped by concern. Each is testable; §17 says by what.
 
 | ID | Requirement | Budget | Measured (MVP) |
 |---|---|---|---|
-| **TR-P1** | Full pipeline, one scene + 52 h archive | ≤ 600 s (NFR-8) | **6.1 s** |
-| **TR-P2** | Slowest single stage | ≤ 300 s | **2.46 s** (stage 04) |
+| **TR-P1** | Full pipeline, one scene + 52 h archive | ≤ 600 s (NFR-8) | **6.4 s** |
+| **TR-P2** | Slowest single stage | ≤ 300 s | **2.55 s** (stage 04) |
 | **TR-P3** | `POST /rescore` round trip | ≤ 150 ms | ~15 ms |
-| **TR-P4** | Peak RSS | ≤ 4 GB | **176 MB** |
-| **TR-P5** | `run.json` size (the view must load it over a venue network) | ≤ 5 MB | **211 KB** |
+| **TR-P4** | Peak RSS | ≤ 4 GB | **203 MB** |
+| **TR-P5** | `run.json` size (the view must load it over a venue network) | ≤ 5 MB | **217 KB**; `cloud.json` 563 KB and the two rasters 378 + 395 KB are fetched separately by the workstation only |
 | **TR-P6** | Time to first meaningful paint of the narrative view | ≤ 2 s | not yet measured on venue hardware |
 
 Full-build headroom: real Sentinel-1 IW at 10 m is ~25 000× more pixels than the 640×640 synthetic scene per unit area, and the real forcing read is I/O-bound. §14.4 works through where the budget goes.
@@ -340,6 +340,13 @@ The flattened view contract. Superset of the above plus `run_id, generated_utc, 
 
 **Contract note.** `truth` is present only because every incident in this build is synthetic; it carries `top1_correct` so a run can be scored. In a real deployment the block is absent, and no view may depend on it. `web/index.html` does not read it.
 
+### 5.9a Files a run emits besides JSON
+
+| File | Contract |
+|---|---|
+| `scene_detection.png`, `scene_archive.png` | 8-bit greyscale, row 0 at the **north** edge (PNG convention; the rasters are stored south-first, so `png.write_gray` flips). Accompanied in `rasters.<name>` by `bounds{west,south,east,north}`, `width`, `height`, `pixel_m` and `stretch{lo_db,hi_db,note}`. A rendered SAR scene without its stretch is a picture, not a measurement. |
+| `cloud.json` | `{detection_utc, particles_shown, backward[], forward[]}`; each entry `{hour, alive, beached, r95_km, pts[[lon,lat]]}`. Decimated by a deterministic stride, never a random sample. Written compact, not pretty-printed — indenting it cost 1 MB. |
+
 ### 5.10 `log.jsonl`
 
 One JSON object per line: `{t: float seconds since run start, stage: string, event: string, ...}`. Gate decisions appear inside their stage's record and again in `run.json.gates`. Append-only, flushed once at the end of the run.
@@ -351,7 +358,7 @@ One JSON object per line: `{t: float seconds since run start, stage: string, eve
 
 ## 6. Module map and layering
 
-3 304 lines of Python across 18 modules, plus a 1 152-line single-file front end.
+4 421 lines of Python across 21 modules, plus two single-file front ends (1 161 and 804 lines).
 
 ```
  layer 3   cli ── server ── pipeline ── dossier ── tests
@@ -379,24 +386,27 @@ One JSON object per line: `{t: float seconds since run start, stage: string, eve
 
 | Module | Lines | Layer | Responsibility |
 |---|---|---|---|
-| `geo.py` | 186 | 0 | tangent plane, polygon predicates, reachable-set ellipse |
+| `geo.py` | 230 | 0 | tangent plane, polygon predicates, multi-part regions, reachable-set ellipse |
 | `raster.py` | 171 | 0 | box statistics, speckle filter, morphology, labelling, contour tracing |
+| `png.py` | 86 | 0 | PNG encoder, stdlib zlib only — the basemap has to reach a browser |
 | `forcing.py` | 150 | 1 | gridded current and wind, trilinear space–time interpolation |
-| `drift.py` | 202 | 1 | RK4 advection, diffusion, ensemble, r₉₅, density-quantile region |
-| `scene.py` | 162 | 1 | synthetic calibrated σ⁰ scene |
+| `drift.py` | 281 | 1 | RK4 advection, diffusion, ensemble, r₉₅, density-quantile regions, landfall |
+| `scene.py` | 180 | 1 | synthetic calibrated σ⁰ scene, land, look-alikes, ship targets |
 | `ais.py` | 140 | 1 | vessels, tracks, cadences, broadcast gaps |
-| `incident.py` | 208 | 1 | scenarios and ground truth |
-| `detect.py` | 193 | 2 | candidates, features, discriminator, verdicts |
+| `incident.py` | 273 | 1 | scenarios, coastline, ground truth |
+| `detect.py` | 237 | 2 | candidates, features, discriminator, verdicts, fitted-pack loading |
 | `characterise.py` | 112 | 2 | area, perimeter, axis, elongation, age |
-| `traffic.py` | 170 | 2 | cadence baselines, gaps, reachable sets, the join |
+| `traffic.py` | 171 | 2 | cadence baselines, gaps, reachable sets, the join |
 | `cfar.py` | 115 | 2 | CA-CFAR, length estimation, AIS matching |
 | `score.py` | 235 | 2 | five factors, weighted mean, ranking, ablation |
 | `gates.py` | 70 | 2 | the five refusals |
-| `pipeline.py` | 504 | 3 | the spine |
+| `fit.py` | 290 | 2 | labelled corpus, discriminator fitting, holdout metrics |
+| `validate.py` | 168 | 2 | the AC-7 drift-validation method |
+| `pipeline.py` | 588 | 3 | the spine |
 | `dossier.py` | 272 | 3 | the report |
-| `server.py` | 127 | 3 | HTTP service |
-| `cli.py` | 128 | 3 | entry point |
-| `tests.py` | 152 | 3 | acceptance criteria, executable |
+| `server.py` | 138 | 3 | HTTP service |
+| `cli.py` | 154 | 3 | entry point |
+| `tests.py` | 353 | 3 | primitives, properties, acceptance criteria — 48 checks |
 
 ---
 
@@ -593,7 +603,7 @@ Per-step cost: 4 forcing evaluations × 2 fields × N particles. For N = 2 600 a
 4. label, keep the **largest** component;
 5. trace its boundary, simplify, convert to lon/lat.
 
-A convex hull was rejected: over a bimodal cloud it invents water no particle visited, and the containment factor is normalised by region area, so invented area directly deflates every vessel's score. Keeping only the largest component is a stated approximation — a genuinely bimodal origin region would lose a lobe, and `alive` plus the r₉₅ series are what would reveal it. **Open item:** emit all components above a size threshold instead. Cheap; not yet done.
+A convex hull was rejected: over a bimodal cloud it invents water no particle visited, and the containment factor is normalised by region area, so invented area directly deflates every vessel's score. **Closed:** every component holding at least 5 % of the retained cells is now returned, not only the largest, and `origin_region` is a list of rings throughout. A bimodal origin region — two plausible release areas either side of an eddy — is a real outcome of backward advection, and dropping a lobe would quietly clear whatever vessel was in it. `geo.as_rings`, `geo.points_in_rings` and `geo.region_bbox` make the multi-part case the default everywhere, and `overlap_fraction` normalises by the union, so a reachable set covering one lobe of two scores about a half rather than a one.
 
 **Why backward is not forward.** Forward advection–diffusion is well-posed; reversing time gives the anti-diffusion equation, which is ill-posed. What `integrate(hours < 0)` computes is therefore a **reachable set**, not a probability density over origins. Three code-level consequences: the output type has no scalar origin field; `r95_series` is a first-class emitted array, not a debug aid; and Gate 2 exists.
 
@@ -1203,13 +1213,37 @@ Every branch degrades to text. No `throw` escapes the IIFE, so a missing optiona
 
 **Masking.** MMSIs render as `999•••773`. The synthetic identity is already collision-proof (TR-I2); masking is a habit worth having before the build ever touches real AIS.
 
-### 12.5 Weight slider event flow
+### 12.5 The workstation — `web/workstation.html`
+
+804 lines, one file, no framework, no build step, and **no map tiles**.
+
+**The basemap is the radar scene.** The pipeline emits `scene_detection.png` — a percentile-stretched greyscale encode of the σ⁰ raster, written by `darktransit.png` with stdlib zlib — together with its geographic bounds and the stretch mapping so a reader can invert it. The canvas draws that image into its own lon/lat footprint and every overlay into the same equirectangular frame. This is not a compromise forced by being offline; a tile map would show a coastline where the analyst needs to see the measurement.
+
+| Concern | Implementation |
+|---|---|
+| Projection | equirectangular about the scene centre; `view = {lon, lat, scale}` with `scale` in pixels per degree of latitude and a fixed `cos(lat)` for longitude |
+| Pan / zoom | pointer drag on `view.lon/lat`; wheel scales, clamped to [200, 400 000] px/deg |
+| Selection | click tests every emitted track vertex within 18 CSS px, selects the nearest vessel, and switches the panel to stage 07 |
+| Time | one `hour` variable in [−horizon, +horizon] drives the clock, the particle cloud and the vessel markers; `Play` steps it at 90 ms |
+| Cloud | `cloud.json`, 320 particles per hour per direction, decimated by a deterministic **stride** so the same particles are followed hour to hour and the cloud animates as a cloud |
+| Layers | eight toggles: scene, coastline, slick, origin region, particle cloud, AIS tracks, reachable set, radar targets |
+| Panels | seven, one per stage, each rendering its own artefact plus its gate box |
+| Weights | five sliders; local recompute for immediacy, then `POST /rescore` for the authoritative ranking |
+| Log | drawer over `log.jsonl`, formatted one line per stage |
+
+**Rank colouring** is deliberate: rank 1 amber, ranks 2–3 ink, everything else faded. A judge should be able to see which hull the system is pointing at without reading the table — and see the eight faded tracks that were cleared.
+
+**The r₉₅ growth curve is inline SVG** with the Gate 2 threshold drawn as a dashed line the curve visibly approaches. Uncertainty is a first-class output (DR-6), so it gets a chart rather than a number.
+
+### 12.6 Weight slider event flow
 
 `input` → update `WEIGHTS[k]` → update the `<output>` → `renderRoster()` (synchronous, ≤ 20 rows) → debounce 260 ms → `POST /rescore` → replace `RANKED` with the server's rows → re-render → set `#apistate`. Gate 4's threshold is applied client-side too: `#margin` turns magenta and `#margingate` reads *"below 0.10 — gate 4 fires, neither vessel is named"* the moment the margin crosses it.
 
-### 12.6 Verification without a browser
+### 12.7 Verification without a browser
 
-There is no headless browser in this environment, so the hydration layer is verified two ways: `node --check` on both extracted script blocks, and a DOM/`fetch` shim (~50 lines) that runs the hydration IIFE against a real `run.json` and prints every captured binding. Both were run; all 27 keys and all 12 regions populated. **TR-F2:** any change to the hydration layer shall be re-verified the same way before it is presented.
+There is no headless browser in this environment, so the hydration layer is verified two ways: `node --check` on both extracted script blocks, and a DOM/`fetch` shim (~50 lines) that runs the hydration IIFE against a real `run.json` and prints every captured binding. Both were run; all 27 keys and all 12 regions populated. **TR-F2:** any change to either front end shall be re-verified the same way before it is presented.
+
+The workstation has its own harness: it stubs `document`, `Image`, `fetch` and a canvas 2-D context that counts draw calls, boots the page against a real `run.json` and `cloud.json`, then exercises all seven panels, the time slider in both directions, the cloud lookup, the weight sliders and the local rescore — 22 checks, all passing. It confirms the basemap is drawn (`drawImage` called) and that vectors reach the canvas (28 `stroke` calls), which is as close to "it renders" as is reachable without a browser.
 
 ---
 
@@ -1227,8 +1261,11 @@ Stdlib now, FastAPI in Phase 1, same routes and same shapes.
 | GET | `/runs/{id}/artifacts/{stage}` | `stage` ∈ intake, detection, geometry, drift, traffic, dark, attribution | that stage artefact | 404 unknown artefact |
 | GET | `/runs/{id}/dossier.html` | — | `text/html` | 404 |
 | GET | `/runs/{id}/log` | — | `text/plain` JSONL | 404 |
+| GET | `/runs/{id}/{file}` | — | any other file the run emitted: `scene_detection.png`, `scene_archive.png`, `cloud.json` | 400 on a name containing a separator, 404 otherwise |
 | POST | `/runs/{id}/rescore` | `{"weights": {factor: number}}` | `{ranked, leader_margin, weights, weight_pack, weight_pack_version, ablation}` | 404 unknown run · **409** run halted before attribution |
 | — | *transmit* | — | — | **does not exist (NFR-4, TR-A5)** |
+
+The catch-all file route takes a **name only**: any path separator or leading dot is rejected, and the resolved parent must equal the run directory, so the run directory cannot be escaped (TR-S2). Verified: `/runs/{id}/../../etc/passwd` returns 404.
 
 **Conventions.** `Cache-Control: no-store` on everything — a stale `run.json` after a re-run is the most confusing possible demo failure. `Content-Length` always set. Access logging suppressed (`log_message` overridden) so the CLI output stays readable during a demo.
 
@@ -1248,14 +1285,16 @@ Hardware: Intel Core i5-1240P, 16 threads, Python 3.14.7, numpy 2.4.4. Three con
 
 | Stage | Δt | Share | Dominant cost |
 |---|---|---|---|
-| 01 intake (incl. world generation) | 1.53 s | 25 % | truth advection + two scene rasters |
-| 02 detection | 1.02 s | 17 % | `raster.label` Python inner loop |
+| 01 intake (incl. world generation and two PNG encodes) | 2.38 s | 37 % | truth advection, two scene rasters, zlib |
+| 02 detection | 0.55 s | 9 % | `raster.label` Python inner loop |
 | 03 characterisation | 0.01 s | 0 % | one eigendecomposition |
-| **04 drift** | **2.46 s** | **41 %** | 2.0 M forcing interpolations per direction |
-| 05 traffic | 0.41 s | 7 % | pairwise track↔region distances |
-| 06 dark channel | 0.34 s | 6 % | 4 integral images + labelling |
-| 07 attribution | 0.29 s | 5 % | `track_coverage`: 8 100 grid points × 7 vessels |
-| **total, internal** | **6.07 s** | | wall over three runs: 6.10, 6.41, 6.77 s |
+| **04 drift** | **2.55 s** | **40 %** | 2.0 M forcing interpolations per direction, plus the landfall test |
+| 05 traffic | 0.43 s | 7 % | pairwise track↔region distances |
+| 06 dark channel | 0.24 s | 4 % | 4 integral images + labelling |
+| 07 attribution | 0.20 s | 3 % | `track_coverage`: 8 100 grid points × 7 vessels |
+| **total, internal** | **6.36 s** | | wall 6.60 s, peak RSS 203 MB, artefacts 1.7 MB |
+
+Two commands sit outside the run budget because they are development tools, not demo steps: `cli fit` takes ~3 min for a 140-scene corpus, and `cli validate` ~20 s for 30 drifters.
 
 Peak RSS 176 MB. `run.json` 211 KB, of which 153 KB is stage 05 (decimated tracks). Dossier 17 KB.
 
@@ -1279,7 +1318,7 @@ Peak RSS 176 MB. `run.json` 211 KB, of which 153 KB is stage 05 (decimated track
 2. Precompute the forcing on the particle bounding box per hour and index rather than `searchsorted` per stage: the drift stage is 4 interpolations per step and 3 of them land in the same cell.
 3. `snapshot_every_h` is already 1.0; snapshots are not the cost, the 240 integration steps are.
 
-None of this is worth doing at 6 s against a 600 s budget. It is written down so that when the real forcing arrives and stage 04 becomes I/O-bound, the shape of the problem is already known.
+None of this is worth doing at 6.4 s against a 600 s budget. It is written down so that when the real forcing arrives and stage 04 becomes I/O-bound, the shape of the problem is already known.
 
 ### 14.4 Full-build projection
 
@@ -1369,10 +1408,21 @@ PRD §16 states the policy; this is where each control physically lives.
 
 ### 17.2 Known gaps, stated rather than hidden
 
-- **The layer-0 primitive checks are not yet in `tests.py`.** They were run during construction (and caught the `trace_boundary` back-track defect and the ellipse degeneracy), but they live in shell history, not in the suite. That is the highest-value next test work: the geometry is where a silent numerical defect would hide.
-- **No property-based tests.** `points_in_polygon` against a random polygon and a Monte-Carlo area estimate, and `ellipse_from_foci` against the focal-sum definition, are both natural properties and neither is asserted.
-- **AC-7 (drifter validation) and AC-9 (10-minute budget on real data) cannot pass in this build** — both need real data. PRD §22 marks them ⬜ and they must not be claimed.
-- **`kinematic_flags` (TR-8) is implemented and exercised but no scenario injects an impossible-speed fix**, so its detection path is unproven. A `spoofed` scenario is one `Scenario` field away.
+Closed since revision A:
+
+- **Layer-0 primitive and property checks are now in the suite** — 19 of them, run first. Two are regressions for defects found during construction: a 10×18 rectangle must trace to a 52-pixel perimeter (the contour tracer once oscillated and returned 1 505 points), and every ellipse vertex must satisfy `|q−f₁| + |q−f₂| = sum` (the reachable set once collapsed when `v_max` undercut observed speed). Three are properties rather than examples: point-in-polygon against a Monte-Carlo area on a random polygon, r₉₅ against the analytic Rayleigh quantile, and RK4 in a uniform field against `u·t` exactly.
+- **`kinematic_flags` (TR-8) is now exercised.** The `spoofed` scenario forges a run of positions ~28 km off a vessel's own track and back; the check flags both seams, and the nominal scenario flags nothing.
+- **Detection metrics are measured**, on a scene-disjoint holdout, with Wilson intervals — see PRD §17 for what they do and do not mean.
+- **The drift-validation method runs** and is sensitive to a wrong leeway coefficient at the right magnitude.
+
+Still open, and not to be claimed:
+
+- **AC-7 needs real drifters.** What runs today advects synthetic buoys through the same forcing the hindcast uses, so it cannot validate the *size* of r₉₅ — only that the integrator round-trips and that the ensemble is conservative. Coverage of 30/30 against a 90 % target is over-dispersion, not a pass, and the module says so in a field computed from the numbers rather than in prose.
+- **AC-9 needs real data volumes.** 6.4 s on a synthetic 640×640 scene says nothing about 41 M pixels of Sentinel-1 IW.
+- **DT-3 is still not a U-Net.** A fitted six-feature linear model is not a segmentation network, and the fitted pack's own `caveat` field says the numbers are against our simulator.
+- **Two fitted coefficients disagree with the physics prior** (`wind_ms`, `homogeneity`). Recorded in `detector.v1.json`, small in magnitude, and most likely weakly identified rather than meaningful — but unexplained.
+- **No property-based test on `overlap_fraction`.** Its grid quantisation error is stated (±0.6 % at n=160) but not asserted.
+- **The workstation is verified without a browser** — `node --check` plus a DOM/canvas shim that boots it against a real `run.json` and exercises all seven panels, the time slider and the rescore path (22 checks). That is not the same as looking at it on the venue projector, and TR-P6 remains unmeasured.
 
 ### 17.3 Test data policy
 
@@ -1420,12 +1470,16 @@ PRD requirement → module → function → test.
 | CH-4, CH-5 | `characterise` | `age_h` + sweep | closed-loop age-bracket check |
 | DR-2, DR-3 | `drift` | `step_rk4` | closed loop |
 | DR-4, DR-6 | `drift`, `pipeline` | `r95_km`, `r95_series` | NFR-6 check |
+| DR-5 | `drift`, `incident` | `landfall`, `coastline` | ashore fraction cumulative and non-falling |
+| DT-1 | `detect`, `scene` | land mask, 2 km buffer | land present in the raster |
+| DT-3 (partial) | `fit` | `run_fit`, `metrics` | scene-disjoint holdout in `detector.v1.json` |
+| UI-1, UI-2, UI-4 | `web/workstation.html` | `draw`, `renderPanel`, `setHour` | DOM-shim harness, 22 checks |
 | DR-8 | `drift` | `make_ensemble` | r₉₅ growth table §8.2 |
 | Gate 2 | `gates` | `gate2_region` | AC-5 (`wide`) |
 | TR-1, TR-2 | `traffic` | `analyse` | `05_traffic.json.dropped_vessels` |
 | TR-3 | `traffic` | `baseline_cadence_s`, `find_gaps` | NFR-3 check |
 | TR-4 | `geo`, `traffic` | `ellipse_from_foci`, `find_gaps` | closed loop (culprit enters via `ais-gap`) |
-| TR-8 | `traffic` | `kinematic_flags` | **gap — no scenario injects it** |
+| TR-8 | `traffic` | `kinematic_flags` | `spoofed` scenario; both seams flagged, nominal clean |
 | HD-1 | `geo` | `axis_delta_deg` | primitive check |
 | HD-2 | `characterise`, `score` | `axis_usable`, suppression | AC-3 |
 | HD-3 | `drift` | `shear_per_hour` | emitted in `04_drift.json` |

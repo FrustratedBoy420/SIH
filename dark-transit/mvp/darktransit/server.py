@@ -91,6 +91,17 @@ def make_handler(runs_root: Path):
                     f = next((x for x in d.glob(f"*{parts[3]}*.json")), None)
                     return self._json(json.loads(f.read_text())) if f \
                         else self._json({"error": "unknown artefact"}, 404)
+                if len(parts) == 3:
+                    # any other file the run produced: rasters, cloud.json.
+                    # Name-only, no separators, so the run directory cannot be
+                    # escaped (TR-S2).
+                    name = parts[2]
+                    if "/" in name or "\\" in name or name.startswith("."):
+                        return self._json({"error": "bad name"}, 400)
+                    f = (d / name)
+                    if f.is_file() and f.resolve().parent == d.resolve():
+                        ctype = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
+                        return self._send(200, f.read_bytes(), ctype)
                 return self._json({"error": "unknown route"}, 404)
             return self._static(path.lstrip("/"))
 

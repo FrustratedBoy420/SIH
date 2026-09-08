@@ -125,22 +125,66 @@ def ellipse_from_foci(f1, f2, sum_dist, n=96) -> np.ndarray:
     return np.stack([mid[0] + ex * ca - ey * sa, mid[1] + ex * sa + ey * ca], axis=1)
 
 
+def as_rings(region):
+    """Normalise a region to a list of rings.
+
+    A region may be a single ring [[lon,lat], ...] or several disjoint ones.
+    Callers should not have to care, and the ones that did care were the bug:
+    an origin region with two lobes used to lose one.
+    """
+    if region is None:
+        return []
+    r = list(region)
+    if not r:
+        return []
+    first = r[0]
+    # a single ring's first element is a coordinate pair of two numbers
+    if len(first) == 2 and all(isinstance(v, (int, float, np.floating, np.integer))
+                               for v in first):
+        return [np.asarray(r, dtype=float)]
+    return [np.asarray(ring, dtype=float) for ring in r if len(ring) >= 3]
+
+
+def points_in_rings(pts, region) -> np.ndarray:
+    """Inside ANY ring of a possibly multi-part region."""
+    rings = as_rings(region)
+    pts = np.asarray(pts, dtype=float).reshape(-1, 2)
+    if not rings:
+        return np.zeros(len(pts), dtype=bool)
+    out = np.zeros(len(pts), dtype=bool)
+    for ring in rings:
+        out |= points_in_polygon(pts, ring)
+    return out
+
+
+def region_bbox(region):
+    rings = as_rings(region)
+    if not rings:
+        return None
+    allp = np.concatenate(rings, axis=0)
+    return allp.min(axis=0), allp.max(axis=0)
+
+
 def overlap_fraction(region_poly, other_poly, n=160) -> float:
     """area(other ∩ region) / area(region), by a deterministic grid sample.
 
     Normalised by the *region*, not by `other`: a huge reachable set gets no
     credit for covering everything, it gets credit for covering the origin
     region, which is the actual question (PRD 10.11).
+
+    `region_poly` may be multi-part; the denominator is then the union, so a
+    reachable set that covers one lobe of a two-lobe region scores about a
+    half rather than a one.
     """
-    r = np.asarray(region_poly, dtype=float)
-    if len(r) < 3 or len(np.asarray(other_poly)) < 3:
+    bb = region_bbox(region_poly)
+    if bb is None or len(np.asarray(other_poly)) < 3:
         return 0.0
-    lo, hi = r.min(axis=0), r.max(axis=0)
+    lo, hi = bb
     gx = np.linspace(lo[0], hi[0], n)
     gy = np.linspace(lo[1], hi[1], n)
     mx, my = np.meshgrid(gx, gy)
     pts = np.stack([mx.ravel(), my.ravel()], axis=1)
-    in_r = points_in_polygon(pts, r)
+    in_r = points_in_rings(pts, region_poly)
     if not in_r.any():
         return 0.0
     in_o = points_in_polygon(pts[in_r], other_poly)

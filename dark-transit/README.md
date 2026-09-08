@@ -23,7 +23,10 @@ mvp/                            a runnable reference implementation — see mvp/
   web/index.html                  the same narrative page, now reading real pipeline output
 ```
 
-`artifacts/forty-hours-back.html` is the original study: every vessel, coordinate and score on it was invented for demonstration. `mvp/web/index.html` is that page rewired — same design, but every number is read from `run.json`, the output of a pipeline that actually detects, hindcasts, filters, scores and refuses. Nothing on the live page is typed in by hand, and a test asserts it.
+`artifacts/` holds the original studies: every vessel, coordinate and score on them was invented. Both are now live views over real pipeline output, and a test asserts that no incident number is typed into either.
+
+- **`mvp/web/index.html`** — the narrative walkthrough, for the pitch.
+- **`mvp/web/workstation.html`** — the analyst tool. Seven stage panels, gate state on each, a time slider over the whole ±40 h horizon, live weight sliders, the run log. **The basemap is the radar scene itself**, emitted by the pipeline as a georeferenced PNG: no map tiles, no network, and what you pan around is the measurement rather than a cartoon of it.
 
 ## Run it
 
@@ -32,8 +35,16 @@ No dependency beyond numpy. Offline. Deterministic under a recorded seed.
 ```bash
 cd mvp
 python3 -m darktransit.cli run --scenario kutch    # full pipeline, ~6 s
-python3 -m darktransit.cli selftest                # the acceptance criteria of PRD §19
-python3 -m darktransit.cli serve                   # then open http://127.0.0.1:8000/
+python3 -m darktransit.cli selftest                #48 checks: primitives, properties, PRD §19
+python3 -m darktransit.cli serve                   # http://127.0.0.1:8000/  (narrative)
+                                                   # http://127.0.0.1:8000/workstation.html
+```
+
+Two development tools, outside the run budget:
+
+```bash
+python3 -m darktransit.cli fit         # refit the look-alike discriminator, ~3 min
+python3 -m darktransit.cli validate    # hindcast known drifter tracks, ~20 s
 ```
 
 ## The three claims
@@ -60,6 +71,6 @@ Each has a scenario that fires it: `--scenario lookalike | wide | no-radar | amb
 
 `TECHNICAL_SPEC.md` is the engineering counterpart to the PRD: numbered technical requirements (units, coordinate frames, determinism, numerical rules, performance budgets, safety controls in code), the data contracts field by field, and a module-by-module low-level design with measured numbers, complexity, and the defects found while building it.
 
-The MVP covers build steps 1–3 of PRD §18 plus the classical detection path, the dark channel, the gates, the scoring model and the dossier. It does not include the fine-tuned segmentation network or the real Copernicus/ERA5/AIS pulls. PRD §22 states exactly which requirement is implemented and which is a Phase 1 target — read it before quoting any capability as done.
+The MVP covers build steps 1–3 of PRD §18 plus the classical detection path with a fitted discriminator, the dark channel, the gates, the scoring model, the dossier and both front ends. It does not include the fine-tuned segmentation network, OpenDrift, or the real Copernicus/ERA5/AIS pulls. PRD §22 states exactly which requirement is implemented and which is a Phase 1 target — read it before quoting any capability as done.
 
 Every incident is synthetic and declared as such in the run log, in the interface and on page 1 of every dossier. MMSIs are minted under the prefix 999, which is not an assigned Maritime Identification Digit, so no generated identity can collide with a real vessel.

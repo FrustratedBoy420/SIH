@@ -113,7 +113,7 @@ def analyse(tracks, region_lonlat, window_h, plane, positions_fn):
     Report how many vessels were dropped and on what basis, not only how many
     survived (TR-2).
     """
-    region = np.asarray(region_lonlat, dtype=float)
+    rings = geo.as_rings(region_lonlat)
     records, dropped = [], []
     w0, w1 = window_h
 
@@ -129,8 +129,9 @@ def analyse(tracks, region_lonlat, window_h, plane, positions_fn):
 
         # distance to the region, for the closest-approach report
         pts = np.stack([pos["lon"], pos["lat"]], axis=1)
-        inside = geo.points_in_polygon(pts, region)
-        rx, ry = plane.to_xy(region[:, 0], region[:, 1])
+        inside = geo.points_in_rings(pts, rings)
+        allv = np.concatenate(rings, axis=0) if rings else np.zeros((0, 2))
+        rx, ry = plane.to_xy(allv[:, 0], allv[:, 1])
         px, py = plane.to_xy(pos["lon"], pos["lat"])
         d = np.min(np.hypot(px[:, None] - rx[None, :], py[:, None] - ry[None, :]), axis=1)
         rec.closest_approach_km = float(np.min(np.where(inside, 0.0, d)) / 1000.0)
@@ -145,7 +146,7 @@ def analyse(tracks, region_lonlat, window_h, plane, positions_fn):
             # A vessel can still be a candidate if it was dark over the window
             # and its reachable set covers the region.
             for g in rec.gaps:
-                g.overlap = geo.overlap_fraction(region, np.asarray(g.envelope, dtype=float))
+                g.overlap = geo.overlap_fraction(rings, np.asarray(g.envelope, dtype=float))
                 if g.overlap > 0 and not (g.end_h < w0 or g.start_h > w1):
                     rec.in_region = True
                     rec.channel = "ais-gap"
@@ -156,7 +157,7 @@ def analyse(tracks, region_lonlat, window_h, plane, positions_fn):
 
         for g in rec.gaps:
             if g.overlap == 0.0:
-                g.overlap = geo.overlap_fraction(region, np.asarray(g.envelope, dtype=float))
+                g.overlap = geo.overlap_fraction(rings, np.asarray(g.envelope, dtype=float))
 
         if rec.in_region:
             records.append(rec)

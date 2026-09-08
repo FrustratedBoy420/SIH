@@ -1,0 +1,804 @@
+<title>Dark Transit Workstation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;600;700&family=Bodoni+Moda:opsz,wght@6..96,600;6..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#f6f3ea; --panel:#fbf9f3; --sunk:#eee9dc; --rail:#f1ede2;
+  --ink:#151f27; --ink-2:#485966; --ink-3:#8395a1;
+  --hair:#c3ccd2; --hair-2:#dde3e7;
+  --mag:#b8256f; --amber:#a8631d; --teal:#1d7a68; --stop:#a8203f;
+  --disp:"Bodoni Moda",Georgia,serif;
+  --lab:"Archivo Narrow","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#070c11; --panel:#0c141b; --sunk:#050a0e; --rail:#0a1219;
+    --ink:#c5d0d8; --ink-2:#8093a0; --ink-3:#57666f;
+    --hair:#22303b; --hair-2:#182530;
+    --mag:#e35ba3; --amber:#d08a3a; --teal:#3fae95; --stop:#e05c78;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#070c11; --panel:#0c141b; --sunk:#050a0e; --rail:#0a1219;
+  --ink:#c5d0d8; --ink-2:#8093a0; --ink-3:#57666f;
+  --hair:#22303b; --hair-2:#182530;
+  --mag:#e35ba3; --amber:#d08a3a; --teal:#3fae95; --stop:#e05c78;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--lab);
+  font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+.app{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%}
+
+/* ── topbar ── */
+.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:8px 14px;
+  border-bottom:1px solid var(--hair);background:var(--panel)}
+.mark{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.mark span{font-family:var(--lab);font-weight:400;font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-3);margin-left:9px}
+.kv{display:flex;gap:5px;align-items:baseline;font-size:11.5px}
+.kv b{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:400}
+.kv i{font-style:normal;font-family:var(--mono);font-size:11.5px}
+.prov{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-3);border:1px solid var(--hair);
+  padding:3px 7px;border-radius:2px}
+.prov u{text-decoration:none;color:var(--mag)}
+.gatechips{display:flex;gap:4px}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.1em;padding:2px 5px;
+  border:1px solid var(--hair);border-radius:2px;color:var(--ink-3)}
+.chip.on{border-color:var(--stop);color:var(--stop)}
+.chip.ok{border-color:var(--teal);color:var(--teal)}
+
+/* ── shell ── */
+.body{display:grid;grid-template-columns:196px minmax(0,1fr) 372px;min-height:0}
+@media (max-width:1180px){.body{grid-template-columns:168px minmax(0,1fr) 320px}}
+
+/* ── stage rail ── */
+.rail{border-right:1px solid var(--hair);background:var(--rail);overflow-y:auto;padding:6px 0}
+.stage{display:grid;grid-template-columns:26px 1fr;gap:8px;padding:9px 12px;width:100%;
+  text-align:left;border-left:2px solid transparent;align-items:start}
+.stage:hover{background:var(--sunk)}
+.stage[aria-current="true"]{background:var(--panel);border-left-color:var(--amber)}
+.stage .n{font-family:var(--mono);font-size:10px;color:var(--ink-3);padding-top:2px}
+.stage .t{font-weight:600;font-size:13px;line-height:1.25}
+.stage .s{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);margin-top:2px}
+.stage .s.fired{color:var(--stop)}
+.stage .s.held{color:var(--teal)}
+.stage.halted .t{color:var(--stop)}
+
+/* ── map ── */
+.mapwrap{position:relative;min-width:0;background:var(--sunk)}
+canvas#map{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}
+canvas#map.drag{cursor:grabbing}
+.legend{position:absolute;left:10px;bottom:10px;background:var(--panel);
+  border:1px solid var(--hair);padding:7px 9px;font-size:11px;max-width:230px}
+.legend h6{margin:0 0 5px;font-family:var(--mono);font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:400}
+.legend label{display:flex;gap:6px;align-items:center;cursor:pointer;padding:1px 0}
+.legend .sw{width:12px;height:12px;border:1px solid var(--hair)}
+.scalebar{position:absolute;right:10px;bottom:10px;background:var(--panel);
+  border:1px solid var(--hair);padding:4px 8px;font-family:var(--mono);font-size:10px}
+.scalebar i{display:block;height:3px;background:var(--ink);margin-bottom:3px}
+.maphint{position:absolute;right:10px;top:10px;font-family:var(--mono);font-size:9.5px;
+  color:var(--ink-3);background:var(--panel);border:1px solid var(--hair);padding:3px 7px}
+
+/* ── evidence panel ── */
+.panel{border-left:1px solid var(--hair);background:var(--panel);overflow-y:auto;padding:12px 14px 20px}
+.panel h3{font-family:var(--disp);font-weight:600;font-size:19px;margin:0 0 2px}
+.panel .sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 12px}
+.panel p{font-size:12.5px;color:var(--ink-2);margin:0 0 10px}
+.gatebox{border:1px solid var(--hair);border-left-width:3px;padding:8px 10px;margin:0 0 12px;
+  font-size:12px}
+.gatebox.fired{border-left-color:var(--stop)}
+.gatebox.held{border-left-color:var(--teal)}
+.gatebox b{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  display:block;margin-bottom:3px}
+.gatebox.fired b{color:var(--stop)} .gatebox.held b{color:var(--teal)}
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin:0 0 12px}
+th,td{text-align:left;padding:3px 5px;border-bottom:1px solid var(--hair-2);vertical-align:top}
+th{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);border-bottom:1px solid var(--hair)}
+td.num{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+tr.sel td{background:var(--sunk)}
+tr.lead td{font-weight:600}
+tr[data-mmsi]{cursor:pointer}
+.stat{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--hair-2);
+  border:1px solid var(--hair-2);margin:0 0 12px}
+.stat div{background:var(--panel);padding:6px 8px}
+.stat .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);display:block}
+.stat .v{font-family:var(--disp);font-weight:600;font-size:20px;display:block;line-height:1.1;
+  margin-top:2px}
+.stat .v u{text-decoration:none;font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  font-weight:400;margin-left:3px}
+.wrow{display:grid;grid-template-columns:74px 1fr 30px;gap:7px;align-items:center;margin-bottom:5px}
+.wrow label{font-size:11.5px}
+.wrow output{font-family:var(--mono);font-size:10.5px;text-align:right;color:var(--amber)}
+input[type=range]{-webkit-appearance:none;appearance:none;height:2px;background:var(--hair);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+  border-radius:50%;background:var(--amber);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;
+  background:var(--amber);cursor:pointer}
+.fac{margin-bottom:7px}
+.fac .r{display:flex;justify-content:space-between;font-size:11.5px}
+.fac .b{height:2px;background:var(--hair);margin:4px 0 3px}
+.fac .b i{display:block;height:100%;background:var(--amber)}
+.fac .w{font-size:11px;color:var(--ink-2);line-height:1.45}
+.note{font-size:11px;color:var(--ink-3);line-height:1.5;border-top:1px solid var(--hair-2);
+  padding-top:8px;margin-top:10px}
+.spark{width:100%;height:74px;display:block;margin-bottom:10px}
+
+/* ── timebar ── */
+.time{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:14px;align-items:center;
+  padding:7px 14px;border-top:1px solid var(--hair);background:var(--panel)}
+.clock{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clock u{text-decoration:none;color:var(--ink-3);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;margin-left:7px}
+.time .marks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;
+  color:var(--ink-3);margin-top:1px}
+.tbtn{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid var(--hair);padding:4px 9px}
+.tbtn[aria-pressed="true"]{border-color:var(--amber);color:var(--amber)}
+
+/* ── log drawer ── */
+.logdrawer{position:fixed;right:0;bottom:0;width:min(560px,94vw);max-height:56vh;overflow:auto;
+  background:var(--panel);border:1px solid var(--hair);border-right:0;border-bottom:0;
+  padding:10px 12px;z-index:9;box-shadow:0 -6px 28px rgba(0,0,0,.12)}
+.logdrawer pre{font-family:var(--mono);font-size:10px;line-height:1.7;margin:0;white-space:pre}
+.logdrawer h6{margin:0 0 6px;font-family:var(--mono);font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-3);font-weight:400}
+.err{padding:26px;font-family:var(--mono);font-size:12px;color:var(--stop)}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="mark">Dark Transit<span>Workstation</span></div>
+    <div class="kv"><b>Incident</b><i id="t-incident">—</i></div>
+    <div class="kv"><b>Detected</b><i id="t-detected">—</i></div>
+    <div class="kv"><b>Run</b><i id="t-run">—</i></div>
+    <div class="gatechips" id="t-gates"></div>
+    <button class="tbtn" id="t-log" aria-pressed="false">Run log</button>
+    <a class="tbtn" href="./" style="text-decoration:none">Narrative</a>
+    <div class="prov" id="t-prov">loading</div>
+  </header>
+
+  <div class="body">
+    <nav class="rail" id="rail" aria-label="Pipeline stages"></nav>
+
+    <div class="mapwrap">
+      <canvas id="map"></canvas>
+      <div class="maphint">drag to pan · scroll to zoom · click a track</div>
+      <div class="legend" id="legend"><h6>Layers</h6></div>
+      <div class="scalebar" id="scalebar"><i></i><span>—</span></div>
+    </div>
+
+    <section class="panel" id="panel"></section>
+  </div>
+
+  <footer class="time">
+    <div class="clock"><span id="clk">—</span><u id="clkrel">detection</u></div>
+    <div>
+      <input type="range" id="tslider" min="-40" max="40" step="1" value="0" style="width:100%">
+      <div class="marks"><span>−40 h</span><span>hindcast</span><span>detection</span><span>forecast</span><span>+40 h</span></div>
+    </div>
+    <button class="tbtn" id="play" aria-pressed="false">Play</button>
+    <button class="tbtn" id="reset">Now</button>
+  </footer>
+</div>
+
+<div class="logdrawer" id="logdrawer" hidden><h6>Run log · every stage and gate decision</h6><pre id="logtext"></pre></div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════════════
+   Dark Transit workstation (UI-1 .. UI-4).
+
+   The basemap is the radar scene itself, drawn from a PNG the pipeline emits
+   with its geographic bounds. There are no map tiles and nothing to fetch from
+   a network: what the analyst pans around is the measurement. Everything else
+   is an overlay in the same equirectangular frame.
+
+   Every number on this page comes from run.json. Nothing is hardcoded.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const $ = s => document.querySelector(s);
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : Number(v).toFixed(d);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mask = m => m ? m.slice(0, 3) + "•••" + m.slice(-3) : "—";
+const p2 = n => String(n).padStart(2, "0");
+
+let DOC = null, CLOUD = null, BASE = null, RUNBASE = "";
+let stage = 4, hour = 0, selected = null, playing = null;
+const layers = {
+  scene: true, coast: true, slick: true, region: true,
+  cloud: true, tracks: true, envelope: true, targets: true,
+};
+
+/* ── projection: equirectangular about the scene centre ───────────────── */
+const view = { lon: 0, lat: 0, scale: 1 };   // scale = pixels per degree of latitude
+let coslat = 1;
+
+function toScreen(lon, lat, w, h) {
+  return [w / 2 + (lon - view.lon) * view.scale * coslat,
+          h / 2 - (lat - view.lat) * view.scale];
+}
+function toLonLat(sx, sy, w, h) {
+  return [view.lon + (sx - w / 2) / (view.scale * coslat),
+          view.lat - (sy - h / 2) / view.scale];
+}
+
+/* ── boot ─────────────────────────────────────────────────────────────── */
+(async function boot() {
+  try {
+    const r = await fetch("run.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    DOC = await r.json();
+  } catch (e) {
+    document.body.innerHTML =
+      '<div class="err">No run loaded.<br><br>python3 -m darktransit.cli run<br>python3 -m darktransit.cli serve</div>';
+    return;
+  }
+  RUNBASE = "runs/" + DOC.run_id + "/";
+
+  const pv = DOC.provenance || {};
+  $("#t-prov").innerHTML = "ais <u>" + esc(pv.ais) + "</u> · imagery <u>" + esc(pv.scene) +
+    "</u> · forcing <u>" + esc(pv.forcing) + "</u>";
+  $("#t-incident").textContent = DOC.scenario_label || DOC.scenario;
+  $("#t-detected").textContent = (DOC.detection_utc || "").replace("T", " ").replace(":00Z", "Z");
+  $("#t-run").textContent = DOC.run_id.slice(-8);
+
+  $("#t-gates").innerHTML = (DOC.gates || []).map(g =>
+    '<span class="chip ' + (g.fired ? "on" : "ok") + '" title="' + esc(g.detail) + '">G' + g.id + "</span>").join("");
+
+  try {
+    const c = await fetch(RUNBASE + "cloud.json", { cache: "no-store" });
+    if (c.ok) CLOUD = await c.json();
+  } catch (_) { }
+
+  const ras = (DOC.rasters || {}).detection;
+  if (ras) {
+    view.lon = (ras.bounds.west + ras.bounds.east) / 2;
+    view.lat = (ras.bounds.south + ras.bounds.north) / 2;
+    coslat = Math.cos(view.lat * Math.PI / 180);
+    const img = new Image();
+    img.onload = () => { BASE = { img, b: ras.bounds }; draw(); };
+    img.src = RUNBASE + ras.file;
+  } else if (DOC.geometry) {
+    view.lon = DOC.geometry.centroid[0];
+    view.lat = DOC.geometry.centroid[1];
+    coslat = Math.cos(view.lat * Math.PI / 180);
+  }
+
+  const h = DOC.parameters ? DOC.parameters.horizon_h : 40;
+  $("#tslider").min = -h; $("#tslider").max = h;
+
+  buildRail(); buildLegend(); renderPanel(); resize(); clockTo(0);
+
+  try {
+    const lg = await fetch(RUNBASE + "log.jsonl", { cache: "no-store" });
+    if (lg.ok) $("#logtext").textContent = (await lg.text()).trim().split("\n").map(l => {
+      const o = JSON.parse(l);
+      return String(o.t).padStart(7) + "s  " + o.stage.padEnd(16) + " " + o.event +
+        Object.entries(o).filter(([k]) => !["t", "stage", "event"].includes(k))
+          .map(([k, v]) => "  " + k + "=" + JSON.stringify(v)).join("");
+    }).join("\n");
+  } catch (_) { $("#logtext").textContent = "run log not served"; }
+})();
+
+/* ── stage rail ───────────────────────────────────────────────────────── */
+const STAGES = [
+  { n: 1, t: "Intake", s: "scene, archive, pre-flight", gate: 5 },
+  { n: 2, t: "Detection", s: "dark regions, look-alikes", gate: 1 },
+  { n: 3, t: "Characterisation", s: "geometry, axis, age", gate: null },
+  { n: 4, t: "Hindcast", s: "backward advection", gate: 2 },
+  { n: 5, t: "Traffic", s: "AIS replay, gaps", gate: null },
+  { n: 6, t: "Dark channel", s: "CFAR, AIS matching", gate: 3 },
+  { n: 7, t: "Attribution", s: "weighted scoring", gate: 4 },
+];
+
+function gateOf(id) { return (DOC.gates || []).find(g => g.id === id); }
+
+function buildRail() {
+  const halted = DOC.halted ? DOC.halted.gate : null;
+  $("#rail").innerHTML = STAGES.map(s => {
+    const g = s.gate ? gateOf(s.gate) : null;
+    const cls = (g && g.fired && halted === s.gate) ? " halted" : "";
+    const sub = g ? '<span class="s ' + (g.fired ? "fired" : "held") + '">gate ' + g.id +
+      " " + (g.fired ? "fired" : "held") + "</span>" : '<span class="s">' + esc(s.s) + "</span>";
+    return '<button class="stage' + cls + '" data-n="' + s.n + '" aria-current="' + (s.n === stage) + '">' +
+      '<span class="n">' + p2(s.n) + '</span><span><span class="t">' + esc(s.t) + "</span>" + sub + "</span></button>";
+  }).join("");
+  $("#rail").onclick = e => {
+    const b = e.target.closest(".stage"); if (!b) return;
+    stage = +b.dataset.n;
+    [...document.querySelectorAll(".stage")].forEach(x => x.setAttribute("aria-current", +x.dataset.n === stage));
+    if (stage === 4) setHour(-Math.round((DOC.geometry || {}).age_hours || 10));
+    if (stage === 6 && DOC.dark && DOC.dark.acquired_h != null) setHour(Math.round(DOC.dark.acquired_h));
+    renderPanel(); draw();
+  };
+}
+
+/* ── legend / layer toggles ───────────────────────────────────────────── */
+const LEGEND = [
+  ["scene", "SAR scene", "#888"], ["coast", "Coastline", "#7a6a45"],
+  ["slick", "Slick polygon", "#b8256f"], ["region", "Origin region", "#a8631d"],
+  ["cloud", "Particle cloud", "#1d7a68"], ["tracks", "AIS tracks", "#485966"],
+  ["envelope", "Reachable set", "#b8256f"], ["targets", "Radar targets", "#1d7a68"],
+];
+function buildLegend() {
+  $("#legend").innerHTML = "<h6>Layers</h6>" + LEGEND.map(([k, l, c]) =>
+    '<label><input type="checkbox" data-l="' + k + '"' + (layers[k] ? " checked" : "") + '>' +
+    '<span class="sw" style="background:' + c + '"></span>' + esc(l) + "</label>").join("");
+  $("#legend").onchange = e => {
+    if (!e.target.dataset.l) return;
+    layers[e.target.dataset.l] = e.target.checked; draw();
+  };
+}
+
+/* ── time ─────────────────────────────────────────────────────────────── */
+function clockTo(h) {
+  const base = Date.parse(DOC.detection_utc);
+  const d = new Date(base + h * 3600e3);
+  $("#clk").textContent = d.getUTCFullYear() + "-" + p2(d.getUTCMonth() + 1) + "-" + p2(d.getUTCDate()) +
+    " " + p2(d.getUTCHours()) + ":" + p2(d.getUTCMinutes()) + "Z";
+  $("#clkrel").textContent = h === 0 ? "detection" : (h < 0 ? Math.abs(h) + " h before" : h + " h after");
+}
+function setHour(h) { hour = h; $("#tslider").value = h; clockTo(h); draw(); }
+$("#tslider").addEventListener("input", e => { hour = +e.target.value; clockTo(hour); draw(); });
+$("#reset").onclick = () => setHour(0);
+$("#play").onclick = e => {
+  if (playing) { clearInterval(playing); playing = null; e.target.setAttribute("aria-pressed", "false"); return; }
+  e.target.setAttribute("aria-pressed", "true");
+  const lo = +$("#tslider").min, hi = +$("#tslider").max;
+  if (hour >= hi) setHour(lo);
+  playing = setInterval(() => {
+    if (hour >= hi) { clearInterval(playing); playing = null; $("#play").setAttribute("aria-pressed", "false"); return; }
+    setHour(hour + 1);
+  }, 90);
+};
+$("#t-log").onclick = e => {
+  const d = $("#logdrawer");
+  d.hidden = !d.hidden;
+  e.target.setAttribute("aria-pressed", String(!d.hidden));
+};
+
+/* ── map ──────────────────────────────────────────────────────────────── */
+const cv = $("#map");
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr);
+  if (BASE && view.scale === 1) {
+    const b = BASE.b;
+    view.scale = Math.min(r.width / ((b.east - b.west) * coslat), r.height / (b.north - b.south)) * 0.92;
+  } else if (view.scale === 1) { view.scale = r.height / 0.6; }
+  draw();
+}
+addEventListener("resize", resize);
+
+let drag = null;
+cv.addEventListener("pointerdown", e => {
+  drag = { x: e.clientX, y: e.clientY, lon: view.lon, lat: view.lat, moved: false };
+  cv.classList.add("drag"); cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const r = cv.getBoundingClientRect();
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+  view.lon = drag.lon - dx / (view.scale * coslat);
+  view.lat = drag.lat + dy / view.scale;
+  draw();
+});
+cv.addEventListener("pointerup", e => {
+  const wasDrag = drag && drag.moved;
+  drag = null; cv.classList.remove("drag");
+  if (!wasDrag) pick(e);
+});
+cv.addEventListener("wheel", e => {
+  e.preventDefault();
+  const k = Math.exp(-e.deltaY * 0.0016);
+  view.scale = Math.max(200, Math.min(400000, view.scale * k));
+  draw();
+}, { passive: false });
+
+function pick(e) {
+  if (!DOC.attribution) return;
+  const r = cv.getBoundingClientRect(), dpr = cv.width / r.width;
+  const sx = (e.clientX - r.left) * dpr, sy = (e.clientY - r.top) * dpr;
+  let best = null, bd = 18 * dpr;
+  for (const v of (DOC.traffic || {}).vessels || []) {
+    for (const p of v.track || []) {
+      const [x, y] = toScreen(p[0], p[1], cv.width, cv.height);
+      const d = Math.hypot(x - sx, y - sy);
+      if (d < bd) { bd = d; best = v.mmsi; }
+    }
+  }
+  if (best) { selected = best; stage = 7; buildRail(); renderPanel(); draw(); }
+}
+
+function ring(ctx, pts, w, h) {
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const [x, y] = toScreen(p[0], p[1], w, h);
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  });
+  ctx.closePath();
+}
+
+function cloudAt(h) {
+  if (!CLOUD) return null;
+  const arr = h <= 0 ? CLOUD.backward : CLOUD.forward;
+  let best = null, bd = 1e9;
+  for (const s of arr) { const d = Math.abs(s.hour - h); if (d < bd) { bd = d; best = s; } }
+  return best;
+}
+
+function draw() {
+  const ctx = cv.getContext("2d"), w = cv.width, h = cv.height;
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--sunk");
+  ctx.fillRect(0, 0, w, h);
+
+  /* basemap: the radar scene, in its own geographic footprint */
+  if (BASE && layers.scene) {
+    const b = BASE.b;
+    const [x0, y0] = toScreen(b.west, b.north, w, h);
+    const [x1, y1] = toScreen(b.east, b.south, w, h);
+    ctx.imageSmoothingEnabled = true;
+    ctx.globalAlpha = 0.95;
+    ctx.drawImage(BASE.img, x0, y0, x1 - x0, y1 - y0);
+    ctx.globalAlpha = 1;
+  }
+
+  const D = DOC.drift || {}, G = DOC.geometry || {};
+
+  if (layers.coast && D.coastline) {
+    ctx.strokeStyle = "#7a6a45"; ctx.lineWidth = 1.6 * dpr;
+    ctx.beginPath();
+    D.coastline.forEach((p, i) => {
+      const [x, y] = toScreen(p[0], p[1], w, h);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  if (layers.region && D.origin_region) {
+    const rings = Array.isArray(D.origin_region[0][0]) ? D.origin_region : [D.origin_region];
+    ctx.fillStyle = "rgba(168,99,29,.16)"; ctx.strokeStyle = "#a8631d";
+    ctx.lineWidth = 1.4 * dpr; ctx.setLineDash([6 * dpr, 4 * dpr]);
+    for (const rg of rings) { ring(ctx, rg, w, h); ctx.fill(); ctx.stroke(); }
+    ctx.setLineDash([]);
+  }
+
+  if (layers.cloud) {
+    const c = cloudAt(hour);
+    if (c && c.pts.length) {
+      ctx.fillStyle = hour <= 0 ? "rgba(29,122,104,.55)" : "rgba(184,37,111,.5)";
+      const rad = Math.max(1, 1.4 * dpr);
+      for (const p of c.pts) {
+        const [x, y] = toScreen(p[0], p[1], w, h);
+        if (x < -20 || y < -20 || x > w + 20 || y > h + 20) continue;
+        ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.2832); ctx.fill();
+      }
+    }
+  }
+
+  if (layers.slick && G.polygon) {
+    ctx.fillStyle = "rgba(184,37,111,.28)"; ctx.strokeStyle = "#b8256f";
+    ctx.lineWidth = 1.8 * dpr;
+    ring(ctx, G.polygon, w, h); ctx.fill(); ctx.stroke();
+    if (G.axis_usable) {                       /* the principal axis, as a bearing */
+      const [cx, cy] = toScreen(G.centroid[0], G.centroid[1], w, h);
+      const a = (90 - G.principal_axis_deg) * Math.PI / 180;
+      const L = (G.length_km * 1000 / 111320) * view.scale * 0.5;
+      ctx.strokeStyle = "#b8256f"; ctx.lineWidth = 1 * dpr; ctx.setLineDash([3 * dpr, 3 * dpr]);
+      ctx.beginPath();
+      ctx.moveTo(cx - Math.cos(a) * L, cy + Math.sin(a) * L);
+      ctx.lineTo(cx + Math.cos(a) * L, cy - Math.sin(a) * L);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+
+  const ranked = (DOC.attribution || {}).ranked || [];
+  const rankOf = {}; ranked.forEach(r => rankOf[r.mmsi] = r.rank);
+
+  if (layers.tracks) {
+    for (const v of (DOC.traffic || {}).vessels || []) {
+      const rk = rankOf[v.mmsi] || 99;
+      const isSel = v.mmsi === selected;
+      ctx.strokeStyle = isSel ? "#b8256f" : (rk === 1 ? "#a8631d" : (rk <= 3 ? "#485966" : "rgba(131,149,161,.55)"));
+      ctx.lineWidth = (isSel ? 2.4 : rk === 1 ? 2 : 1.1) * dpr;
+      ctx.beginPath();
+      (v.track || []).forEach((p, i) => {
+        const [x, y] = toScreen(p[0], p[1], w, h);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      });
+      ctx.stroke();
+      /* the hull at the scrubbed time */
+      const t = v.track || [];
+      let near = null, nd = 1e9;
+      for (const p of t) { const d = Math.abs(p[2] - hour); if (d < nd) { nd = d; near = p; } }
+      if (near && nd < 0.6) {
+        const [x, y] = toScreen(near[0], near[1], w, h);
+        ctx.fillStyle = isSel ? "#b8256f" : (rk === 1 ? "#a8631d" : "#8395a1");
+        ctx.beginPath(); ctx.arc(x, y, (isSel ? 4.5 : 3) * dpr, 0, 6.2832); ctx.fill();
+      }
+    }
+  }
+
+  if (layers.envelope) {
+    for (const v of (DOC.traffic || {}).vessels || []) {
+      if (selected && v.mmsi !== selected) continue;
+      for (const g of v.gaps || []) {
+        if (!g.envelope || g.envelope.length < 3) continue;
+        ctx.strokeStyle = "#b8256f"; ctx.lineWidth = 1.3 * dpr;
+        ctx.setLineDash([2 * dpr, 3 * dpr]);
+        ctx.fillStyle = "rgba(184,37,111,.09)";
+        ring(ctx, g.envelope, w, h); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+  }
+
+  if (layers.targets && DOC.dark && DOC.dark.available) {
+    for (const t of DOC.dark.unmatched_targets || []) {
+      const [x, y] = toScreen(t.lon, t.lat, w, h);
+      ctx.strokeStyle = "#1d7a68"; ctx.lineWidth = 1.8 * dpr;
+      ctx.beginPath(); ctx.arc(x, y, 8 * dpr, 0, 6.2832); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - 12 * dpr, y); ctx.lineTo(x + 12 * dpr, y);
+      ctx.moveTo(x, y - 12 * dpr); ctx.lineTo(x, y + 12 * dpr); ctx.stroke();
+    }
+  }
+
+  scalebar();
+}
+
+function scalebar() {
+  const r = cv.getBoundingClientRect();
+  const kmPerPx = 111.32 / view.scale / (r.width / cv.width) / (cv.width / r.width);
+  const perPx = 111.32 / view.scale;           /* km per CSS px */
+  const targets = [1, 2, 5, 10, 20, 50, 100, 200];
+  let km = targets[0], px = km / perPx;
+  for (const t of targets) { const p = t / perPx; if (p < 150) { km = t; px = p; } }
+  const el = $("#scalebar");
+  el.querySelector("i").style.width = Math.max(20, px) + "px";
+  el.querySelector("span").textContent = km + " km";
+}
+
+/* ── evidence panel ───────────────────────────────────────────────────── */
+function gateBox(id) {
+  const g = gateOf(id); if (!g) return "";
+  return '<div class="gatebox ' + (g.fired ? "fired" : "held") + '"><b>Gate ' + g.id + " · " +
+    esc(g.name.replace(/_/g, " ")) + " · " + (g.fired ? "fired" : "held") + "</b>" + esc(g.detail) + "</div>";
+}
+function stats(pairs) {
+  return '<div class="stat">' + pairs.map(([k, v, u]) =>
+    "<div><span class=k>" + esc(k) + '</span><span class="v">' + esc(v) +
+    (u ? "<u>" + esc(u) + "</u>" : "") + "</span></div>").join("") + "</div>";
+}
+
+function renderPanel() {
+  const P = $("#panel"), D = DOC.drift || {}, G = DOC.geometry || {},
+    T = DOC.traffic || {}, K = DOC.dark || {}, A = DOC.attribution || {},
+    det = DOC.detection || {}, IN = DOC.intake || {};
+  let html = "";
+
+  if (stage === 1) {
+    const sc = IN.scene || {}, ais = IN.ais || {};
+    html = "<h3>Intake</h3><p class=sub>Stage 01 · scene and window</p>" +
+      gateBox(5) +
+      stats([["Sensor", sc.sensor || "—"], ["Mode", (sc.mode || "") + " " + (sc.polarisation || "")],
+      ["Pixel", fmt(sc.pixel_m, 0), "m"], ["Noise floor", fmt(sc.noise_floor_db, 1), "dB"],
+      ["AIS positions", (ais.positions || 0).toLocaleString()], ["Distinct MMSI", ais.distinct_mmsi]]) +
+      "<table><tr><th>Pre-flight</th><th>Status</th><th>Detail</th></tr>" +
+      (IN.preflight || []).map(c => "<tr><td>" + esc(c.check.replace(/_/g, " ")) + "</td><td>" +
+        esc(c.status) + "</td><td>" + esc(c.detail) + "</td></tr>").join("") + "</table>" +
+      '<p class="note">Archive spans ' + fmt(ais.span_h, 0) + " h against a " +
+      fmt((DOC.parameters || {}).horizon_h, 0) + " h drift horizon. Traffic is <b>" +
+      esc((DOC.provenance || {}).ais) + "</b> and that is stated on page 1 of the dossier.</p>";
+
+  } else if (stage === 2) {
+    const dsc = det.discriminator || {};
+    html = "<h3>Detection</h3><p class=sub>Stage 02 · dark-region segmentation</p>" +
+      gateBox(1) +
+      stats([["Candidates", det.candidates ?? "—"], ["Retained", det.retained ?? "—"],
+      ["Confidence", fmt(det.confidence, 3)], ["Sea / slick", fmt(det.sea_db, 1) + " / " + fmt(det.slick_db, 1), "dB"]]);
+    if (det.drivers && det.drivers.length) {
+      html += "<table><tr><th>Confidence driver</th><th class=num>value</th><th class=num>z</th><th class=num>term</th></tr>" +
+        det.drivers.map(d => "<tr><td>" + esc(d.name.replace(/_/g, " ")) + "</td><td class=num>" +
+          fmt(d.value, 2) + "</td><td class=num>" + fmt(d.z, 2) + "</td><td class=num>" +
+          (d.contribution > 0 ? "+" : "") + fmt(d.contribution, 2) + "</td></tr>").join("") + "</table>";
+    }
+    html += "<table><tr><th>#</th><th>Verdict</th><th class=num>km²</th><th class=num>Δ dB</th><th>Basis</th></tr>" +
+      (det.table || []).map(c => "<tr><td>" + esc(c.id) + "</td><td>" + esc(c.verdict) +
+        "</td><td class=num>" + fmt(c.area_km2, 2) + "</td><td class=num>" + fmt(c.delta_db, 1) +
+        "</td><td>" + esc(c.basis || "—") + "</td></tr>").join("") + "</table>" +
+      '<p class="note"><b>Coefficients in force: ' + esc(dsc.source || "hand-set") + "</b>" +
+      (dsc.metrics ? " · holdout precision " + fmt(dsc.metrics.precision, 2) + ", recall " +
+        fmt(dsc.metrics.recall, 2) + ", look-alike FPR " + fmt(dsc.metrics.lookalike_fpr, 2) +
+        ", mean IoU " + fmt(dsc.metrics.mean_iou_retained, 2) : "") + ". " + esc(dsc.note || "") + "</p>" +
+      '<p class="note">' + esc(det.method || "") + "</p>";
+
+  } else if (stage === 3) {
+    html = "<h3>Characterisation</h3><p class=sub>Stage 03 · geometry and age</p>" +
+      stats([["Area", fmt(G.area_km2, 2), "km²"], ["Perimeter", fmt(G.perimeter_km, 1), "km"],
+      ["Principal axis", fmt(G.principal_axis_deg, 1), "° true"], ["Elongation", fmt(G.elongation, 2)],
+      ["Length", fmt(G.length_km, 2), "km"], ["Width", fmt(G.width_km, 2), "km"]]) +
+      "<p><b>Age " + fmt(G.age_hours, 1) + " h</b>, range " + fmt(G.age_hours_lo, 1) + "–" +
+      fmt(G.age_hours_hi, 1) + " h.</p>" +
+      '<p class="note">' + esc(G.age_notes || "") + "</p>" +
+      '<p class="note">The axis is drawn on the map as a dashed bearing. ' +
+      (G.axis_usable ? "Elongation is above 1.6, so the heading factor is in play."
+        : "Elongation is below 1.6, so the heading factor is <b>suppressed</b> (HD-2): a round slick has no bearing.") +
+      "</p>";
+
+  } else if (stage === 4) {
+    const p = DOC.parameters || {}, f = D.forward || {};
+    html = "<h3>Hindcast</h3><p class=sub>Stage 04 · backward advection</p>" + gateBox(2) +
+      spark(D.r95_series || []) +
+      stats([["Origin r₉₅", fmt(D.r95_union_km, 1), "km"], ["Region parts", D.origin_region_parts ?? 1],
+      ["Particles", p.n_particles], ["Integrator", (p.integrator || "") + " " + fmt(p.dt_s, 0) + "s"],
+      ["Leeway α", fmt(p.leeway_alpha, 3)], ["K_h", fmt(p.k_h, 1), "m²/s"]]) +
+      "<p><b>Origin window</b><br>" + esc((D.origin_window || [])[0]) + "<br>" +
+      esc((D.origin_window || [])[1]) + "</p>" +
+      '<p class="note">' + esc(D.note || "") + "</p>";
+    if (f.available) {
+      html += "<h3 style='font-size:15px;margin-top:14px'>Forward forecast</h3>" +
+        (f.landfall
+          ? "<p><b>Landfall.</b> First contact " + esc(f.first_contact_utc) + ", " +
+          Math.round((f.frac_threshold || 0) * 100) + " % ashore by " + esc(f.eta_utc) + ".</p>"
+          : "<p>No landfall within the horizon.</p>") +
+        '<p class="note">' + esc(f.note || "") + "</p>";
+    }
+
+  } else if (stage === 5) {
+    const kf = T.kinematic_flags || {};
+    html = "<h3>Traffic</h3><p class=sub>Stage 05 · AIS replay and gaps</p>" +
+      stats([["In window", T.in_window ?? "—"], ["Dropped", T.dropped ?? "—"],
+      ["Flagged hulls", kf.vessels_flagged ?? 0], ["Flagged fixes", kf.total_fixes_flagged ?? 0]]) +
+      "<table><tr><th>Vessel</th><th class=num>COG</th><th class=num>cadence</th><th class=num>gaps</th></tr>" +
+      (T.vessels || []).map(v => '<tr data-mmsi="' + esc(v.mmsi) + '"' + (v.mmsi === selected ? ' class="sel"' : "") +
+        "><td>" + esc(v.name) + "<br><span style='font-family:var(--mono);font-size:9.5px;color:var(--ink-3)'>" +
+        mask(v.mmsi) + "</span></td><td class=num>" + (v.cog == null ? "—" : Math.round(v.cog)) +
+        "</td><td class=num>" + fmt(v.baseline_cadence_s, 0) + "s</td><td class=num>" +
+        (v.gaps || []).length + "</td></tr>").join("") + "</table>" +
+      "<table><tr><th>Dropped</th><th>Basis</th></tr>" +
+      (T.dropped_vessels || []).map(v => "<tr><td>" + esc(v.name) + "</td><td>" + esc(v.basis) + "</td></tr>").join("") +
+      "</table>";
+    if (kf.vessels_flagged) {
+      html += '<p class="note"><b>Kinematic flags.</b> ' +
+        kf.vessels.map(v => esc(v.name) + " (" + v.fixes + ")").join(", ") + ". " + esc(kf.note) + "</p>";
+    }
+
+  } else if (stage === 6) {
+    html = "<h3>Dark channel</h3><p class=sub>Stage 06 · CFAR and AIS matching</p>" + gateBox(3);
+    if (K.available) {
+      html += stats([["Targets", K.targets], ["Matched", K.matched], ["Unmatched", K.unmatched],
+      ["P_fa", (K.cfar || {}).pfa]]) +
+        (K.unmatched_targets || []).map(t => "<p><b>" + esc(t.target_id) + "</b> · estimated " +
+          fmt(t.est_length_m, 0) + " m (range " + t.est_length_range_m.map(x => fmt(x, 0)).join("–") +
+          ") · " + (t.in_origin_region ? "inside the origin region" : "outside the origin region") + "</p>").join("") +
+        '<p class="note">' + esc(K.note || "") + "</p>";
+    } else {
+      html += "<p><b>Unavailable.</b> " + esc(K.reason || "") + "</p>";
+    }
+
+  } else if (stage === 7) {
+    if (!A.ranked) { html = "<h3>Attribution</h3><p>The run halted before attribution.</p>"; }
+    else {
+      html = "<h3>Attribution</h3><p class=sub>Stage 07 · weighted scoring</p>" + gateBox(4) +
+        "<table><tr><th>#</th><th>Vessel</th><th class=num>Δaxis</th><th class=num>score</th></tr>" +
+        A.ranked.map(r => '<tr data-mmsi="' + esc(r.mmsi) + '" class="' + (r.rank === 1 ? "lead " : "") +
+          (r.mmsi === selected ? "sel" : "") + '"><td>' + r.rank + "</td><td>" + esc(r.name) +
+          "<br><span style='font-family:var(--mono);font-size:9.5px;color:var(--ink-3)'>" + mask(r.mmsi) +
+          "</span></td><td class=num>" + (r.delta_axis == null ? "—" : Math.round(r.delta_axis)) +
+          "</td><td class=num>" + fmt(r.score, 3) + "</td></tr>").join("") + "</table>" +
+        '<p>Leader margin <b id="margin">' + fmt(A.leader_margin, 3) + "</b> <span id=margingate></span></p>" +
+        '<div id="wpack"></div>';
+      const v = A.ranked.find(r => r.mmsi === selected) || A.ranked[0];
+      if (v) {
+        html += "<h3 style='font-size:15px;margin-top:14px'>" + esc(v.name) + "</h3>" +
+          Object.entries(v.justifications || {}).map(([k, txt]) => {
+            const sup = (v.suppressed || []).includes(k);
+            const f = sup ? 0 : (v.factors[k] || 0);
+            return '<div class="fac"><div class="r"><span>' + esc(k.replace(/_/g, " ")) + "</span><span>" +
+              (sup ? "suppressed" : fmt(f, 2)) + " · " + (A.weights[k] || 0) + '</span></div>' +
+              '<div class="b"><i style="width:' + (f * 100) + '%"></i></div>' +
+              '<div class="w">' + esc(txt) + "</div></div>";
+          }).join("") +
+          (v.corroboration ? '<p class="note"><b>Second channel.</b> ' + esc(v.corroboration.text) + ".</p>" : "");
+      }
+      html += '<p class="note">' + esc(A.finding || "") + "</p>";
+    }
+  }
+  P.innerHTML = html;
+
+  P.onclick = e => {
+    const tr = e.target.closest("tr[data-mmsi]"); if (!tr) return;
+    selected = tr.dataset.mmsi; renderPanel(); draw();
+  };
+  if (stage === 7 && A.ranked) buildWeights();
+}
+
+/* r95 growth, inline SVG — the uncertainty is a first-class output (DR-6) */
+function spark(series) {
+  if (!series.length) return "";
+  const w = 330, h = 74, pad = 18;
+  const xs = series.map(s => s.hour_back), ys = series.map(s => s.r95_km);
+  const xm = Math.max(...xs), ym = Math.max(Math.max(...ys), 36);
+  const X = v => pad + (v / xm) * (w - pad - 4);
+  const Y = v => h - 14 - (v / ym) * (h - 22);
+  const d = series.map((s, i) => (i ? "L" : "M") + X(s.hour_back).toFixed(1) + " " + Y(s.r95_km).toFixed(1)).join(" ");
+  return '<svg class="spark" viewBox="0 0 ' + w + " " + h + '" role="img" aria-label="95 % containment radius against hours rewound">' +
+    '<line x1="' + pad + '" y1="' + Y(36) + '" x2="' + (w - 4) + '" y2="' + Y(36) +
+    '" stroke="var(--stop)" stroke-dasharray="4 3" stroke-width="1"/>' +
+    '<text x="' + (w - 6) + '" y="' + (Y(36) - 3) + '" text-anchor="end" font-size="8" fill="var(--stop)" font-family="var(--mono)">gate 2 · 36 km</text>' +
+    '<path d="' + d + '" fill="none" stroke="var(--amber)" stroke-width="1.6"/>' +
+    '<text x="' + pad + '" y="' + (h - 3) + '" font-size="8" fill="var(--ink-3)" font-family="var(--mono)">0 h</text>' +
+    '<text x="' + (w - 4) + '" y="' + (h - 3) + '" text-anchor="end" font-size="8" fill="var(--ink-3)" font-family="var(--mono)">−' + xm + ' h</text>' +
+    '<text x="2" y="12" font-size="8" fill="var(--ink-3)" font-family="var(--mono)">r₉₅ km</text></svg>';
+}
+
+/* live weight pack (UI-3) */
+function buildWeights() {
+  const A = DOC.attribution;
+  const el = $("#wpack"); if (!el) return;
+  el.innerHTML = "<h6 style='font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin:10px 0 6px;font-weight:400'>Weight pack · " +
+    esc(A.weight_pack) + " · live</h6>" +
+    Object.keys(A.weights).map(k =>
+      '<div class="wrow"><label for="w_' + k + '">' + esc(k.replace(/_/g, " ")) + "</label>" +
+      '<input type="range" id="w_' + k + '" data-k="' + k + '" min="0" max="40" step="1" value="' + A.weights[k] + '">' +
+      '<output id="o_' + k + '">' + A.weights[k] + "</output></div>").join("") +
+    '<p class="note" id="apistate">Any weighting is an assumption. Drop <b>heading</b> to zero and watch the margin move — that is a measurement of how much the conclusion rests on one geometric argument.</p>';
+
+  let timer = null;
+  el.oninput = e => {
+    const k = e.target.dataset.k; if (!k) return;
+    A.weights[k] = +e.target.value;
+    $("#o_" + k).textContent = e.target.value;
+    localRescore();
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try {
+        const r = await fetch("runs/" + DOC.run_id + "/rescore", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weights: A.weights })
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const out = await r.json();
+        A.ranked = out.ranked; A.leader_margin = out.leader_margin;
+        renderPanel(); draw();
+      } catch (_) { }
+    }, 260);
+  };
+}
+
+function localRescore() {
+  const A = DOC.attribution;
+  for (const r of A.ranked) {
+    let num = 0, den = 0;
+    for (const [k, w] of Object.entries(A.weights)) {
+      if ((r.suppressed || []).includes(k) || r.factors[k] === undefined) continue;
+      num += w * r.factors[k]; den += w;
+    }
+    r.score = den ? num / den : 0;
+  }
+  A.ranked.sort((a, b) => b.score - a.score);
+  A.ranked.forEach((r, i) => r.rank = i + 1);
+  A.leader_margin = A.ranked.length > 1 ? A.ranked[0].score - A.ranked[1].score : NaN;
+  const m = $("#margin");
+  if (m) {
+    m.textContent = fmt(A.leader_margin, 3);
+    m.style.color = A.leader_margin < 0.10 ? "var(--stop)" : "var(--amber)";
+    $("#margingate").textContent = A.leader_margin < 0.10
+      ? "— below 0.10, gate 4 fires and neither vessel is named" : "";
+  }
+}
+</script>

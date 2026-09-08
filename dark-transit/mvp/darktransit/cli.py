@@ -89,6 +89,17 @@ def cmd_selftest(a):
     sys.exit(0 if run_all(out_root=a.out) else 1)
 
 
+def cmd_validate(a):
+    from . import validate
+    print("Drift validation -- the AC-7 method, against synthetic drifters\n")
+    validate.run(n_drifters=a.drifters, hours_back=a.hours, seed=a.seed, alpha=a.alpha)
+
+
+def cmd_fit(a):
+    from . import fit
+    fit.run_fit(n_scenes=a.scenes, seed=a.seed, out=a.pack)
+
+
 def cmd_serve(a):
     server.serve(a.out, a.port)
 
@@ -115,6 +126,21 @@ def main(argv=None):
 
     t = sub.add_parser("selftest", help="acceptance criteria from PRD 19")
     t.set_defaults(fn=cmd_selftest)
+
+    vd = sub.add_parser("validate", help="hindcast known drifter tracks and check r95 coverage")
+    vd.add_argument("--drifters", type=int, default=25)
+    vd.add_argument("--hours", type=float, default=24.0)
+    vd.add_argument("--seed", type=int, default=11)
+    vd.add_argument("--alpha", type=float, default=0.0,
+                    help="leeway of the hindcast object; 0 for a drogued buoy, "
+                         "0.03 for oil (a deliberate mismatch, see the docstring)")
+    vd.set_defaults(fn=cmd_validate)
+
+    fp = sub.add_parser("fit", help="fit the look-alike discriminator and measure it")
+    fp.add_argument("--scenes", type=int, default=140)
+    fp.add_argument("--seed", type=int, default=4242)
+    fp.add_argument("--pack", default="detector.v1.json")
+    fp.set_defaults(fn=cmd_fit)
 
     v = sub.add_parser("serve", help="serve the workstation and the narrative view")
     v.add_argument("--port", type=int, default=8000)

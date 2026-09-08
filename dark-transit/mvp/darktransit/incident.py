@@ -49,7 +49,9 @@ class Scenario:
     sigma_current: float = 0.15
     sigma_alpha: float = 0.25
     decoy_gap: bool = False              # the ambiguous scenario
+    spoofed_vessel: bool = False         # forge a run of fixes (TR-8)
     k_h: float = 5.0
+    coast_distance_m: float = 45000.0
     notes: str = ""
 
 
@@ -70,6 +72,12 @@ SCENARIOS = {
     "ambiguous": Scenario(name="ambiguous", decoy_gap=True,
                           notes="A second tanker on a near-identical course, dark over the "
                                 "same window. The evidence should not separate them. Gate 4."),
+    "spoofed": Scenario(name="spoofed", spoofed_vessel=True,
+                        notes="One vessel broadcasts a forged run of positions, jumping "
+                              "roughly 28 km off its own track and back. The kinematic "
+                              "plausibility check (TR-8) should flag the fixes at both "
+                              "seams. Catching a clumsy spoof is not a claim to catch a "
+                              "careful one."),
     "short-archive": Scenario(name="short-archive", archive_start_h=-12.0,
                               notes="The AIS archive does not span the drift horizon. "
                                     "Gate 5 should refuse to start."),
@@ -78,6 +86,44 @@ SCENARIOS = {
 
 def _plane(sc):
     return geo.TangentPlane(sc.release_lat, sc.release_lon)
+
+
+def coastline(plane, dist_m=45000.0, bearing_deg=70.0, half_len_m=140000.0,
+              depth_m=90000.0, wobble_m=4200.0, n=64, seed=7):
+    """A synthetic coast, as (land_polygon, coast_polyline) in lon/lat.
+
+    Land lies beyond `dist_m` along `bearing_deg` from the release point, which
+    is downstream of the drift. Two things depend on it and neither is
+    decoration: the forward forecast has a coast to reach (DR-5), and the
+    detection scene has land to mask (DT-1), so the land mask is exercised
+    rather than being a no-op on an all-water raster.
+
+    GSHHG replaces this in the full build; the polygon shape is what changes,
+    not any of the code that consumes it.
+    """
+    rng = np.random.default_rng(seed)
+    th = math.radians(bearing_deg)
+    nx, ny = math.sin(th), math.cos(th)          # unit normal, pointing seaward->landward
+    tx, ty = math.cos(th), -math.sin(th)         # along-shore unit vector
+
+    ts = np.linspace(-half_len_m, half_len_m, n)
+    # a coast is not a ruler: low-frequency wobble along the shore
+    off = (wobble_m * np.sin(ts / 26000.0)
+           + 0.45 * wobble_m * np.sin(ts / 9000.0 + 1.3)
+           + 0.25 * wobble_m * rng.standard_normal(n).cumsum() / math.sqrt(n))
+    cx = tx * ts + nx * (dist_m + off)
+    cy = ty * ts + ny * (dist_m + off)
+
+    back_x = tx * ts[::-1] + nx * (dist_m + depth_m)
+    back_y = ty * ts[::-1] + ny * (dist_m + depth_m)
+
+    lx = np.concatenate([cx, back_x])
+    ly = np.concatenate([cy, back_y])
+    llon, llat = plane.to_lonlat(lx, ly)
+    clon, clat = plane.to_lonlat(cx, cy)
+    land = [[round(float(a), 6), round(float(b), 6)] for a, b in zip(llon, llat)]
+    coast = [[round(float(a), 6), round(float(b), 6)] for a, b in zip(clon, clat)]
+    return land, coast
 
 
 def build(sc: Scenario):
@@ -94,6 +140,7 @@ def build(sc: Scenario):
 
     plane = _plane(sc)
     params = drift.DriftParams(k_h=sc.k_h)
+    land_poly, coast_line = coastline(plane, dist_m=sc.coast_distance_m)
 
     # ---- truth: the release, laid along the culprit's own track ----
     n_p = 6000
@@ -162,6 +209,22 @@ def build(sc: Scenario):
                                          cog, sog, sc.archive_start_h, sc.archive_end_h,
                                          jitter_deg=jit, gaps=gaps))
 
+    # ---- a forged run of positions (TR-8) ----
+    if sc.spoofed_vessel:
+        # A transponder can broadcast a false fix. This displaces a window of
+        # one vessel's positions off its own track and back again, which is the
+        # clumsy case: the jump implies a speed no hull can make, so it shows up
+        # at both seams. A careful spoof would interpolate the transition and we
+        # do not claim to catch that.
+        tgt = tracks[3]
+        m = (tgt.t_h > -16.0) & (tgt.t_h < -13.5)
+        tgt.lon[m] += 0.28
+        tgt.lat[m] -= 0.09
+        truth_spoof = dict(mmsi=tgt.vessel.mmsi, name=tgt.vessel.name,
+                           window_h=[-16.0, -13.5], offset_deg=[0.28, -0.09])
+    else:
+        truth_spoof = None
+
     # ---- scenes ----
     biogenic = []
     if sc.with_lookalikes:
@@ -184,7 +247,7 @@ def build(sc: Scenario):
     det_scene = scene_mod.make_scene(
         "S1A-SYNTH-DET", centre_lon, centre_lat, sc.half_width_m, sc.pixel_m, 0.0, wind,
         slick_lonlat=slick, biogenic=biogenic, ship_lonlat=ships_at(0.0),
-        rng=np.random.default_rng(sc.seed + 2))
+        land_lonlat=land_poly, rng=np.random.default_rng(sc.seed + 2))
 
     arc_scene = None
     if sc.with_archive_scene:
@@ -192,17 +255,19 @@ def build(sc: Scenario):
         arc_scene = scene_mod.make_scene(
             "S1A-SYNTH-ARC", float(cx[0]), float(cy[0]), sc.half_width_m, sc.pixel_m,
             sc.archive_scene_h, wind, slick_lonlat=None, biogenic=[],
-            ship_lonlat=ships_at(sc.archive_scene_h),
+            ship_lonlat=ships_at(sc.archive_scene_h), land_lonlat=land_poly,
             rng=np.random.default_rng(sc.seed + 3))
 
     return dict(
         scenario=sc,
         current=current, wind=wind, plane=plane, params=params,
+        land=land_poly, coast=coast_line,
         tracks=tracks, detection_scene=det_scene, archive_scene=arc_scene,
         truth=dict(
             release_lon=sc.release_lon, release_lat=sc.release_lat,
             release_age_h=sc.release_age_h, culprit_mmsi=culprit.mmsi,
             culprit_name=culprit.name, culprit_cog=sc.culprit_cog,
             slick_area_km2=(det_scene.truth["oil_pixels"] * (sc.pixel_m / 1000.0) ** 2),
+            spoofed=truth_spoof,
         ),
     )

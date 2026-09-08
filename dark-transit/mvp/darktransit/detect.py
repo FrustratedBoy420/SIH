@@ -16,8 +16,10 @@ log, exactly as PRD 10.4 requires.
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
@@ -48,6 +50,39 @@ MIN_AREA_KM2 = 0.3
 WIND_FLOOR_MS = 3.0          # below this, dark means calm, not oil
 CONFIDENCE_GATE = 0.50       # Gate 1
 
+DEFAULT_PACK_PATH = "detector.v1.json"
+
+# Provenance of the coefficients actually in force, reported in the run log and
+# on dossier page 2. "hand-set" is a weaker claim than "fitted" and the product
+# has to say which one it is making.
+_ACTIVE = dict(source="hand-set", version=None, file=None, metrics=None,
+               note=("coefficients hand-set from the physics; no fitted pack was "
+                     "found, so the detector is running its documented fallback"))
+
+
+def load_pack(path=DEFAULT_PACK_PATH):
+    """Load a fitted discriminator pack, if one exists.
+
+    Absent, the hand-set constants stand and the fallback is logged rather than
+    hidden -- same contract as the missing U-Net in DT-3.
+    """
+    global FEATURE_REF, BETA, _ACTIVE
+    p = Path(path)
+    if not p.is_file():
+        return dict(_ACTIVE)
+    pack = json.loads(p.read_text())
+    FEATURE_REF = {k: (float(v[0]), float(v[1])) for k, v in pack["feature_ref"].items()}
+    BETA = {k: float(v) for k, v in pack["beta"].items()}
+    _ACTIVE = dict(source="fitted", version=pack.get("version"), file=str(p),
+                   metrics=pack.get("metrics", {}).get("holdout"),
+                   sign_disagreements=pack.get("sign_disagreements", []),
+                   note=pack.get("caveat", ""))
+    return dict(_ACTIVE)
+
+
+def active_pack():
+    return dict(_ACTIVE)
+
 
 @dataclass
 class Candidate:
@@ -75,6 +110,14 @@ def candidates(scene, threshold_k=1.25, window_km=6.0, min_area_km2=MIN_AREA_KM2
     mu, sd = raster.box_mean_std(img, r)
     dark = img < (mu - threshold_k * sd)
     dark &= img < (np.median(img) - 2.5)          # absolute sanity floor
+
+    # DT-1 land mask, dilated by 2 km so shoreline artefacts do not survive as
+    # candidates. A dark patch touching the coast is a wind shadow far more
+    # often than it is a slick.
+    if getattr(scene, "land_mask", None) is not None and scene.land_mask.any():
+        buf = max(1, int(round(2000.0 / scene.pixel_m)))
+        dark &= ~raster.dilate(scene.land_mask, buf)
+
     dark = raster.close(dark, 1)
 
     lab, n = raster.label(dark)
@@ -181,8 +224,9 @@ def discriminate(cand: Candidate) -> Candidate:
     return cand
 
 
-def detect(scene, **kw):
+def detect(scene, pack_path=DEFAULT_PACK_PATH, **kw):
     """Full detection stage. Returns (all_candidates, retained, raw_component_count)."""
+    load_pack(pack_path)
     cands, filtered, raw_n = candidates(scene, **kw)
     for c in cands:
         c.features = features(scene, c, filtered)

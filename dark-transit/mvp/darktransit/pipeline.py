@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import (ais, cfar, characterise, detect, drift, gates, geo, incident,
+from . import (ais, cfar, characterise, detect, drift, gates, geo, incident, png,
                score as scoring)
 
 VERSION = "0.5.0-mvp"
@@ -126,6 +126,7 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
         weight_pack=pack.get("file"), weight_pack_version=pack.get("version"),
         weights=pack["weights"], python=platform.python_version(),
     )
+    rasters = {}
     manifest["hash"] = hashlib.sha256(
         json.dumps(manifest, sort_keys=True, cls=_Enc).encode()).hexdigest()
     run_id = f"{sc.name}-{datetime.now(timezone.utc):%Y%m%dT%H%M%S}-{manifest['hash'][:8]}"
@@ -136,8 +137,26 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
 
     fired, halted = [], None
 
-    def emit(name, obj):
-        (out / name).write_text(json.dumps(_clean(obj), cls=_Enc, indent=2))
+    def emit(name, obj, indent=2):
+        (out / name).write_text(json.dumps(_clean(obj), cls=_Enc, indent=indent))
+
+    def emit_raster(name, scn):
+        """Write a scene as a stretched greyscale PNG plus its geographic bounds.
+
+        The workstation's basemap is the radar scene itself. There are no tiles
+        to fetch and nothing to be offline about: what the analyst pans around
+        is the measurement.
+        """
+        u8, mapping = png.stretch_db(scn.sigma0_db)
+        png.write_gray(out / name, u8)
+        lo_lon, lo_lat = scn.plane.to_lonlat(scn.x[0], scn.y[0])
+        hi_lon, hi_lat = scn.plane.to_lonlat(scn.x[-1], scn.y[-1])
+        return dict(file=name, scene_id=scn.scene_id, acquired_h=scn.acquired_h,
+                    width=int(scn.shape[1]), height=int(scn.shape[0]),
+                    pixel_m=scn.pixel_m,
+                    bounds=dict(west=round(float(lo_lon), 6), south=round(float(lo_lat), 6),
+                                east=round(float(hi_lon), 6), north=round(float(hi_lat), 6)),
+                    stretch=mapping)
 
     # ---------------- 01 intake -------------------------------------------
     archive_span_h = sc.archive_end_h - sc.archive_start_h
@@ -172,6 +191,10 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
         ],
         gate=g5,
     )
+    rasters["detection"] = emit_raster("scene_detection.png", det_scene)
+    if arc_scene is not None:
+        rasters["archive"] = emit_raster("scene_archive.png", arc_scene)
+    intake["rasters"] = rasters
     emit("01_intake.json", intake)
     log("01_intake", "complete", positions=n_pos, vessels=len(positions))
     if g5["halts"]:
@@ -189,10 +212,12 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
         drivers=None if not top else top.drivers,
         sea_db=round(float(np.median(det_scene.sigma0_db)), 2),
         slick_db=None if not top else round(top.features["inside_db"], 2),
-        method=("classical: refined-Lee speckle filter, local adaptive threshold, "
-                "connected components, logistic look-alike discriminator over six named "
-                "features. The fine-tuned U-Net of DT-3 is not present in this build and "
-                "the pipeline is running its documented degraded path."),
+        method=("classical: refined-Lee speckle filter, land mask, local adaptive "
+                "threshold, connected components, logistic look-alike discriminator "
+                "over six named features. The fine-tuned U-Net of DT-3 is not present "
+                "in this build and the pipeline is running its documented degraded "
+                "path."),
+        discriminator=detect.active_pack(),
         table=[dict(id=c.cid, area_km2=round(c.area_km2, 2), verdict=c.verdict,
                     basis=c.rejection_basis, confidence=round(c.confidence, 3),
                     delta_db=c.delta_db,
@@ -221,7 +246,8 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
     slon, slat = drift.seed_in_polygon(geom.polygon, n_particles, rng)
     pert = drift.make_ensemble(len(slon), params, rng)
     back = drift.integrate(slon, slat, 0.0, -sc.horizon_h, current, wind, params, rng, pert=pert)
-    fwd = drift.integrate(slon, slat, 0.0, sc.horizon_h, current, wind, params, rng, pert=pert)
+    fwd = drift.integrate(slon, slat, 0.0, sc.horizon_h, current, wind, params, rng,
+                          pert=pert, land=inc.get("land"))
 
     window_h = (-geom.age_hours_hi, -geom.age_hours_lo)
     sel = [s for s in back if window_h[0] <= s.hour <= window_h[1]]
@@ -230,6 +256,7 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
     ulons = np.concatenate([s.lons for s in sel])
     ulats = np.concatenate([s.lats for s in sel])
     origin_region = drift.density_region(ulons, ulats, cell_m=700.0)
+    region_parts = len(origin_region)
     r95_union = drift.r95_km(ulons, ulats)
 
     g2 = gates.gate2_region(r95_union)
@@ -247,22 +274,19 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
         r95_series=r95_series, r95_union_km=round(r95_union, 2),
         origin_window_h=[round(window_h[0], 2), round(window_h[1], 2)],
         origin_window=[_utc(sc.detection_utc, window_h[0]), _utc(sc.detection_utc, window_h[1])],
-        origin_region=origin_region, origin_centroid=[round(origin_centroid[0], 5),
+        origin_region=origin_region, origin_region_parts=region_parts,
+        origin_centroid=[round(origin_centroid[0], 5),
                                                       round(origin_centroid[1], 5)],
         shear_per_hour=round(shear, 4),
-        forward=dict(hours=sc.horizon_h,
-                     centroid=[round(float(fwd[-1].lons.mean()), 5),
-                               round(float(fwd[-1].lats.mean()), 5)],
-                     r95_km=round(fwd[-1].r95_km, 2), landfall=False, eta_utc=None,
-                     note="No coastline within the forward cloud over the horizon in this "
-                          "synthetic domain; the landfall test is implemented and reports "
-                          "false rather than being skipped."),
+        forward=_forward_block(fwd, inc.get("land"), sc),
+        coastline=inc.get("coast"),
         gate=g2,
         note=("Backward advection with diffusion is ill posed. This region is the set of "
               "positions a particle could plausibly have reached the observed slick from -- "
               "a reachable set, not a probability density over true origins."),
     )
     emit("04_drift.json", drift_art)
+    emit("cloud.json", _cloud_doc(back, fwd, sc), indent=None)
     log("04_drift", "complete", r95_union_km=round(r95_union, 2),
         window=drift_art["origin_window"])
     if g2["halts"]:
@@ -273,8 +297,19 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
 
     # ---------------- 05 traffic ------------------------------------------
     records, dropped = detect_traffic(inc, origin_region, window_h, plane)
+    flagged = [r for r in records + dropped if r.implausible_fixes > 0]
     traffic_art = dict(
         in_window=len(records), dropped=len(dropped),
+        kinematic_flags=dict(
+            vessels_flagged=len(flagged),
+            total_fixes_flagged=int(sum(r.implausible_fixes for r in flagged)),
+            vessels=[dict(mmsi=r.vessel.mmsi, name=r.vessel.name,
+                          fixes=r.implausible_fixes,
+                          in_shortlist=bool(r.in_region)) for r in flagged],
+            note=("Positions implying a speed this hull cannot make. They are dropped "
+                  "from the track and reported, because a burst of them is itself a "
+                  "spoofing indicator. Clumsy spoofing is what this catches; a careful "
+                  "spoof interpolates the transition and would pass.")),
         vessels=[_vessel_row(r, sc) for r in records],
         dropped_vessels=[dict(mmsi=r.vessel.mmsi, name=r.vessel.name,
                               ship_type=r.vessel.ship_type, basis=r.drop_reason,
@@ -307,6 +342,55 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
     stages = dict(intake=intake, detection=detection, geometry=geom, drift=drift_art,
                   traffic=traffic_art, dark=dark_art, attribution=result)
     return _finish(out, run_id, manifest, log, fired, halted, sc, inc, stages, pack, quiet)
+
+
+CLOUD_PARTICLES = 320       # per hour, per direction, for the time slider
+
+
+def _cloud_doc(back, fwd, sc, keep=CLOUD_PARTICLES):
+    """Decimated particle positions per hour, for the workstation's time slider.
+
+    Separate from run.json because it is an order of magnitude larger than
+    everything else and only one view needs it. Decimated deterministically by
+    stride rather than by sampling, so the same particles are followed hour to
+    hour and the cloud animates as a cloud rather than as static.
+    """
+    def pack(snaps):
+        out = []
+        for sn in snaps:
+            n = len(sn.lons)
+            if n == 0:
+                out.append(dict(hour=round(sn.hour, 2), pts=[], alive=0, beached=sn.beached))
+                continue
+            step = max(1, n // keep)
+            lo, la = sn.lons[::step][:keep], sn.lats[::step][:keep]
+            out.append(dict(hour=round(sn.hour, 2), alive=int(sn.alive),
+                            beached=int(sn.beached), r95_km=round(sn.r95_km, 2),
+                            pts=[[round(float(a), 5), round(float(b), 5)]
+                                 for a, b in zip(lo, la)]))
+        return out
+
+    return dict(detection_utc=sc.detection_utc, particles_shown=keep,
+                note=("A deterministic stride, not a random sample, so the same "
+                      "particles are followed from hour to hour."),
+                backward=pack(back), forward=pack(fwd))
+
+
+def _forward_block(fwd, land, sc):
+    """DR-5: forward forecast plus the landfall test."""
+    lf = drift.landfall(fwd, land)
+    out = dict(hours=sc.horizon_h,
+               centroid=[round(float(fwd[-1].lons.mean()), 5),
+                         round(float(fwd[-1].lats.mean()), 5)],
+               r95_km=round(fwd[-1].r95_km, 2),
+               landfall=bool(lf.get("landfall")),
+               eta_utc=None, first_contact_utc=None)
+    out.update({k: v for k, v in lf.items() if k not in ("landfall",)})
+    if lf.get("eta_hour") is not None:
+        out["eta_utc"] = _utc(sc.detection_utc, lf["eta_hour"])
+    if lf.get("first_contact_hour") is not None:
+        out["first_contact_utc"] = _utc(sc.detection_utc, lf["first_contact_hour"])
+    return out
 
 
 def detect_traffic(inc, origin_region, window_h, plane):
@@ -352,10 +436,9 @@ def dark_channel(arc_scene, tracks, plane, window_h, origin_region):
 
     targets, cfg = cfar.ca_cfar(arc_scene)
     matched, unmatched = cfar.match_to_ais(targets, tracks, arc_scene.acquired_h, plane)
-    region = np.asarray(origin_region, dtype=float)
     for t in unmatched:
-        t_in = bool(geo.points_in_polygon([[t.lon, t.lat]], region)[0]) if len(region) > 2 else False
-        t.__dict__["in_origin_region"] = t_in
+        t.__dict__["in_origin_region"] = bool(
+            geo.points_in_rings([[t.lon, t.lat]], origin_region)[0])
     g3 = gates.gate3_dark_channel(True)
     return dict(
         available=True, gate=g3, cfar=cfg, acquired_h=arc_scene.acquired_h,
@@ -482,6 +565,7 @@ def _run_json(run_id, manifest, sc, stages, fired, halted, inc):
     )
     if "intake" in stages:
         doc["intake"] = stages["intake"]
+        doc["rasters"] = stages["intake"].get("rasters", {})
     if "detection" in stages:
         doc["detection"] = stages["detection"]
     if geom is not None:
