@@ -83,7 +83,9 @@ PS26073/
 
 > ### ⏳ The deadline
 >
-> **Idea submission on sih.gov.in closes 30 September 2026.** Internal hackathons run
+> **Idea submission on sih.gov.in closes 20 September 2026** — per the team's own
+> `BRANCHING.md` and `PS26143_Brief.md`. An earlier draft of the plan said 30 September,
+> from third-party reporting. **Confirm the real date with your SPOC.** Internal hackathons run
 > through September, and students cannot register directly — your college SPOC nominates
 > winning teams. Grand Finale is 36 hours in December.
 >

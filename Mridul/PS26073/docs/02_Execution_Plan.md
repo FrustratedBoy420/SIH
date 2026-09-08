@@ -1,6 +1,19 @@
 # PS26073 — Execution Plan
 
-**From today (4 September 2026) to the Grand Finale (December 2026)**
+**From today (8 September 2026) to the Grand Finale (December 2026)**
+
+> ### ⚠ Deadline corrected — and still needs your confirmation
+>
+> An earlier draft of this plan used **30 September 2026**, taken from third-party
+> reporting on the SIH 2026 timeline. The team's own documents — `BRANCHING.md` and
+> `PS26143_Brief.md`, both written from the portal scrape — state **20 September 2026**.
+>
+> **This plan now assumes 20 September**, because it is the earlier date and the more
+> authoritative source. That changes Phase A from 26 days to **12 days**.
+>
+> **Confirm the real date with your SPOC before relying on either.** If it turns out to
+> be 30 September you gain ten days; if you had planned for 30 and it is 20, the
+> campaign is over.
 
 ---
 
@@ -13,7 +26,7 @@ timeline
         21 Aug 2026 : SIH 2026 launched
         September 2026 : Internal hackathon at your college
                        : SPOC nominates winning teams only
-        30 Sept 2026 : IDEA SUBMISSION CLOSES
+        20 Sept 2026 : IDEA SUBMISSION CLOSES
                      : deliverable = a PROPOSAL
     section Waiting
         October 2026 : Screening
@@ -46,12 +59,12 @@ flowchart LR
 |---|---|---|
 | SIH 2026 launched | 21 August 2026 | — |
 | **Internal hackathon at your college** | **September 2026 — happening now** | Win it. Your SPOC nominates only the winning teams |
-| **Idea submission on sih.gov.in** | **closes 30 September 2026** | A proposal, not a product |
+| **Idea submission on sih.gov.in** | **closes 20 September 2026** *(per team docs; confirm)* | A proposal, not a product |
 | Screening | October 2026 | Nothing to do but wait |
 | Finalists announced | November 2026 | Mentoring sessions if selected |
 | **Grand Finale — 36 hours** | **December 2026, at a nodal centre** | A working, demonstrable system |
 
-**Today is 4 September. You have 26 days until the portal closes.**
+**Today is 8 September. You have 12 days until the portal closes.**
 
 Note the gate you cannot skip: **students cannot register directly.** Your college SPOC nominates teams, and only after the internal hackathon. So the internal hackathon is the real first deadline, and it is likely within days or weeks — confirm the date with your SPOC this week.
 
@@ -61,14 +74,14 @@ The single most common planning error is treating SIH as a 36-hour hackathon. It
 
 ```
   Sept  ├─ internal hackathon ─┬─ idea submission ──┐
-        │  win a nomination    │  a PROPOSAL         │  ← 26 days
+        │  win a nomination    │  a PROPOSAL         │  ← 12 days
   Oct   │                      │                     ├─ screening (waiting)
   Nov   │                      │                     ├─ finalists announced
   Dec   │                      │                     └─ 36-hour GRAND FINALE
         │                                                a WORKING SYSTEM
 ```
 
-You are not building a system in the next 26 days. You are building **the argument that you can build it**, backed by enough working code to make the argument credible.
+You are not building a system in the next 12 days. You are building **the argument that you can build it**, backed by enough working code to make the argument credible.
 
 ---
 
@@ -89,12 +102,12 @@ Both `PS26073/` and `PS26167/` are fully analysed. The submission is per problem
 
 If you want the ISRO badge and accept the research risk, take 26167 and I will mirror this plan for it. Otherwise everything below assumes 26073.
 
-**Decide by 7 September.** Every day spent undecided is a day off the 26.
+**Decide today, 8 September.** With 12 days left there is no slack for an undecided week.
 
 ---
 ---
 
-# Phase A — Selection (now → 30 September)
+# Phase A — Selection (now → 20 September)
 
 **Objective: get nominated, then submit an idea that survives screening.**
 
@@ -201,18 +214,34 @@ That last chart is the single most valuable artefact in the submission. It is vi
 
 **Do not build in Phase A:** the dashboard, SHAP, the ESP32, imputation, degradation forecasting, streaming infrastructure. All of that is Phase B. Building it now costs you the proposal.
 
-## A.5 The 26 days
+## A.5 The 12 days
+
+Compressed from the original 26-day plan. Two things had to give: the proposal is now
+written in parallel with the prototype rather than after it, and the "verify then build"
+sequence collapses into a single week.
 
 | Days | Dates | Do |
 |---|---|---|
-| 1–3 | 4–7 Sept | **Decide the PS.** Confirm the internal hackathon date with your SPOC. Confirm team of six and roles |
-| 4–7 | 8–11 Sept | Ingest NOAA ISD. **Verify station density over India** — this decides how strong the spatial method can be (open question 1 in the analysis) |
-| 8–11 | 12–15 Sept | Fault-injection harness. Stages 1–2. First detections working |
-| 12–16 | 16–20 Sept | Neighbour selection + residual tracking. **Get the drift chart.** Internal hackathon likely falls in here |
-| 17–21 | 21–25 Sept | Write the proposal. Build the deck against the prescribed template. Rehearse the internal pitch |
-| 22–26 | 26–30 Sept | Review, revise, **submit early**. The portal will be congested on the final day |
+| 1 | **8 Sept** | **Decide the PS today.** Confirm the internal hackathon date with your SPOC. Lock the team of six and the roles |
+| 2–4 | 9–11 Sept | Ingest NOAA ISD. **Verify station density over India** — this decides how strong the spatial method can be, and the proposal's central claim rests on it. Start the deck in parallel |
+| 5–7 | 12–14 Sept | Fault-injection harness. Stages 1–2. First detections working. Keep writing the deck |
+| 8–10 | 15–17 Sept | Neighbour selection + residual tracking. **Get the drift chart** — this is the one artefact the proposal cannot ship without |
+| 11 | 18 Sept | Finish the deck against the prescribed template. Rehearse the internal pitch |
+| 12 | **19 Sept** | Review, revise, **submit** |
 
-**Submit by 28 September, not 30.** Portal load on deadline day is a known failure mode, and a missed submission ends the campaign regardless of how good the work is.
+**Submit on 19 September, a day early.** Portal load on deadline day is a known failure mode, and a missed submission ends the campaign regardless of how good the work behind it was.
+
+### What the compression costs you
+
+| | 26-day plan | 12-day plan |
+|---|---|---|
+| Prototype scope | detection + drift chart + polish | **detection + drift chart only** |
+| Proposal writing | dedicated 5 days | written in parallel from day 2 |
+| Buffer before submission | 4 days | **1 day** |
+| Station-density check | before committing the claim | still first — do not skip it |
+
+If the deadline turns out to be 30 September after all, spend the extra ten days on the
+proposal's evidence section and an early start on Phase B — not on widening the prototype.
 
 ---
 ---
@@ -334,9 +363,10 @@ Everything else is competent execution many teams will match. Those two are what
 | Risk | Impact | Mitigation |
 |---|---|---|
 | **Internal hackathon date unknown** | Could be days away | Confirm with SPOC **this week** — this is the most urgent unknown |
-| **Decision drift on which PS** | Burns the 26 days | Decide by 7 September |
+| **Wrong deadline assumed** | Campaign ends silently | **Confirm 20 vs 30 September with your SPOC today.** Team docs say 20; third-party reporting said 30 |
+| **Decision drift on which PS** | Burns the 12 days | Decide today, 8 September |
 | **Station density too sparse in ISD** | Weakens the spatial method | Verify in days 4–7, before committing the proposal's central claim |
-| **Portal congestion on 30 Sept** | Campaign ends | Submit by 28 September |
+| **Portal congestion on deadline day** | Campaign ends | Submit 19 September |
 | **Waiting for screening results before building** | Six weeks lost | Start Phase B on 1 October regardless |
 | **Feature creep at the finale** | Working system broken at hour 30 | Feature freeze at hour 10 |
 | **Venue network or power** | Demo fails | Local-only stack, pre-computed fallbacks, USB battery for the ESP32 |
@@ -359,7 +389,8 @@ Nothing else is urgent. Everything else has weeks.
 ## Sources for the calendar
 
 - Smart India Hackathon official portal — sih.gov.in
-- SIH 2026 launched 21 August 2026; idea submission on the portal closes **30 September 2026**
+- SIH 2026 launched 21 August 2026
+- Idea submission on the portal closes **20 September 2026** per the team's own `BRANCHING.md` and `PS26143_Brief.md`, both written from the portal scrape. Third-party reporting stated 30 September. **The earlier date is assumed here — confirm with your SPOC**
 - Internal hackathons run through September 2026; students cannot register directly — the college SPOC nominates winning teams
 - Screening October 2026 · finalists announced November 2026 · **Grand Finale: 36 hours, December 2026** at a nodal centre
 
