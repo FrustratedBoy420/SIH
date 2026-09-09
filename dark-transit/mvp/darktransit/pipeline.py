@@ -212,12 +212,9 @@ def run(scenario_name="kutch", seed=None, out_root="runs", weight_pack=None,
         drivers=None if not top else top.drivers,
         sea_db=round(float(np.median(det_scene.sigma0_db)), 2),
         slick_db=None if not top else round(top.features["inside_db"], 2),
-        method=("classical: refined-Lee speckle filter, land mask, local adaptive "
-                "threshold, connected components, logistic look-alike discriminator "
-                "over six named features. The fine-tuned U-Net of DT-3 is not present "
-                "in this build and the pipeline is running its documented degraded "
-                "path."),
+        method=_detection_method(),
         discriminator=detect.active_pack(),
+        segmentation=detect.last_ml_summary(),
         table=[dict(id=c.cid, area_km2=round(c.area_km2, 2), verdict=c.verdict,
                     basis=c.rejection_basis, confidence=round(c.confidence, 3),
                     delta_db=c.delta_db,
@@ -525,14 +522,60 @@ def _finding(result, g4, geom, drift_art, dark_art, sc):
     return txt
 
 
+_CLASSICAL_METHOD = (
+    "classical: refined-Lee speckle filter, land mask, local adaptive threshold, "
+    "connected components, logistic look-alike discriminator over six named features")
+
+
+def _detection_method() -> str:
+    """One sentence naming what actually segmented this scene.
+
+    It reads the state of the run rather than restating an intention, because
+    the string is rendered on dossier page 2 and a judge is entitled to read it
+    as a claim about this run and not about the design.
+    """
+    ml = detect.last_ml_summary()
+    if not ml or ml.get("detector", {}).get("source") != "unet":
+        reason = (ml or {}).get("detector", {}).get("error", "no weights pack present")
+        return (f"{_CLASSICAL_METHOD}. The DT-3 U-Net did not run ({reason}); the "
+                "pipeline is on its documented degraded path per section 10.4.")
+
+    d = ml["detector"]
+    hold = d.get("holdout") or {}
+    scored = (f", holdout IoU {hold['iou']:.3f} and F1 {hold['f1']:.3f} on a "
+              f"{d.get('split', 'grouped')}-disjoint split"
+              if hold.get("iou") is not None else "")
+    return (f"{_CLASSICAL_METHOD}; candidate boundaries then redrawn by the DT-3 "
+            f"U-Net ({d['architecture']}, {d['parameters']:,} parameters, trained on "
+            f"the {d.get('corpus')} corpus{scored}). "
+            f"{ml['candidates_refined']} of {ml['candidates_seen']} candidates were "
+            "refined; the network works inside a dilation of the classical mask and "
+            "cannot originate a detection.")
+
+
 def _finish(out, run_id, manifest, log, fired, halted, sc, inc, stages, pack, quiet):
-    from . import dossier
+    from . import dossier, pdf
     run_doc = _run_json(run_id, manifest, sc, stages, fired, halted, inc)
     (out / "run.json").write_text(json.dumps(_clean(run_doc), cls=_Enc, indent=2))
     (out / "manifest.json").write_text(json.dumps(_clean(manifest), cls=_Enc, indent=2))
     html = dossier.render(run_doc)
     (out / "dossier.html").write_text(html)
     check_language(html)
+
+    # RP-1 -- the artefact that leaves the system. TR-G1: absent WeasyPrint the
+    # HTML still stands, the degradation is logged, and nothing raises.
+    cap = pdf.available()
+    written = pdf.render_pdf(html, out / "dossier.pdf", base_url=out) if cap["weasyprint"] else None
+    if written is not None:
+        run_doc["dossier_pdf"] = "dossier.pdf"
+        run_doc["dossier_pdf_pages"] = written["pages"]
+        (out / "run.json").write_text(json.dumps(_clean(run_doc), cls=_Enc, indent=2))
+        log("dossier", "pdf written", engine=written["engine"],
+            pages=written["pages"], bytes=written["bytes"])
+    else:
+        log("dossier", "pdf skipped -- degraded to HTML only",
+            reason=cap["error"] or "WeasyPrint not installed")
+
     log("finish", "complete", run_id=run_id, halted=None if not halted else halted["name"])
     log.dump(out / "log.jsonl")
     if not quiet:

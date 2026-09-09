@@ -1283,6 +1283,10 @@ The catch-all file route takes a **name only**: any path separator or leading do
 
 Hardware: Intel Core i5-1240P, 16 threads, Python 3.14.7, numpy 2.4.4. Three consecutive isolated runs.
 
+> **These figures predate DT-3 and the PDF.** The learned pass adds to stage 02
+> and WeasyPrint adds to the dossier step; §14.2 carries the current numbers and
+> this table is kept as the classical-only baseline they are measured against.
+
 | Stage | Δt | Share | Dominant cost |
 |---|---|---|---|
 | 01 intake (incl. world generation and two PNG encodes) | 2.38 s | 37 % | truth advection, two scene rasters, zlib |
@@ -1298,7 +1302,35 @@ Two commands sit outside the run budget because they are development tools, not 
 
 Peak RSS 176 MB. `run.json` 211 KB, of which 153 KB is stage 05 (decimated tracks). Dossier 17 KB.
 
-### 14.2 Complexity summary
+### 14.2 Measured again, with the learned detector and the PDF
+
+Same machine and scenario, on an idle box. The two additions are isolated by
+running with `use_ml=False` and with WeasyPrint uninstalled.
+
+| Step | Classical only | With DT-3 and the PDF | Δ |
+|---|---|---|---|
+| 02 detection | 3.11 s | 6.97 s | +3.86 s — the U-Net forward pass over three candidate crops |
+| dossier | 0.3 s | ~6 s | +5.7 s — WeasyPrint layout and PDF write |
+
+**Why detection costs what it does.** A 487 k-parameter U-Net is about 35 GFLOP
+over a 640² scene, and numpy reaches roughly 30 GFLOP/s on this machine for
+*well-shaped* matrices — but a convolution's M dimension is the channel count,
+which is 16 at the outermost layers, and OpenBLAS gets about a seventh of peak
+on a matrix that thin. Three formulations were measured over a whole scene:
+nine per-offset products 15.6 s, the same with the shift on the output side
+12.5 s, blocked im2col 8.3 s.
+
+The fix was not a faster kernel. `detect_ml.refine` runs the network over a crop
+around each candidate rather than the whole scene, which is also the only
+region it is permitted to change — so the cost falls with the slick's size
+rather than the swath's, and the whole-scene path survives only for
+`ingest --detect`, where the map itself is the output.
+
+Both additions remain far inside the 600 s NFR-8 budget, and both are optional:
+`cli capabilities` reports which are live, and a machine without either runs the
+classical path at the §14.1 figures.
+
+### 14.3 Complexity summary
 
 | Operation | Complexity | At MVP scale |
 |---|---|---|
@@ -1312,7 +1344,7 @@ Peak RSS 176 MB. `run.json` 211 KB, of which 153 KB is stage 05 (decimated track
 | `score.rank` | `O(V · n²)` for coverage | 7 × 8 100 |
 | `rescore` | `O(V · 5)` | trivial |
 
-### 14.3 Where it goes if pressed
+### 14.4 Where it goes if pressed
 
 1. `raster.label` → `scipy.ndimage.label` (same signature): −0.25 s.
 2. Precompute the forcing on the particle bounding box per hour and index rather than `searchsorted` per stage: the drift stage is 4 interpolations per step and 3 of them land in the same cell.
@@ -1320,7 +1352,7 @@ Peak RSS 176 MB. `run.json` 211 KB, of which 153 KB is stage 05 (decimated track
 
 None of this is worth doing at 6.4 s against a 600 s budget. It is written down so that when the real forcing arrives and stage 04 becomes I/O-bound, the shape of the problem is already known.
 
-### 14.4 Full-build projection
+### 14.5 Full-build projection
 
 | Change | Effect |
 |---|---|
@@ -1434,17 +1466,24 @@ Still open, and not to be claimed:
 
 The boundaries chosen so Phase 1 replaces implementations without touching call sites.
 
-| # | Change | Module boundary | What must not change |
-|---|---|---|---|
-| 1 | Sentinel-1 GRD reader | new `readers/sentinel1.py` → returns a `Scene` | the `Scene` dataclass and `px_of`/`lonlat_of_px` |
-| 2 | U-Net segmentation | new `detect_ml.py`, called between `candidates()` and `features()` | `Candidate.mask` semantics; the six features are computed on the refined mask |
-| 3 | CMEMS + ERA5 | `forcing.from_netcdf(...) -> ForcingField` | `ForcingField.sample` signature — `drift` never learns where the numbers came from |
-| 4 | OpenDrift | `drift.integrate_opendrift(...)` returning `list[CloudSnapshot]` | `CloudSnapshot`; `r95_km` and `density_region` operate on the snapshots either way |
-| 5 | Real AIS (NMEA/CSV) | `ais.from_nmea(...) -> list[Track]` | `Track`, `to_positions` output dict |
-| 6 | FastAPI | swap `server.py`, same routes | §13 route table and response shapes |
-| 7 | React + MapLibre workstation | new app consuming `run.json` | §5.9 contract — the narrative view stays a second consumer |
-| 8 | WeasyPrint PDF | `dossier.render()` output piped to WeasyPrint | the template; it is already print-first |
-| 9 | `scipy.ndimage` | `raster.label`, morphology | signatures |
+Five of the nine have landed. Each one kept the boundary this table named
+before it existed, which is the only reason none of them required a change to a
+call site.
+
+| # | Change | Module boundary | What must not change | State |
+|---|---|---|---|---|
+| 1 | Sentinel-1 GRD reader | new `readers/sentinel1.py` → returns a `Scene` | the `Scene` dataclass and `px_of`/`lonlat_of_px` | **done** — CRS, geotransform and radiometry read from the file; a tile with no geotransform is refused rather than placed at a guess; a smoothed Bragg inversion stands in for a wind field and says so |
+| 2 | U-Net segmentation | new `detect_ml.py`, called between `candidates()` and `features()` | `Candidate.mask` semantics; the six features are computed on the refined mask | **done** — `unet-s-v1`, 487 009 parameters; trained in torch, exported to `.npz`, run in numpy; refines inside a dilation of the classical mask and cannot originate a detection |
+| 3 | CMEMS + ERA5 | `forcing.from_netcdf(...) -> ForcingField` | `ForcingField.sample` signature — `drift` never learns where the numbers came from | pending |
+| 4 | OpenDrift | `drift.integrate_opendrift(...)` returning `list[CloudSnapshot]` | `CloudSnapshot`; `r95_km` and `density_region` operate on the snapshots either way | pending |
+| 5 | Real AIS (NMEA/CSV) | `ais.from_nmea(...) -> list[Track]` | `Track`, `to_positions` output dict | pending |
+| 6 | FastAPI | swap `server.py`, same routes | §13 route table and response shapes | pending |
+| 7 | React + MapLibre workstation | new app consuming `run.json` | §5.9 contract — the narrative view stays a second consumer | **done** — `web-app/`, React 19 + Vite + TypeScript + MapLibre GL, served from the API's origin; the narrative view and the pre-React workstation stay reachable at `/classic` |
+| 8 | WeasyPrint PDF | `dossier.render()` output piped to WeasyPrint | the template; it is already print-first | **done** — six A4 pages, and the page count in the written file is checked against the count the renderer reported |
+| 9 | `scipy.ndimage` | `raster.label`, morphology | signatures | pending — the numpy implementations are fast enough and cost no dependency |
+
+Deltas 3, 4 and 5 — CMEMS/ERA5 forcing, OpenDrift, real AIS — remain, and they
+are the three that need data rather than code. Their seams are unchanged.
 
 **TR-G1.** Each of these shall land behind a runtime capability check that falls back to the current implementation and logs the fallback, so a venue machine missing a wheel degrades rather than fails.
 
@@ -1472,7 +1511,11 @@ PRD requirement → module → function → test.
 | DR-4, DR-6 | `drift`, `pipeline` | `r95_km`, `r95_series` | NFR-6 check |
 | DR-5 | `drift`, `incident` | `landfall`, `coastline` | ashore fraction cumulative and non-falling |
 | DT-1 | `detect`, `scene` | land mask, 2 km buffer | land present in the raster |
-| DT-3 (partial) | `fit` | `run_fit`, `metrics` | scene-disjoint holdout in `detector.v1.json` |
+| DT-3 (linear) | `fit` | `run_fit`, `metrics` | scene-disjoint holdout in `detector.v1.json` |
+| DT-3 (learned) | `unet`, `train_unet`, `detect_ml` | `UNet.forward`, `verify_export`, `refine` | tile-disjoint holdout in `detector.unet.v1.json`; torch↔numpy parity asserted before the pack is written; a test that refinement cannot originate a candidate |
+| IN-1 | `readers.sentinel1` | `read_geotiff`, `to_db`, `wind_proxy_ms` | radiometry round trips; an ungeoreferenced tile is refused |
+| RP-1 (PDF) | `pdf` | `render_pdf`, `page_count` | the file's page count equals the renderer's |
+| TR-G1 | `server`, `cli` | `capabilities` | every optional path passes its check with the wheel absent |
 | UI-1, UI-2, UI-4 | `web/workstation.html` | `draw`, `renderPanel`, `setHour` | DOM-shim harness, 22 checks |
 | DR-8 | `drift` | `make_ensemble` | r₉₅ growth table §8.2 |
 | Gate 2 | `gates` | `gate2_region` | AC-5 (`wide`) |

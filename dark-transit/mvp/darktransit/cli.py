@@ -14,6 +14,8 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+
 from . import incident, pipeline, score as scoring, server
 
 
@@ -104,6 +106,82 @@ def cmd_serve(a):
     server.serve(a.out, a.port)
 
 
+def cmd_train(a):
+    """Fit the DT-3 segmentation model. Needs torch; inference never does."""
+    from . import train_unet
+
+    cap = train_unet.available()
+    if not cap["torch"]:
+        raise SystemExit(
+            "Training needs PyTorch, which is not installed here.\n"
+            f"  {cap['error']}\n"
+            "Inference does not: a weights pack trained elsewhere runs on numpy alone."
+        )
+    train_unet.train(
+        corpus=a.corpus, zenodo_root=a.zenodo, n_scenes=a.scenes, epochs=a.epochs,
+        batch=a.batch, lr=a.lr, per_tile=a.per_tile, seed=a.seed, limit=a.limit,
+        out_weights=a.weights_out, out_report=a.report_out)
+
+
+def cmd_capabilities(a):
+    """What is live on this machine, and what is running degraded (TR-G1)."""
+    caps = server.capabilities()
+    print("\n  Optional paths on this machine\n")
+
+    seg = caps["segmentation"]
+    if seg.get("source") == "unet":
+        hold = seg.get("holdout") or {}
+        extra = (f"  holdout IoU {hold['iou']:.3f} F1 {hold['f1']:.3f}"
+                 if hold.get("iou") is not None else "")
+        print(f"    DT-3 segmentation   ok   {seg['architecture']}, "
+              f"{seg['parameters']:,} params, {seg.get('corpus')} corpus{extra}")
+    else:
+        print(f"    DT-3 segmentation   --   {seg.get('error') or seg.get('note')}")
+
+    pdf = caps["pdf"]
+    print(f"    dossier PDF         {'ok' if pdf['weasyprint'] else '--'}   "
+          f"{pdf['engine'] or pdf['error']}")
+
+    rd = caps["sentinel1_reader"]
+    print(f"    Sentinel-1 reader   {'ok' if rd['georeferenced_input'] else '--'}   "
+          f"rasterio={rd['rasterio']} pillow={rd['pillow']}")
+
+    print(f"    workstation build   {'ok' if caps['workstation_built'] else '--'}   "
+          f"{'web-app/dist' if caps['workstation_built'] else 'run: cd web-app && npm install && npm run build'}")
+
+    print(f"\n  {caps['note']}\n")
+
+
+def cmd_ingest(a):
+    """Read a real Sentinel-1 GeoTIFF and report what came back."""
+    from .readers import sentinel1
+
+    centre = (a.lon, a.lat) if a.lon is not None and a.lat is not None else None
+    sc = sentinel1.read_geotiff(a.path, band=a.band, centre_lonlat=centre,
+                                pixel_m=a.pixel_m, max_side=a.max_side)
+    t = sc.truth
+    print(f"\n  {sc.scene_id}  {sc.shape[1]} x {sc.shape[0]} px  "
+          f"{sc.pixel_m:.1f} m  {sc.polarisation}")
+    print(f"    georeferenced   {t['georeferenced']}   {t['geometry_note']}")
+    print(f"    radiometry      {t['radiometry_note']}")
+    print(f"    wind            {t['wind_source']}")
+    print(f"    sigma0 dB       median {float(np.median(sc.sigma0_db)):.2f}  "
+          f"p2 {float(np.percentile(sc.sigma0_db, 2)):.2f}  "
+          f"p98 {float(np.percentile(sc.sigma0_db, 98)):.2f}")
+    lon, lat = sc.lonlat_of_px(sc.shape[1] / 2, sc.shape[0] / 2)
+    print(f"    centre          {float(lon):.5f}, {float(lat):.5f}")
+
+    if a.detect:
+        from . import detect
+        cands, retained, raw = detect.detect(sc)
+        print(f"\n    {raw} raw components, {len(cands)} candidates, "
+              f"{len(retained)} retained")
+        for c in cands:
+            print(f"      {c.cid}  {c.area_km2:8.2f} km2  {c.verdict:9s}  "
+                  f"confidence {c.confidence:.3f}  {c.rejection_basis or ''}")
+    print()
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="darktransit", description=__doc__)
     ap.add_argument("--out", default="runs", help="run directory root")
@@ -145,6 +223,34 @@ def main(argv=None):
     v = sub.add_parser("serve", help="serve the workstation and the narrative view")
     v.add_argument("--port", type=int, default=8000)
     v.set_defaults(fn=cmd_serve)
+
+    tr = sub.add_parser("train", help="fit the DT-3 segmentation model (needs torch)")
+    tr.add_argument("--corpus", default="synthetic", choices=["synthetic", "zenodo"])
+    tr.add_argument("--zenodo", default=None,
+                    help="root of the extracted Zenodo tiles, for --corpus zenodo")
+    tr.add_argument("--scenes", type=int, default=64)
+    tr.add_argument("--epochs", type=int, default=26)
+    tr.add_argument("--batch", type=int, default=8)
+    tr.add_argument("--lr", type=float, default=2e-3)
+    tr.add_argument("--per-tile", dest="per_tile", type=int, default=8)
+    tr.add_argument("--limit", type=int, default=None, help="cap the tiles read")
+    tr.add_argument("--seed", type=int, default=20260909)
+    tr.add_argument("--weights-out", dest="weights_out", default="detector.unet.v1.npz")
+    tr.add_argument("--report-out", dest="report_out", default="detector.unet.v1.json")
+    tr.set_defaults(fn=cmd_train)
+
+    cp = sub.add_parser("capabilities", help="which optional paths are live here")
+    cp.set_defaults(fn=cmd_capabilities)
+
+    ig = sub.add_parser("ingest", help="read a real Sentinel-1 GeoTIFF and report it")
+    ig.add_argument("path")
+    ig.add_argument("--band", type=int, default=0)
+    ig.add_argument("--lon", type=float, default=None, help="scene centre, if ungeoreferenced")
+    ig.add_argument("--lat", type=float, default=None)
+    ig.add_argument("--pixel-m", dest="pixel_m", type=float, default=None)
+    ig.add_argument("--max-side", dest="max_side", type=int, default=640)
+    ig.add_argument("--detect", action="store_true", help="also run stage 02 on it")
+    ig.set_defaults(fn=cmd_ingest)
 
     a = ap.parse_args(argv)
     a.fn(a)

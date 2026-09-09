@@ -173,10 +173,180 @@ def primitives():
     print()
 
 
+def capabilities():
+    """The four optional paths, and the degraded route each one falls back to.
+
+    Every check here is written so it passes on a machine that has none of the
+    optional wheels installed. That is deliberate: TR-G1 says a venue machine
+    missing a dependency degrades rather than fails, and a suite that only
+    passed on the developer's laptop would not be testing that claim.
+    """
+    print("Optional paths -- DT-3, the PDF, the reader, and their degradations\n")
+
+    from . import detect_ml, pdf, unet
+    from .readers import sentinel1
+
+    # -- the numpy U-Net ---------------------------------------------------- #
+    det = detect_ml.load()
+    if det.available:
+        d = det.describe()
+        check("DT-3  a weights pack is present and describes itself",
+              d["source"] == "unet" and d["parameters"] > 0,
+              f"{d['architecture']}, {d['parameters']:,} params, {d.get('corpus')} corpus")
+
+        rep = det.report or {}
+        split = (rep.get("split") or {}).get("by")
+        check("DT-3  the holdout split is by source tile, not by patch",
+              split == "source tile", str(split))
+
+        hold = (rep.get("holdout_metrics") or {}).get(f"{det.threshold:.2f}") or {}
+        check("DT-3  holdout IoU and F1 are measured and reported",
+              hold.get("iou") is not None and hold.get("f1") is not None,
+              f"IoU {hold.get('iou')} F1 {hold.get('f1')}")
+
+        parity = rep.get("export_parity") or {}
+        check("DT-3  the numpy export was checked against torch before it shipped",
+              parity.get("agrees") is True,
+              f"max |torch - numpy| = {parity['max_abs_diff']:.2e}"
+              if parity.get("max_abs_diff") is not None else "no parity record")
+
+        # The forward pass runs here, on numpy alone -- the property that keeps
+        # the runtime dependency list at one entry.
+        rng = np.random.default_rng(5)
+        probe = rng.normal(-12.0, 2.0, size=(64, 64)).astype(np.float32)
+        p = det.net.predict(probe)
+        check("DT-3  inference needs numpy and nothing else",
+              p.shape == probe.shape and float(p.min()) >= 0.0 and float(p.max()) <= 1.0,
+              f"probabilities in [{float(p.min()):.3f}, {float(p.max()):.3f}]")
+
+        # Refinement must not be able to originate a detection: with no
+        # candidates there is nothing to refine and nothing may appear.
+        notes, prob = detect_ml.refine(_ProbeScene(), [], detector=det)
+        check("DT-3  the network cannot originate a candidate, only redraw one",
+              notes == [] and prob is None)
+    else:
+        check("DT-3  absent a pack, the detector says so instead of guessing",
+              det.describe()["source"] == "absent" and bool(det.error), det.error)
+
+    # the primitives hold whether or not a pack exists
+    x = np.zeros((1, 8, 8), dtype=np.float32)
+    x[0, 4, 4] = 1.0
+    w = np.ones((1, 1, 3, 3), dtype=np.float32)
+    conv = unet.conv2d(x, w, np.zeros(1, dtype=np.float32))
+    check("DT-3  same-padded convolution preserves shape and sums its window",
+          conv.shape == (1, 8, 8) and abs(float(conv[0, 4, 4]) - 1.0) < 1e-6
+          and abs(float(conv.sum()) - 9.0) < 1e-5)
+
+    pooled = unet.maxpool2(np.arange(16, dtype=np.float32).reshape(1, 4, 4))
+    check("DT-3  pooling halves the grid and keeps the maximum",
+          pooled.shape == (1, 2, 2) and float(pooled[0, 1, 1]) == 15.0)
+
+    check("DT-3  upsampling crops back to the encoder's odd shape",
+          unet.upsample2(pooled, out_hw=(3, 3)).shape == (1, 3, 3))
+
+    # -- RP-1, the PDF and its fallback ------------------------------------- #
+    cap = pdf.available()
+    latest = _latest_run(Path("runs"))
+    if cap["weasyprint"]:
+        pdf_path = (latest / "dossier.pdf") if latest else None
+        check("RP-1  a run emits a PDF dossier beside the HTML",
+              bool(pdf_path and pdf_path.exists()),
+              pdf_path.name if pdf_path else "no run found")
+        if pdf_path and pdf_path.exists():
+            # Counting pages out of the written bytes and asking the renderer
+            # are independent routes to the same number. Requiring them to
+            # agree catches a PDF that was truncated after the page count was
+            # recorded -- which a fixed lower bound would not.
+            doc = json.loads((latest / "run.json").read_text())
+            pages = pdf.page_count(pdf_path)
+            check("RP-1  the written PDF has the page count the renderer reported",
+                  pages is not None and pages == doc.get("dossier_pdf_pages"),
+                  f"{pages} in the file, {doc.get('dossier_pdf_pages')} recorded")
+            check("RP-1  the PDF is a PDF, not HTML with the wrong suffix",
+                  pdf_path.read_bytes()[:5] == b"%PDF-")
+
+        # A run that halts at a gate emits a shorter dossier on purpose, so the
+        # page-break check belongs on a run that reached attribution.
+        complete = _latest_complete_run(Path("runs"))
+        cpdf = (complete / "dossier.pdf") if complete else None
+        if cpdf and cpdf.exists():
+            check("RP-1  a complete run's dossier keeps its section page breaks",
+                  (pdf.page_count(cpdf) or 0) >= 4,
+                  f"{pdf.page_count(cpdf)} pages, {complete.name}")
+    else:
+        check("RP-1  absent WeasyPrint the run still emits the HTML dossier",
+              bool(latest and (latest / "dossier.html").exists()), cap["error"])
+
+    # -- the Sentinel-1 reader ---------------------------------------------- #
+    rd = sentinel1.available()
+    check("IN-1  the reader reports what it can read on this machine",
+          isinstance(rd, dict) and "rasterio" in rd,
+          f"rasterio={rd['rasterio']} pillow={rd['pillow']}")
+
+    db, note = sentinel1.to_db(np.full((4, 4), 0.05, dtype=np.float32), assume="auto")
+    check("IN-1  linear sigma-nought is recognised and converted to decibels",
+          "log10" in note and abs(float(db[0, 0]) + 13.01) < 0.05, note)
+
+    db2, note2 = sentinel1.to_db(np.full((4, 4), -14.0, dtype=np.float32), assume="auto")
+    check("IN-1  a raster already in decibels is not converted twice",
+          note2.startswith("already") and float(db2[0, 0]) == -14.0)
+
+    # A slick must not be allowed to lower the wind it is scored against.
+    field = np.full((96, 96), -11.5, dtype=np.float32)
+    field[40:56, 40:56] = -23.5
+    wind = sentinel1.wind_proxy_ms(field, pixel_m=100.0)
+    check("IN-1  the wind proxy is smoothed, so a slick cannot excuse itself as calm",
+          float(wind[48, 48]) > 0.75 * float(wind[5, 5]),
+          f"{float(wind[48, 48]):.2f} m/s inside vs {float(wind[5, 5]):.2f} outside")
+
+    check("IN-1  an ungeoreferenced tile is refused rather than placed at a guess",
+          _raises(sentinel1.Sentinel1ReadError,
+                  lambda: sentinel1._plane_and_axes(
+                      sentinel1._Raw(np.zeros((1, 4, 4), np.float32), None, None,
+                                     Path("x.tif")), None, None)))
+    print()
+
+
+class _ProbeScene:
+    """The smallest object satisfying what `detect_ml.refine` reads off a scene."""
+    sigma0_db = np.full((32, 32), -12.0, dtype=np.float32)
+    pixel_m = 100.0
+
+
+def _latest_run(root: Path):
+    runs = sorted([p for p in root.glob("*") if (p / "run.json").exists()],
+                  key=lambda p: p.stat().st_mtime)
+    return runs[-1] if runs else None
+
+
+def _latest_complete_run(root: Path):
+    """The newest run that reached attribution rather than halting at a gate."""
+    for p in sorted([p for p in root.glob("*") if (p / "run.json").exists()],
+                    key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            doc = json.loads((p / "run.json").read_text())
+        except Exception:
+            continue
+        if doc.get("halted") is None and doc.get("attribution"):
+            return p
+    return None
+
+
+def _raises(exc, fn):
+    try:
+        fn()
+    except exc:
+        return True
+    except Exception:
+        return False
+    return False
+
+
 def run_all(out_root="runs"):
     global _results
     _results = []
     primitives()
+    capabilities()
     print("Dark Transit -- acceptance criteria\n")
 
     docs = {}

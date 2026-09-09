@@ -1,0 +1,158 @@
+{
+  "pack_version": "unet.v1",
+  "architecture": {
+    "architecture": "unet-s-v1",
+    "channels": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "depth": 3,
+    "parameters": 487009,
+    "pack_version": "unet.v1",
+    "corpus": "synthetic",
+    "threshold": 0.7,
+    "trained_utc": "2026-09-09T18:37:37Z"
+  },
+  "source": {
+    "corpus": "synthetic",
+    "generator": "fit.sample_scene",
+    "tiles": 40,
+    "caveat": "labels are the generator's own; a real-data number is not claimed from this pack"
+  },
+  "sampling": {
+    "patch": 256,
+    "per_tile": 6,
+    "positive_bias": 0.6,
+    "patches": 240
+  },
+  "split": {
+    "by": "source tile",
+    "holdout_fraction": 0.3,
+    "train_patches": 168,
+    "holdout_patches": 72,
+    "holdout_tiles": [
+      "syn-000",
+      "syn-007",
+      "syn-008",
+      "syn-012",
+      "syn-014",
+      "syn-015",
+      "syn-016",
+      "syn-018",
+      "syn-023",
+      "syn-027",
+      "syn-028",
+      "syn-036"
+    ]
+  },
+  "training": {
+    "epochs": 8,
+    "batch": 8,
+    "lr": 0.002,
+    "loss": "BCE(pos_weight) + soft Dice",
+    "pos_weight": 20.0,
+    "history": [
+      {
+        "epoch": 1,
+        "loss": 1.57126
+      },
+      {
+        "epoch": 2,
+        "loss": 1.3777
+      },
+      {
+        "epoch": 3,
+        "loss": 1.23393
+      },
+      {
+        "epoch": 4,
+        "loss": 1.08946
+      },
+      {
+        "epoch": 5,
+        "loss": 0.99177
+      },
+      {
+        "epoch": 6,
+        "loss": 0.89203
+      },
+      {
+        "epoch": 7,
+        "loss": 0.80802
+      },
+      {
+        "epoch": 8,
+        "loss": 0.632
+      }
+    ]
+  },
+  "holdout_metrics": {
+    "0.30": {
+      "precision": 0.5713,
+      "recall": 0.9979,
+      "f1": 0.7266,
+      "iou": 0.5706,
+      "false_alarm_rate": 0.010119,
+      "tp": 62779,
+      "fp": 47109,
+      "fn": 134,
+      "tn": 4608570
+    },
+    "0.40": {
+      "precision": 0.5864,
+      "recall": 0.996,
+      "f1": 0.7382,
+      "iou": 0.5851,
+      "false_alarm_rate": 0.009492,
+      "tp": 62663,
+      "fp": 44193,
+      "fn": 250,
+      "tn": 4611486
+    },
+    "0.50": {
+      "precision": 0.5998,
+      "recall": 0.9936,
+      "f1": 0.748,
+      "iou": 0.5975,
+      "false_alarm_rate": 0.008958,
+      "tp": 62508,
+      "fp": 41704,
+      "fn": 405,
+      "tn": 4613975
+    },
+    "0.60": {
+      "precision": 0.6146,
+      "recall": 0.9899,
+      "f1": 0.7583,
+      "iou": 0.6107,
+      "false_alarm_rate": 0.00839,
+      "tp": 62280,
+      "fp": 39062,
+      "fn": 633,
+      "tn": 4616617
+    },
+    "0.70": {
+      "precision": 0.6358,
+      "recall": 0.986,
+      "f1": 0.7731,
+      "iou": 0.6301,
+      "false_alarm_rate": 0.007632,
+      "tp": 62031,
+      "fp": 35531,
+      "fn": 882,
+      "tn": 4620148
+    }
+  },
+  "operating_threshold": 0.7,
+  "export_parity": {
+    "max_abs_diff": 1.430511474609375e-06,
+    "tolerance": 0.0001,
+    "agrees": true,
+    "trials": 3,
+    "size": 128
+  },
+  "weights_file": "detector.unet.v1.npz",
+  "elapsed_s": 436.0
+}

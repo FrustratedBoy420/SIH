@@ -2,17 +2,31 @@
 
 A runnable pipeline for SIH26143: one SAR scene and one AIS archive in, a ranked vessel shortlist and a dossier out.
 
-**Dependencies: numpy.** Nothing else. No network. Deterministic under a recorded seed.
+**Runtime dependencies: numpy.** Nothing else — including for the neural detector, whose forward pass is written in numpy and whose weights ship as an `.npz`. No network at any point. Deterministic under a recorded seed.
 
 ```bash
+python3 -m darktransit.cli capabilities    # which optional paths are live here
 python3 -m darktransit.cli scenarios       # what each incident demonstrates
-python3 -m darktransit.cli run             # nominal incident, ~6 s
-python3 -m darktransit.cli selftest        # 48 checks: primitives, properties, PRD section 19
+python3 -m darktransit.cli run             # nominal incident, ~11 s
+python3 -m darktransit.cli selftest        # 66 checks: primitives, capabilities, PRD section 19
 python3 -m darktransit.cli ablate          # re-rank with each factor zeroed in turn
 python3 -m darktransit.cli fit             # refit the discriminator and measure it, ~3 min
+python3 -m darktransit.cli train           # fit the DT-3 U-Net (needs torch), ~25 min
 python3 -m darktransit.cli validate        # hindcast known drifter tracks, ~20 s
-python3 -m darktransit.cli serve           # http://127.0.0.1:8000/ and /workstation.html
+python3 -m darktransit.cli ingest FILE     # read a real Sentinel-1 GeoTIFF
+python3 -m darktransit.cli serve           # http://127.0.0.1:8000
 ```
+
+Five capabilities are optional, and each one degrades rather than fails when its
+wheel is missing — `cli capabilities` says which are live:
+
+| | Needs | Without it |
+|---|---|---|
+| DT-3 U-Net refinement | a weights pack (`.npz`); **not** torch | classical detection alone, logged as a degradation |
+| Training the U-Net | `torch` | inference still runs on a pack trained elsewhere |
+| PDF dossier | `weasyprint` | the HTML dossier still ships |
+| Real GeoTIFF ingest | `rasterio` (or Pillow) | the synthetic scene path is unaffected |
+| React workstation | `node`, once, to build | the pre-React views at `/classic` still serve |
 
 Eight scenarios: `kutch` nominal, `lookalike` and `clean` for gate 1, `wide` for gate 2,
 `no-radar` for gate 3, `ambiguous` for gate 4, `short-archive` for gate 5, and `spoofed`
@@ -36,11 +50,51 @@ Strictly sequential, each writing a typed artefact into `runs/<run_id>/`, so any
 
 **Simulated:** the σ⁰ pixel values, the ocean and wind fields, and the AIS traffic. Real AIS for Indian waters is restricted and the problem statement explicitly permits synthetic traffic.
 
-**Real:** everything that reads them. The speckle filter, the land mask, the adaptive threshold, connected components, the six-feature look-alike discriminator **and the fit that produced its coefficients**, PCA geometry, RK4 advection with leeway and a diffusive random walk, the per-particle forcing ensemble, multi-part density-quantile origin regions, the landfall forecast with land as an absorbing boundary, per-vessel cadence baselines, the kinematic plausibility check, the reachable-set ellipse and its overlap with the region, CA-CFAR with a stated `P_fa`, target-to-AIS matching, the weighted score, all five gates, the dossier and both front ends.
+**Real:** everything that reads them. The speckle filter, the land mask, the adaptive threshold, connected components, the six-feature look-alike discriminator **and the fit that produced its coefficients**, the U-Net that refines the boundary **and the training run that produced its weights**, the Sentinel-1 GeoTIFF reader, the PDF renderer, PCA geometry, RK4 advection with leeway and a diffusive random walk, the per-particle forcing ensemble, multi-part density-quantile origin regions, the landfall forecast with land as an absorbing boundary, per-vessel cadence baselines, the kinematic plausibility check, the reachable-set ellipse and its overlap with the region, CA-CFAR with a stated `P_fa`, target-to-AIS matching, the weighted score, all five gates, the dossier and both front ends.
 
 The synthetic scene is not decoration. The slick in it is the **forward-advected release plume** laid along the culprit's own track, so when the pipeline hindcasts it back, it is recovering a truth it was never shown. `runs/<id>/run.json` carries a `truth` block and a `top1_correct` flag; the pipeline never reads either.
 
-Not implemented, and logged as a degradation when the run starts: the fine-tuned U-Net of DT-3. The classical path plus the fitted linear discriminator stand in, and `02_detection.json.discriminator` records whether the coefficients in force are `fitted` or `hand-set`. See PRD §22 for the full traceability table.
+### DT-3, the learned detector
+
+The U-Net is now trained and running. It refines candidate boundaries between
+`candidates()` and `features()`, so the six discriminator features, the
+geometry, the drift seed and the attribution are all computed on whichever mask
+is finally in force.
+
+Three properties worth stating, because each one is a constraint rather than a
+feature:
+
+**It cannot originate a detection.** The network only redraws inside a dilation
+of what the classical pass already proposed. A mis-trained model degrades the
+geometry; it cannot invent an incident. Asserted by a test.
+
+**Its numpy forward pass is checked against torch.** Batch-norm is folded into
+the preceding convolution at export, which is exactly the step that is silently
+wrong, so `verify_export` runs both implementations on the same tensors and
+refuses to write the pack if they differ by more than 1e-4. The recorded
+agreement is 1.4e-6 and it is printed in the run's detection stage.
+
+**Its holdout is split by source tile, never by patch.** Patches cut from one
+scene share speckle statistics, wind field and often the same slick; letting
+them straddle the split would report memorisation as generalisation.
+
+Measured on the tile-disjoint holdout: **IoU 0.630, F1 0.773**, at an operating
+threshold of 0.70 chosen by sweep. On the nominal incident it gives the true
+slick a mean probability of **0.990** and the two look-alikes **0.043** and
+**0.026** — so it discriminates as well as it refines, though only the
+refinement is wired into the verdict today. Feeding that probability to the
+discriminator as a seventh feature is the obvious next step and is *not* done:
+it would require refitting `detector.v1.json`, and claiming it before measuring
+it is the kind of thing this document exists to avoid.
+
+**The corpus.** The shipped pack is trained on the synthetic corpus — real
+labels, from a generator we wrote — and `detector.unet.v1.json` says so.
+`cli train --corpus zenodo --zenodo DIR` retrains on the *Sentinel-1 SAR Oil
+spill image dataset* (Zenodo 8253899 / 8346860 / 13761290, CC-BY-4.0), which is
+the dataset the problem statement names: 2048x2048 sigma-nought tiles in
+decibels with per-pixel ground truth, plus labelled look-alike and oil-free
+tiles. Nothing else changes; the split, the metrics and the export check are
+the same harness.
 
 ## The API
 
@@ -90,10 +144,49 @@ darktransit/
   fit.py           labelled corpus, discriminator fitting, holdout metrics
   validate.py      the AC-7 drift-validation method
   png.py           PNG encoder, stdlib zlib -- the basemap has to reach a browser
-  tests.py         primitives, properties, acceptance criteria -- 48 checks
-web/index.html         the narrative view, reading run.json
-web/workstation.html   the analyst tool: SAR basemap, time slider, live weights, run log
-weights.v4.json    the weight pack
-detector.v1.json   the fitted discriminator pack, with its holdout metrics
+  tests.py         primitives, capabilities, acceptance criteria -- 66 checks
+  unet.py          the U-Net forward pass, in numpy
+  train_unet.py    fitting it in torch, and proving the numpy export matches
+  detect_ml.py     DT-3: boundary refinement, between candidates() and features()
+  pdf.py           the dossier as PDF, WeasyPrint behind a capability check
+  readers/
+    sentinel1.py   real Sentinel-1 GeoTIFF -> Scene, the section 18 delta 1 seam
+web-app/           React + Vite + TypeScript + MapLibre workstation
+  src/components/Chart.tsx       the chart: SAR, slick, drift, tracks, reachable sets
+  src/components/Transport.tsx   the time control that plots its own uncertainty
+  verify.mjs                     24 headless checks against a running pipeline
+web/index.html         the narrative view, reading run.json     (served at /classic)
+web/workstation.html   the pre-React analyst tool
+weights.v4.json          the weight pack
+detector.v1.json         the fitted discriminator pack, with its holdout metrics
+detector.unet.v1.npz     the DT-3 weights -- numpy loads this, torch is not needed
+detector.unet.v1.json    how those weights were trained, and what they scored
 runs/              run artefacts (gitignored)
+```
+
+## The workstation
+
+```bash
+cd web-app && npm install && npm run build      # once
+cd .. && python3 -m darktransit.cli serve       # UI and API on one origin
+```
+
+React 19, Vite, TypeScript, MapLibre GL. It reads `run.json` and holds no
+incident knowledge of its own — `verify.mjs` proves that by fetching the run
+from the API and checking that no vessel name, MMSI or timestamp from it
+appears anywhere in the built bundle.
+
+**There is no basemap.** No tile server is reachable at a venue, and a chart
+that needs one is a chart that fails when it matters. The sea is a flat S-52
+night fill, the land is the run's own coastline, and the imagery is the run's
+own georeferenced SAR raster. Everything drawn is evidence.
+
+**The time control is the honest part.** Its track is not a groove — it is a
+plot of r95, the radius containing 95 % of the particle cloud, against time. Scrub
+back and the envelope widens under the handle, from 3.4 km at detection to
+14.1 km forty hours earlier. The control renders the growing uncertainty of its
+own answer, which is the one thing a confident dot at the origin would hide.
+
+```bash
+cd web-app && node verify.mjs http://127.0.0.1:8000    # 24 checks, screenshots to shots/
 ```

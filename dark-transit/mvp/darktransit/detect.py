@@ -224,10 +224,33 @@ def discriminate(cand: Candidate) -> Candidate:
     return cand
 
 
-def detect(scene, pack_path=DEFAULT_PACK_PATH, **kw):
-    """Full detection stage. Returns (all_candidates, retained, raw_component_count)."""
+def detect(scene, pack_path=DEFAULT_PACK_PATH, use_ml=True, ml_weights=None, **kw):
+    """Full detection stage. Returns (all_candidates, retained, raw_component_count).
+
+    DT-3 enters here and nowhere else. The learned pass sits between
+    `candidates` and `features` — TECHNICAL_SPEC section 18, delta 2 — so the
+    six discriminator features are computed on whichever mask is finally in
+    force, refined or classical, and no caller has to know which.
+
+    `last_ml_summary()` carries what the learned pass did, for the stage
+    artefact and the run log. It is a module-level record rather than a return
+    value because the signature is part of the frozen contract.
+    """
+    global _LAST_ML
     load_pack(pack_path)
     cands, filtered, raw_n = candidates(scene, **kw)
+
+    _LAST_ML = None
+    if use_ml and cands:
+        from . import detect_ml
+        det = detect_ml.load(ml_weights) if ml_weights else detect_ml.load()
+        if det.available:
+            notes, _ = detect_ml.refine(scene, cands, detector=det)
+            _LAST_ML = detect_ml.summary(notes, det)
+        else:
+            _LAST_ML = {"detector": det.describe(), "candidates_seen": len(cands),
+                        "candidates_refined": 0, "refinements": []}
+
     for c in cands:
         c.features = features(scene, c, filtered)
         c.centroid_px = c.features["centroid_px"]
@@ -235,3 +258,11 @@ def detect(scene, pack_path=DEFAULT_PACK_PATH, **kw):
     retained = [c for c in cands if c.verdict == "retained"]
     retained.sort(key=lambda c: -c.confidence)
     return cands, retained, raw_n
+
+
+_LAST_ML = None
+
+
+def last_ml_summary():
+    """What the learned pass did on the most recent `detect` call, or None."""
+    return _LAST_ML

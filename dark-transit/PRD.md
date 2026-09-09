@@ -1096,7 +1096,8 @@ python3 -m darktransit.cli serve                 # narrative view, and /workstat
 | Adaptive threshold, connected components | **Real** |
 | Look-alike features and discriminator | **Real** — features per §10.3, logistic combination, per-candidate rejection basis |
 | Look-alike discriminator coefficients | **Fitted and measured** — `darktransit.fit` generates a labelled corpus, fits on a scene-disjoint split, and reports precision/recall/FPR/IoU with Wilson intervals into `detector.v1.json`. The detector loads that pack and reports `source: fitted`; absent the pack it falls back to the hand-set constants and says so. |
-| U-Net segmentation | **Not in MVP** — the classical path plus the fitted linear model stand in; the degradation is logged, per §10.4 |
+| U-Net segmentation | **Trained and running (DT-3)** — `unet-s-v1`, 487 009 parameters, fitted by `darktransit.train_unet` in PyTorch and exported to an `.npz` the numpy runtime loads, so inference needs no torch. Boundary refinement only: it runs between `candidates()` and `features()` and works inside a dilation of the classical mask, so it cannot originate a detection. Holdout **IoU 0.630, F1 0.773** on a split made by source tile, never by patch. The batch-norm fold is verified against torch on real tensors before the pack is written (agreement 1.4e-6) and the pipeline refuses to ship weights that disagree. Absent a pack the classical path stands in and the degradation is logged, per §10.4. |
+| U-Net training corpus | **Synthetic by default, Zenodo on request** — the shipped pack is trained on generated scenes whose per-pixel labels we control, and `detector.unet.v1.json` records which corpus produced it. `cli train --corpus zenodo` retrains on the *Sentinel-1 SAR Oil spill image dataset* (Zenodo 8253899 / 8346860 / 13761290, CC-BY-4.0) — the dataset this PS names — through the same split, metrics and export check. |
 | Geometry, PCA axis, elongation | **Real** |
 | Age from lateral spreading, with its `K_h` bracket | **Real** |
 | Forcing fields | **Simulated** — analytic tidal + mean current and a rotating wind field on a real grid, interpolated trilinearly like the real thing |
@@ -1110,7 +1111,9 @@ python3 -m darktransit.cli serve                 # narrative view, and /workstat
 | CFAR, length estimate, AIS matching | **Real** on the generated raster |
 | Five-factor scoring, weight pack, leader margin | **Real** |
 | All five gates | **Real**, each with an adversarial scenario that fires it |
-| Dossier, limitations page first | **Real**, HTML (WeasyPrint upgrade is one call) |
+| Dossier, limitations page first | **Real**, HTML **and PDF** — WeasyPrint renders the same print-first template to a six-page A4 file beside it, and the page count in the file is checked against the count the renderer reported. Absent WeasyPrint the HTML still ships and the degradation is logged. |
+| Sentinel-1 GRD ingest | **Real reader, no real scene yet** — `readers.sentinel1` turns a calibrated GeoTIFF into the same `Scene` the generator produces, reading CRS, geotransform and radiometry from the file, and refusing to place an ungeoreferenced tile at a guess. What is still simulated is the *imagery*, not the code that reads it. |
+| Analyst workstation | **Real** — React 19 + Vite + TypeScript + MapLibre GL, served from the same origin as the API. No basemap: every layer is the run's own evidence. 24 headless checks, including a proof that no vessel name, MMSI or timestamp from the run appears in the built bundle. |
 | Drift validation harness | **Real**, on synthetic drifters — the AC-7 method, not AC-7 |
 | API | **Stdlib HTTP server** standing in for FastAPI; same routes as §12, plus the run's own files |
 | Narrative front end | **Real** — `artifacts/forty-hours-back.html` rewired to read `run.json`; no number is hardcoded |
