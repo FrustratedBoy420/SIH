@@ -243,7 +243,42 @@ def build_app():                                     # pragma: no cover
     dist = Path(__file__).resolve().parent.parent / "web" / "dist"
     if dist.exists():
         from fastapi.staticfiles import StaticFiles
-        app.mount("/", StaticFiles(directory=str(dist), html=True), name="web")
+        # Starlette's StaticFiles raises *starlette's* HTTPException, which is
+        # the PARENT of FastAPI's. `except fastapi.HTTPException` therefore does
+        # not catch it, and the fallback below never fires. Catch the base.
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        class SinglePageApp(StaticFiles):
+            """Static files, falling back to index.html for client-side routes.
+
+            `StaticFiles(html=True)` serves index.html for a *directory*. A
+            React Router path such as /workstation is not a directory, so a
+            page refresh or a pasted link 404s -- which is exactly the moment a
+            judge would try it. The router can only read the URL if the server
+            hands back the shell for paths it does not recognise.
+
+            /api is excluded deliberately. Without the guard an unknown API
+            path returns the HTML shell with status 200, and the frontend
+            reports "unexpected token <" instead of "no such endpoint".
+            """
+
+            async def get_response(self, path: str, scope):
+                # `path` arrives OS-normalised -- on Windows StaticFiles hands
+                # over "api\nope", not "api/nope", so a startswith("api/")
+                # test silently never matches and every mistyped API path
+                # returns the HTML shell. Test the request path from the ASGI
+                # scope, which is always slash-separated.
+                request_path = scope.get("path", "")
+                if request_path == "/api" or request_path.startswith("/api/"):
+                    raise HTTPException(404, "no such endpoint")
+                try:
+                    return await super().get_response(path, scope)
+                except StarletteHTTPException as exc:
+                    if exc.status_code != 404:
+                        raise
+                    return await super().get_response("index.html", scope)
+
+        app.mount("/", SinglePageApp(directory=str(dist), html=True), name="web")
 
     return app
 

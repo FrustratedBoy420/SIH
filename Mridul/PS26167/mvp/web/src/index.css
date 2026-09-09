@@ -4,51 +4,76 @@
    SatQuery AI — design tokens
    See ../../docs/06_Design_System.md
 
-   The palette is derived from remote sensing itself, not from a UI trend.
+   REVISION 2. The first palette gave every concept its own hue: cyan for
+   radar, amber for optical, violet for fusion, crimson for change, plus green
+   and yellow for semantics. Six accents were on screen at once and the result
+   read as noise -- a legend rather than an interface. Colour is a scarce
+   resource and that version spent all of it at once.
 
-   In a false-colour infrared composite — the iconic remote-sensing image —
-   vegetation renders crimson, water renders near-black, built-up areas render
-   cyan-grey and bare soil renders tan. Three of those become tokens:
+   The rule now:
 
-       --nir     crimson   change, attention, refusal
-       --sar     cyan      radar, structure
-       --optical amber     visible light
+     - The interface is neutral. Near-black ground, grey ink, grey rules.
+     - ONE accent (aqua) carries interaction: links, focus, the primary action.
+     - Modality hues survive ONLY as identity marks -- a 6 px dot, a label --
+       never as fills, never as a stripe down the side of every card.
+     - Semantics reuse the same three: positive, caution, negative.
 
-   The ground is not "dark navy". It is the near-black of calm water on a SAR
-   scene — a very dark desaturated teal, so the imagery sits on something that
-   belongs to the same world rather than on a generic dashboard slate.
+   The aqua is still taken from the subject. On a SAR amplitude image calm
+   water is near-black and structures return bright; the interface ground is
+   that water, and the accent is the return.
    ========================================================================== */
 
 @theme {
-  /* ground and surfaces */
-  --color-void: #05090a;
-  --color-abyss: #080e10;
-  --color-surface: #0d1518;
-  --color-raised: #121c20;
-  --color-rule: #1b282c;
-  --color-rule-2: #26383d;
+  /* ---------------------------------------------------------------- ground
+     Neutral, very slightly cool. The previous ramp was tinted teal, which
+     made every neutral surface read as "coloured" and left the actual accent
+     nothing to contrast against. */
+  --color-void: #0a0b0d;
+  --color-abyss: #0e1014;
+  --color-surface: #14171c;
+  --color-raised: #1a1e24;
 
-  /* ink */
-  --color-ink: #e8f2f0;
-  --color-ink-2: #93a8a8;
-  --color-ink-3: #5e7375;
+  /* Rules sit close to their surface on purpose. A border should separate,
+     not draw a line. */
+  --color-rule: #1e222a;
+  --color-rule-2: #2a2f39;
 
-  /* the false-colour signature */
-  --color-nir: #ff4d3d;
-  --color-nir-dim: #6b1f18;
-  --color-sar: #35e0e8;
-  --color-sar-dim: #0d4a4e;
-  --color-optical: #ffb454;
-  --color-optical-dim: #5a3d12;
-  --color-fusion: #b48cff;
-  --color-fusion-dim: #35245c;
+  /* ------------------------------------------------------------------ ink */
+  --color-ink: #eceef2;
+  --color-ink-2: #9aa3b0;
+  --color-ink-3: #656d7a;
 
-  /* semantic — kept separate from any modality colour */
-  --color-good: #3ddc97;
-  --color-warn: #ffc857;
-  --color-bad: #ff4d3d;
+  /* --------------------------------------------------------------- accent
+     One hue for everything interactive. */
+  --color-accent: #4fd1e0;
+  --color-accent-soft: #1d3d44;
+  --color-accent-ink: #06222a;
 
-  --font-display: "Bricolage Grotesque", Georgia, serif;
+  /* ------------------------------------------------------- modality marks
+     Desaturated from the originals. These now appear as dots and small caps
+     text on a neutral card, so they need to read at 6 px against near-black
+     rather than survive being used as a 3 px bar. */
+  --color-sar: #4fd1e0;
+  --color-optical: #e0a95c;
+  --color-fusion: #a78bfa;
+  --color-nir: #ef6a55;
+  --color-nir-dim: #4a2019;
+
+  /* ------------------------------------------------------------ semantic */
+  --color-good: #56c98d;
+  --color-warn: #e0b356;
+  --color-bad: #ef6a55;
+
+  /* ------------------------------------------------------------- radius
+     The single largest change to how finished the product looks. Sharp
+     corners everywhere read as a wireframe; these are restrained enough to
+     stay technical. */
+  --radius-panel: 14px;
+  --radius-card: 10px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  --font-display: "Bricolage Grotesque", "Segoe UI", Georgia, sans-serif;
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -64,79 +89,94 @@ body {
   background: var(--color-void);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.55;
+  /* 15 px, not 14. The previous build ran 10-13 px almost everywhere, so
+     nothing was large and nothing was small -- there was no hierarchy to
+     read, only uniform density. */
+  font-size: 15px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* Every VALUE is set as data — coordinates, dB figures, confidences, band
+/* Every VALUE is set as data -- coordinates, dB figures, confidences, band
    counts, EPSG codes. This does more for the instrument feel than any
-   background effect, and its absence is what makes a technical UI read as
-   generic. */
+   background effect. */
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .label {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--color-ink-3);
 }
 
-/* The graticule — a lat/lon grid, the one piece of ambient texture in the
-   interface. It is domain furniture rather than decoration: every map anyone
-   in this field has ever used has one. */
+/* A 6 px identity dot. This is the entire remaining role of the modality
+   hues in the interface chrome. */
+.dot {
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  flex: none;
+  display: inline-block;
+}
+
+/* The graticule -- a lat/lon grid. Kept, but only behind the 3D stage where
+   it is map furniture, and at roughly half its former contrast so it stops
+   competing with the imagery. */
 .graticule {
   background-image:
-    linear-gradient(rgba(53, 224, 232, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(53, 224, 232, 0.045) 1px, transparent 1px),
-    linear-gradient(rgba(53, 224, 232, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(53, 224, 232, 0.02) 1px, transparent 1px);
-  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+    linear-gradient(rgba(120, 200, 210, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 200, 210, 0.028) 1px, transparent 1px);
+  background-size: 128px 128px, 128px 128px;
 }
 
 *:focus-visible {
-  outline: 2px solid var(--color-sar);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 4px;
 }
 
-::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-rule-2); border-radius: 0; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-ink-3); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-rule-2);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--color-ink-3); }
 
 input[type="range"] {
   appearance: none;
-  height: 2px;
+  height: 3px;
   background: var(--color-rule-2);
-  border-radius: 2px;
+  border-radius: 999px;
 }
 input[type="range"]::-webkit-slider-thumb {
   appearance: none;
-  width: 13px; height: 13px;
+  width: 14px; height: 14px;
   border-radius: 50%;
-  background: var(--color-void);
-  border: 2px solid var(--color-sar);
+  background: var(--color-accent);
+  border: 3px solid var(--color-void);
+  box-shadow: 0 0 0 1px var(--color-accent);
   cursor: grab;
 }
 input[type="range"]::-moz-range-thumb {
-  width: 13px; height: 13px;
+  width: 14px; height: 14px;
   border-radius: 50%;
-  background: var(--color-void);
-  border: 2px solid var(--color-sar);
+  background: var(--color-accent);
+  border: 3px solid var(--color-void);
   cursor: grab;
 }
 
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise 0.18s var(--ease-out) both; }
+.rise { animation: rise 0.22s var(--ease-out) both; }
 
 /* A slow radar sweep across the scene. One ambient motion, taken from the
-   subject rather than from a template — and it stops entirely under
+   subject rather than from a template -- and it stops entirely under
    prefers-reduced-motion. */
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
-.sweep { animation: sweep 7s linear infinite; }
+.sweep { animation: sweep 9s linear infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -24,7 +24,7 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react'
 import { Canvas, useFrame, useLoader, type ThreeEvent } from '@react-three/fiber'
-import { OrbitControls, Html, Line } from '@react-three/drei'
+import { OrbitControls, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import type { GeoBox, RasterSummary } from '@/lib/api'
 
@@ -126,7 +126,19 @@ function Plane({
   )
 }
 
-/** Evidence boxes, in real geographic coordinates, on the fusion plane. */
+/**
+ * Evidence boxes, in real geographic coordinates, on the fusion plane.
+ *
+ * Drawn as a translucent fill plus an outline rather than an outline alone. A
+ * 1.6 px line seen at this camera angle is close to invisible against a busy
+ * false-colour scene -- the geometry was being rendered and still failing to
+ * communicate, which is the same as not rendering it.
+ *
+ * The fill is depthWrite={false} so overlapping detections do not punch holes
+ * in each other, and each quad is lifted a hair above the plane by its index so
+ * coincident boxes (the SAR detection and the under-cloud recovery cover almost
+ * the same ground) do not z-fight.
+ */
 function EvidenceBoxes({
   boxes, bounds, aspect,
 }: {
@@ -142,35 +154,52 @@ function EvidenceBoxes({
   })
 
   const h = PLANE_W / aspect
-  const lines = useMemo(() => {
+  const quads = useMemo(() => {
     if (!bounds || boxes.length === 0) return []
     const [minx, miny, maxx, maxy] = bounds
     const spanX = maxx - minx || 1
     const spanY = maxy - miny || 1
     return boxes.slice(0, 40).map((b) => {
-      // geographic -> plane-local. Latitude increases north, and the plane's
-      // local +z runs south, hence the sign flip on the y term.
+      // geographic -> plane-local. Latitude increases north and the plane's
+      // local +z runs south, hence the sign flip on the z term. The API does
+      // not guarantee lat0 < lat1, so take absolute extents rather than
+      // assuming an ordering -- a negative width renders as nothing at all.
       const x0 = ((b.lon0 - minx) / spanX - 0.5) * PLANE_W
       const x1 = ((b.lon1 - minx) / spanX - 0.5) * PLANE_W
       const z0 = -((b.lat0 - miny) / spanY - 0.5) * h
       const z1 = -((b.lat1 - miny) / spanY - 0.5) * h
-      return [
-        [x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1], [x0, 0, z0],
-      ] as [number, number, number][]
+      return {
+        cx: (x0 + x1) / 2,
+        cz: (z0 + z1) / 2,
+        w: Math.max(Math.abs(x1 - x0), 0.012),
+        d: Math.max(Math.abs(z1 - z0), 0.012),
+      }
     })
   }, [boxes, bounds, aspect, h])
 
   return (
     <group ref={group} position={[0, 0.012, 0]}>
-      {lines.map((pts, i) => (
-        <Line key={i} points={pts} color="#ff4d3d" lineWidth={1.6} transparent opacity={0.95} />
+      {quads.map((q, i) => (
+        <group key={i} position={[q.cx, i * 0.0012, q.cz]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh>
+            <planeGeometry args={[q.w, q.d]} />
+            <meshBasicMaterial
+              color="#ff4d3d" transparent opacity={0.24}
+              depthWrite={false} side={THREE.DoubleSide}
+            />
+          </mesh>
+          <lineSegments>
+            <edgesGeometry args={[new THREE.PlaneGeometry(q.w, q.d)]} />
+            <lineBasicMaterial color="#ff8a7a" transparent opacity={0.95} />
+          </lineSegments>
+        </group>
       ))}
     </group>
   )
 }
 
 function Scene({
-  separation, layerUrl, hidden, focus, onSelect, boxes, bounds, aspect,
+  separation, layerUrl, hidden, focus, onSelect, boxes, bounds, aspect, interactive,
 }: {
   separation: number
   layerUrl: (k: string) => string
@@ -180,6 +209,7 @@ function Scene({
   boxes: GeoBox[]
   bounds: number[] | undefined
   aspect: number
+  interactive: boolean
 }) {
   const [idle, setIdle] = useState(true)
 
@@ -216,9 +246,14 @@ function Scene({
 
       <EvidenceBoxes boxes={boxes} bounds={bounds} aspect={aspect} />
 
+      {/* Zoom is disabled outside the workstation. A canvas that swallows the
+          scroll wheel on a landing page traps the reader on the hero -- the
+          gesture they expect to move the page instead moves the camera. */}
       <OrbitControls
         enableDamping
         dampingFactor={0.07}
+        enableZoom={interactive}
+        enablePan={interactive}
         minDistance={3}
         maxDistance={14}
         maxPolarAngle={Math.PI * 0.87}
@@ -228,8 +263,12 @@ function Scene({
   )
 }
 
+/** Camera distance tuned for the workstation's large viewport. */
+const CAMERA: [number, number, number] = [3.9, 3.4, 5.3]
+
 export default function ModalityStack({
   separation, layerUrl, hidden, focus, onSelect, boxes, scene,
+  fit = 1, interactive = true,
 }: {
   separation: number
   layerUrl: (k: string) => string
@@ -238,14 +277,25 @@ export default function ModalityStack({
   onSelect: (k: LayerKey) => void
   boxes: GeoBox[]
   scene: RasterSummary | undefined
+  /**
+   * Scales the camera distance. The default position is framed for the
+   * workstation, which is roughly 1100 px wide; dropped into the landing
+   * hero at half that width the same framing leaves the stack small with
+   * dead space around it, because the vertical field of view is fixed and
+   * the horizontal one narrows with the panel. Pass fit < 1 to move in.
+   */
+  fit?: number
+  /** False on marketing surfaces: orbit still works, zoom and pan do not. */
+  interactive?: boolean
 }) {
   const aspect = scene ? scene.width / scene.height : 1
   const bounds = scene?.bounds
+  const camera = CAMERA.map((v) => v * fit) as [number, number, number]
 
   return (
     <Canvas
       dpr={[1, 2]}
-      camera={{ position: [3.9, 3.4, 5.3], fov: 40 }}
+      camera={{ position: camera, fov: 40 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       style={{ background: 'transparent' }}
     >
@@ -258,6 +308,7 @@ export default function ModalityStack({
         boxes={boxes}
         bounds={bounds}
         aspect={aspect}
+        interactive={interactive}
       />
     </Canvas>
   )
