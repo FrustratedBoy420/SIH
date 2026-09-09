@@ -32,13 +32,34 @@ const num = (s) => Number(String(s).replace(/[^0-9.-]/g, ''))
 async function main() {
   mkdirSync(SHOTS, { recursive: true })
 
+  // The workstation opens on the most recent run, and that one may legitimately
+  // have halted at a gate with no shortlist to render. These checks are about a
+  // complete run, so find one rather than fail on a correct refusal.
   let run
   try {
     run = await (await fetch(`${BASE}/run.json`)).json()
+    if (!run.attribution) {
+      const ids = await (await fetch(`${BASE}/runs`)).json()
+      for (const id of [...ids].reverse()) {
+        const doc = await (await fetch(`${BASE}/runs/${id}/run.json`)).json()
+        if (doc.attribution && !doc.halted) {
+          run = doc
+          break
+        }
+      }
+    }
   } catch {
     console.error(
       `\n  Cannot reach ${BASE}. Start it with:\n` +
         `    python -m darktransit.cli run && python -m darktransit.cli serve\n`,
+    )
+    process.exit(2)
+  }
+
+  if (!run.attribution) {
+    console.error(
+      '\n  No completed run to check. Every run on disk halted at a gate.\n' +
+        '  Make one with: python -m darktransit.cli run\n',
     )
     process.exit(2)
   }
@@ -50,8 +71,14 @@ async function main() {
   page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
   page.on('pageerror', (e) => consoleErrors.push(String(e)))
 
-  await page.goto(BASE, { waitUntil: 'networkidle' })
+  // Open the run being checked by name, so a run finishing in the background
+  // between the fetch above and the page load cannot swap it underneath us.
+  await page.goto(`${BASE}/?run=${encodeURIComponent(run.run_id)}`, {
+    waitUntil: 'networkidle',
+  })
+  await page.selectOption('select', run.run_id).catch(() => {})
   await page.waitForSelector('.suspect', { timeout: 20_000 })
+  await page.waitForTimeout(600)
 
   // ---- UI-5: nothing about this incident is baked into the bundle -------- //
   const bundleSrc = await page.evaluate(() =>

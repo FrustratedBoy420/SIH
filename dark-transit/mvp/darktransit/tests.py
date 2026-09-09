@@ -304,6 +304,32 @@ def capabilities():
                   lambda: sentinel1._plane_and_axes(
                       sentinel1._Raw(np.zeros((1, 4, 4), np.float32), None, None,
                                      Path("x.tif")), None, None)))
+
+    # -- the Zenodo corpus loader ------------------------------------------- #
+    #
+    # The archive is 96 GB across three records, so the corpus itself is not a
+    # test fixture. What is testable without it -- and what actually breaks --
+    # is the layout convention: which files are imagery, which are ground
+    # truth, and what class a directory name implies. Getting `_is_image_path`
+    # wrong would silently train the model on its own labels.
+    from . import train_unet
+
+    check("DT-3  ground-truth tiles are not mistaken for imagery",
+          not train_unet._is_image_path(Path("a/Images_ground_truth/t.tif"))
+          and not train_unet._is_image_path(Path("a/Oil_mask/t.tif"))
+          and train_unet._is_image_path(Path("a/Images/t.tif")))
+
+    check("DT-3  a tile's class is read from the directory the archive puts it in",
+          train_unet._kind_of(Path("x/01_Train_Val_Lookalike_images/t.tif")) == "lookalike"
+          and train_unet._kind_of(Path("x/01_Train_Val_No_Oil_Images/t.tif")) == "clean"
+          and train_unet._kind_of(Path("x/02_Test_images/t.tif")) == "oil")
+
+    # A look-alike tile's label is an all-zero mask, and that is the label --
+    # dropping those tiles would train a detector that has never been shown a
+    # dark patch which is not oil.
+    check("DT-3  look-alike and oil-free tiles are kept, not filtered out",
+          train_unet._kind_of(Path("x/Lookalike/t.tif")) != "oil"
+          and train_unet._kind_of(Path("x/No_oil/t.tif")) != "oil")
     print()
 
 

@@ -61,10 +61,16 @@ export default function App() {
     let live = true
     void (async () => {
       try {
-        const [ids, latest] = await Promise.all([listRuns().catch(() => []), getRun()])
+        // `?run=<id>` opens a named run, so a link to an incident is a link to
+        // that incident and not to whichever one happened to finish last.
+        const asked = new URLSearchParams(window.location.search).get('run')
+        const [ids, latest] = await Promise.all([
+          listRuns().catch((): string[] => []),
+          asked ? getRun(asked).catch(() => getRun()) : getRun(),
+        ])
         if (!live) return
         setRunIds(ids)
-        setRunId(latest.run_id)
+        setRunId(asked && ids.includes(asked) ? asked : latest.run_id)
         setError(null)
       } catch (e) {
         if (live) setError(e instanceof ApiError ? e.message : String(e))
@@ -196,7 +202,12 @@ export default function App() {
           {runIds.length > 1 && (
             <select
               value={runId ?? ''}
-              onChange={(e) => setRunId(e.target.value)}
+              onChange={(e) => {
+                setRunId(e.target.value)
+                const url = new URL(window.location.href)
+                url.searchParams.set('run', e.target.value)
+                window.history.replaceState(null, '', url)
+              }}
               aria-label="Run"
             >
               {runIds.map((id) => (

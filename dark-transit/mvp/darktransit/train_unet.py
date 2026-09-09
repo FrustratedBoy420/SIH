@@ -57,8 +57,8 @@ except Exception as exc:                                # pragma: no cover
 
 PACK_VERSION = "unet.v1"
 PATCH = 256                     # a multiple of 8, so no pooling level rounds
-DEFAULT_WEIGHTS = "detector.unet.v1.npz"
-DEFAULT_REPORT = "detector.unet.v1.json"
+DEFAULT_WEIGHTS = "detector.unet.v2.npz"
+DEFAULT_REPORT = "detector.unet.v2.json"
 
 
 def available() -> dict:

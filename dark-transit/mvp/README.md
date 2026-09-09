@@ -72,16 +72,15 @@ geometry; it cannot invent an incident. Asserted by a test.
 the preceding convolution at export, which is exactly the step that is silently
 wrong, so `verify_export` runs both implementations on the same tensors and
 refuses to write the pack if they differ by more than 1e-4. The recorded
-agreement is 1.4e-6 and it is printed in the run's detection stage.
+agreement is 3.4e-5 and it is printed in the run's detection stage.
 
 **Its holdout is split by source tile, never by patch.** Patches cut from one
 scene share speckle statistics, wind field and often the same slick; letting
 them straddle the split would report memorisation as generalisation.
 
-Measured on the tile-disjoint holdout: **IoU 0.630, F1 0.773**, at an operating
+Measured on the tile-disjoint holdout: **IoU 0.938, F1 0.968**, at an operating
 threshold of 0.70 chosen by sweep. On the nominal incident it gives the true
-slick a mean probability of **0.990** and the two look-alikes **0.043** and
-**0.026** — so it discriminates as well as it refines, though only the
+slick a mean probability of **0.970** and both look-alikes **0.000** — so it discriminates as well as it refines, though only the
 refinement is wired into the verdict today. Feeding that probability to the
 discriminator as a seventh feature is the obvious next step and is *not* done:
 it would require refitting `detector.v1.json`, and claiming it before measuring
@@ -105,13 +104,33 @@ weaker on it. The fix is a real CMEMS or ERA5 field, which is §18 delta 3, not 
 different threshold.
 
 **The corpus.** The shipped pack is trained on the synthetic corpus — real
-labels, from a generator we wrote — and `detector.unet.v1.json` says so.
+labels, from a generator we wrote — and `detector.unet.v2.json` says so.
 `cli train --corpus zenodo --zenodo DIR` retrains on the *Sentinel-1 SAR Oil
 spill image dataset* (Zenodo 8253899 / 8346860 / 13761290, CC-BY-4.0), which is
 the dataset the problem statement names: 2048x2048 sigma-nought tiles in
 decibels with per-pixel ground truth, plus labelled look-alike and oil-free
 tiles. Nothing else changes; the split, the metrics and the export check are
 the same harness.
+
+```bash
+tools/fetch_zenodo.sh part3                     # 9.9 GB, resumable
+7z x data/part3.7z -o data/part3
+python3 -m darktransit.cli train --corpus zenodo --zenodo data/part3
+```
+
+**The corpus is confirmed available and is not yet in hand.** The records are
+open, CC-BY-4.0, and labelled exactly as advertised — which settles open
+question 1 in `docs/PS26143_Brief.md`. What has not happened is the download:
+Zenodo drops long transfers and then serves the resume at a few hundred KB/s, so
+`fetch_zenodo.sh` retries by byte range and is safe to interrupt and re-run.
+Part III is the smallest useful record at 9.9 GB, and all three total ~96 GB.
+
+The loader is verified against tiles laid out the way the archive extracts —
+class directories, ground truth in a sibling directory with matching stems — and
+`cli train --corpus zenodo` runs the whole path end to end on them, including
+the torch-to-numpy parity check. What that proves is the plumbing, not a score:
+the fixture is four tiles and any metric from it would be meaningless. The
+holdout numbers quoted above are the synthetic corpus, and they say so.
 
 ## The API
 
@@ -176,8 +195,8 @@ web/index.html         the narrative view, reading run.json     (served at /clas
 web/workstation.html   the pre-React analyst tool
 weights.v4.json          the weight pack
 detector.v1.json         the fitted discriminator pack, with its holdout metrics
-detector.unet.v1.npz     the DT-3 weights -- numpy loads this, torch is not needed
-detector.unet.v1.json    how those weights were trained, and what they scored
+detector.unet.v2.npz     the DT-3 weights -- numpy loads this, torch is not needed
+detector.unet.v2.json    how those weights were trained, and what they scored
 runs/              run artefacts (gitignored)
 ```
 

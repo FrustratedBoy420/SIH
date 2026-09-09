@@ -34,8 +34,8 @@ import numpy as np
 
 from . import raster, unet
 
-DEFAULT_WEIGHTS = "detector.unet.v1.npz"
-DEFAULT_REPORT = "detector.unet.v1.json"
+DEFAULT_WEIGHTS = "detector.unet.v2.npz"
+DEFAULT_REPORT = "detector.unet.v2.json"
 
 # How far outside the classical mask the network is allowed to look, and to
 # grow. 12 px at 100 m is 1.2 km — comfortably wider than the boundary error a

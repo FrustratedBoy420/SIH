@@ -1,0 +1,237 @@
+{
+  "pack_version": "unet.v1",
+  "architecture": {
+    "architecture": "unet-s-v1",
+    "channels": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "depth": 3,
+    "parameters": 487009,
+    "pack_version": "unet.v1",
+    "corpus": "synthetic",
+    "threshold": 0.7,
+    "trained_utc": "2026-09-09T19:45:40Z"
+  },
+  "source": {
+    "corpus": "synthetic",
+    "generator": "fit.sample_scene",
+    "tiles": 64,
+    "caveat": "labels are the generator's own; a real-data number is not claimed from this pack"
+  },
+  "sampling": {
+    "patch": 256,
+    "per_tile": 8,
+    "positive_bias": 0.6,
+    "patches": 512
+  },
+  "split": {
+    "by": "source tile",
+    "holdout_fraction": 0.3,
+    "train_patches": 360,
+    "holdout_patches": 152,
+    "holdout_tiles": [
+      "syn-000",
+      "syn-001",
+      "syn-012",
+      "syn-014",
+      "syn-016",
+      "syn-017",
+      "syn-018",
+      "syn-020",
+      "syn-022",
+      "syn-027",
+      "syn-029",
+      "syn-030",
+      "syn-035",
+      "syn-037",
+      "syn-039",
+      "syn-043",
+      "syn-046",
+      "syn-051",
+      "syn-055"
+    ]
+  },
+  "training": {
+    "epochs": 26,
+    "batch": 8,
+    "lr": 0.002,
+    "loss": "BCE(pos_weight) + soft Dice",
+    "pos_weight": 20.0,
+    "history": [
+      {
+        "epoch": 1,
+        "loss": 1.49886
+      },
+      {
+        "epoch": 2,
+        "loss": 1.16526
+      },
+      {
+        "epoch": 3,
+        "loss": 0.93628
+      },
+      {
+        "epoch": 4,
+        "loss": 0.684
+      },
+      {
+        "epoch": 5,
+        "loss": 0.4274
+      },
+      {
+        "epoch": 6,
+        "loss": 0.22747
+      },
+      {
+        "epoch": 7,
+        "loss": 0.13471
+      },
+      {
+        "epoch": 8,
+        "loss": 0.15765
+      },
+      {
+        "epoch": 9,
+        "loss": 0.17402
+      },
+      {
+        "epoch": 10,
+        "loss": 0.14349
+      },
+      {
+        "epoch": 11,
+        "loss": 0.08273
+      },
+      {
+        "epoch": 12,
+        "loss": 0.09006
+      },
+      {
+        "epoch": 13,
+        "loss": 0.04496
+      },
+      {
+        "epoch": 14,
+        "loss": 0.0369
+      },
+      {
+        "epoch": 15,
+        "loss": 0.09933
+      },
+      {
+        "epoch": 16,
+        "loss": 0.04048
+      },
+      {
+        "epoch": 17,
+        "loss": 0.04969
+      },
+      {
+        "epoch": 18,
+        "loss": 0.07674
+      },
+      {
+        "epoch": 19,
+        "loss": 0.05403
+      },
+      {
+        "epoch": 20,
+        "loss": 0.04056
+      },
+      {
+        "epoch": 21,
+        "loss": 0.03055
+      },
+      {
+        "epoch": 22,
+        "loss": 0.02821
+      },
+      {
+        "epoch": 23,
+        "loss": 0.02764
+      },
+      {
+        "epoch": 24,
+        "loss": 0.05289
+      },
+      {
+        "epoch": 25,
+        "loss": 0.05196
+      },
+      {
+        "epoch": 26,
+        "loss": 0.03826
+      }
+    ]
+  },
+  "holdout_metrics": {
+    "0.30": {
+      "precision": 0.9732,
+      "recall": 0.9586,
+      "f1": 0.9658,
+      "iou": 0.9339,
+      "false_alarm_rate": 0.000495,
+      "tp": 175689,
+      "fp": 4841,
+      "fn": 7585,
+      "tn": 9773357
+    },
+    "0.40": {
+      "precision": 0.9765,
+      "recall": 0.9572,
+      "f1": 0.9667,
+      "iou": 0.9356,
+      "false_alarm_rate": 0.000432,
+      "tp": 175430,
+      "fp": 4229,
+      "fn": 7844,
+      "tn": 9773969
+    },
+    "0.50": {
+      "precision": 0.9791,
+      "recall": 0.9557,
+      "f1": 0.9672,
+      "iou": 0.9366,
+      "false_alarm_rate": 0.000382,
+      "tp": 175148,
+      "fp": 3739,
+      "fn": 8126,
+      "tn": 9774459
+    },
+    "0.60": {
+      "precision": 0.9816,
+      "recall": 0.9543,
+      "f1": 0.9677,
+      "iou": 0.9375,
+      "false_alarm_rate": 0.000336,
+      "tp": 174901,
+      "fp": 3285,
+      "fn": 8373,
+      "tn": 9774913
+    },
+    "0.70": {
+      "precision": 0.9842,
+      "recall": 0.9527,
+      "f1": 0.9682,
+      "iou": 0.9383,
+      "false_alarm_rate": 0.000288,
+      "tp": 174610,
+      "fp": 2812,
+      "fn": 8664,
+      "tn": 9775386
+    }
+  },
+  "operating_threshold": 0.7,
+  "export_parity": {
+    "max_abs_diff": 3.4332275390625e-05,
+    "tolerance": 0.0001,
+    "agrees": true,
+    "trials": 3,
+    "size": 128
+  },
+  "weights_file": "detector.unet.v2.npz",
+  "elapsed_s": 4056.4
+}

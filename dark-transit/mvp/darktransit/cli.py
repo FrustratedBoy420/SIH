@@ -235,8 +235,8 @@ def main(argv=None):
     tr.add_argument("--per-tile", dest="per_tile", type=int, default=8)
     tr.add_argument("--limit", type=int, default=None, help="cap the tiles read")
     tr.add_argument("--seed", type=int, default=20260909)
-    tr.add_argument("--weights-out", dest="weights_out", default="detector.unet.v1.npz")
-    tr.add_argument("--report-out", dest="report_out", default="detector.unet.v1.json")
+    tr.add_argument("--weights-out", dest="weights_out", default="detector.unet.v2.npz")
+    tr.add_argument("--report-out", dest="report_out", default="detector.unet.v2.json")
     tr.set_defaults(fn=cmd_train)
 
     cp = sub.add_parser("capabilities", help="which optional paths are live here")

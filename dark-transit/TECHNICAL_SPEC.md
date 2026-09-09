@@ -786,7 +786,20 @@ def detect(scene, **kw)              -> (all_candidates, retained, raw_component
 
 **Two honesty notes that belong on the slide.**
 
-1. *The coefficients are hand-set from the physics, not fitted.* In the full build they are fitted on the Zenodo holdout (DT-3). `02_detection.json.method` says which is in force, and the string is rendered on dossier page 2. An earlier tuning pass produced `confidence = 1.000` on the slick; the constants were re-derived to put the oil at **0.689** and every look-alike below 0.05, because a saturated confidence is not a confidence.
+1. *The coefficients are hand-set from the physics, not fitted.* `02_detection.json.method` says which is in force, and the string is rendered on dossier page 2. An earlier tuning pass produced `confidence = 1.000` on the slick; the constants were re-derived to put the oil at **0.689** and every look-alike below 0.05, because a saturated confidence is not a confidence.
+
+   > **The shipped pack does not honour that.** `detector.v1.json` is the fitted
+   > pack and it is what loads by default, and it scores the nominal slick at
+   > **0.9998** — the saturation this paragraph exists to reject. The learned
+   > refinement is not the cause: classical-only detection gives 0.9998 and the
+   > refined mask gives 0.9997, so the two masks agree to a ten-thousandth. The
+   > cause is that `fit.run_fit` optimises log-loss on a corpus where oil and
+   > look-alikes separate cleanly, and nothing in it penalises a confident
+   > answer. Calibrating that pack — a Platt fit on a held-out split, or a
+   > penalty in the objective — is open work, and reporting a calibrated number
+   > before measuring one would be the exact failure this note was written
+   > about. Until then, read the fitted confidence as a ranking, not a
+   > probability.
 2. *`homogeneity` is the weakest feature here and is weighted accordingly.* Real slicks are uniformly dark; the synthetic slick's damping follows particle density, so its interior varies more than a look-alike's. The coefficient is −0.35 rather than the −0.85 an earlier draft used, because the synthetic scene cannot support the stronger claim. This is a case where the generator's limitation was allowed to constrain the model rather than be hidden by it.
 
 **Hard vetoes before the score.** `wind_ms < 3.0` → `wind_below_threshold`; `contrast_db < 3.0` → `contrast_insufficient`. These precede the logistic because "dark because the wind dropped" is a different statement from "dark and it scored low", and the rejection basis is what an analyst reads.
@@ -1531,7 +1544,7 @@ PRD requirement → module → function → test.
 | DR-5 | `drift`, `incident` | `landfall`, `coastline` | ashore fraction cumulative and non-falling |
 | DT-1 | `detect`, `scene` | land mask, 2 km buffer | land present in the raster |
 | DT-3 (linear) | `fit` | `run_fit`, `metrics` | scene-disjoint holdout in `detector.v1.json` |
-| DT-3 (learned) | `unet`, `train_unet`, `detect_ml` | `UNet.forward`, `verify_export`, `refine` | tile-disjoint holdout in `detector.unet.v1.json`; torch↔numpy parity asserted before the pack is written; a test that refinement cannot originate a candidate |
+| DT-3 (learned) | `unet`, `train_unet`, `detect_ml` | `UNet.forward`, `verify_export`, `refine` | tile-disjoint holdout in `detector.unet.v2.json`; torch↔numpy parity asserted before the pack is written; a test that refinement cannot originate a candidate |
 | IN-1 | `readers.sentinel1` | `read_geotiff`, `to_db`, `wind_proxy_ms` | radiometry round trips; an ungeoreferenced tile is refused |
 | RP-1 (PDF) | `pdf` | `render_pdf`, `page_count` | the file's page count equals the renderer's |
 | TR-G1 | `server`, `cli` | `capabilities` | every optional path passes its check with the wheel absent |
