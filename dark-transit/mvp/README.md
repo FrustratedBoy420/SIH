@@ -7,11 +7,11 @@ A runnable pipeline for SIH26143: one SAR scene and one AIS archive in, a ranked
 ```bash
 python3 -m darktransit.cli capabilities    # which optional paths are live here
 python3 -m darktransit.cli scenarios       # what each incident demonstrates
-python3 -m darktransit.cli run             # nominal incident, ~11 s
+python3 -m darktransit.cli run             # nominal incident, ~41 s
 python3 -m darktransit.cli selftest        # 66 checks: primitives, capabilities, PRD section 19
 python3 -m darktransit.cli ablate          # re-rank with each factor zeroed in turn
 python3 -m darktransit.cli fit             # refit the discriminator and measure it, ~3 min
-python3 -m darktransit.cli train           # fit the DT-3 U-Net (needs torch), ~25 min
+python3 -m darktransit.cli train           # fit the DT-3 U-Net (needs torch), ~10 min
 python3 -m darktransit.cli validate        # hindcast known drifter tracks, ~20 s
 python3 -m darktransit.cli ingest FILE     # read a real Sentinel-1 GeoTIFF
 python3 -m darktransit.cli serve           # http://127.0.0.1:8000
@@ -86,6 +86,23 @@ refinement is wired into the verdict today. Feeding that probability to the
 discriminator as a seventh feature is the obvious next step and is *not* done:
 it would require refitting `detector.v1.json`, and claiming it before measuring
 it is the kind of thing this document exists to avoid.
+
+### Reading a real scene
+
+`cli ingest FILE [--detect]` reads a calibrated GeoTIFF and runs stage 02 on it.
+Round-tripping the nominal scene through a georeferenced float32 dB GeoTIFF
+recovers 99.8 m against a true 100 m pixel — the 0.2 % is the tangent-plane
+conversion — detects the slick at 19.53 km² with confidence 1.000, and rejects
+the low-wind look-alike on `wind_below_threshold`.
+
+It also retains one 0.34 km² false positive that the native path does not, and
+the reason is worth stating rather than tuning away: a real scene arrives with
+pixels and no wind field, so `wind_proxy_ms` inverts the Bragg relation on a
+smoothed σ⁰ to stand in for one. That proxy is good enough to keep a slick from
+excusing itself as a calm patch — the whole point of the smoothing — but it is
+not a measurement, and the discriminator's wind feature is correspondingly
+weaker on it. The fix is a real CMEMS or ERA5 field, which is §18 delta 3, not a
+different threshold.
 
 **The corpus.** The shipped pack is trained on the synthetic corpus — real
 labels, from a generator we wrote — and `detector.unet.v1.json` says so.

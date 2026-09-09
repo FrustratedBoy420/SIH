@@ -9,6 +9,8 @@
  * conclusion depends on an assumption somebody chose.
  */
 
+import { useEffect, useRef } from 'react'
+
 import type { Attribution, FactorName, Ranked, Run } from '../types'
 
 const FACTORS: FactorName[] = ['containment', 'timing', 'heading', 'broadcast', 'class_prior']
@@ -69,6 +71,15 @@ export default function Rail({
   const chosen = ranked.find((r) => r.mmsi === selected) ?? null
   const share = shares(weights)
   const wMax = sliderMax(attribution?.weights ?? weights)
+
+  // Clicking a vessel is a request to see why it ranks where it does, and the
+  // breakdown sits below the weights — off-screen on most displays. Bringing it
+  // into view is the difference between the panel existing and being found.
+  const breakdownRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!chosen) return
+    breakdownRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [chosen])
 
   return (
     <aside className="rail">
@@ -179,7 +190,7 @@ export default function Rail({
         )}
       </section>
 
-      {chosen && <Breakdown vessel={chosen} weights={weights} />}
+      {chosen && <Breakdown ref={breakdownRef} vessel={chosen} weights={weights} />}
 
       {!chosen && attribution && (
         <section className="block">
@@ -207,13 +218,15 @@ export default function Rail({
 function Breakdown({
   vessel,
   weights,
+  ref,
 }: {
   vessel: Ranked
   weights: Record<string, number>
+  ref?: React.Ref<HTMLElement>
 }) {
   const share = shares(weights)
   return (
-    <section className="block">
+    <section className="block" ref={ref}>
       <div className="block-head">
         <span className="eyebrow">Score breakdown</span>
         <span className="eyebrow">{vessel.mmsi ?? 'no MMSI'}</span>

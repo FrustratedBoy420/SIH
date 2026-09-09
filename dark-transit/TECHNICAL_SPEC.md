@@ -1304,31 +1304,50 @@ Peak RSS 176 MB. `run.json` 211 KB, of which 153 KB is stage 05 (decimated track
 
 ### 14.2 Measured again, with the learned detector and the PDF
 
-Same machine and scenario, on an idle box. The two additions are isolated by
-running with `use_ml=False` and with WeasyPrint uninstalled.
+Same machine (i5-1240P, 16 threads), same scenario, idle box, and both additions
+isolated by running the pipeline with `use_ml=False` and with WeasyPrint forced
+absent.
 
-| Step | Classical only | With DT-3 and the PDF | Δ |
+| Stage | Classical only | With DT-3 and the PDF | Δ |
 |---|---|---|---|
-| 02 detection | 3.11 s | 6.97 s | +3.86 s — the U-Net forward pass over three candidate crops |
-| dossier | 0.3 s | ~6 s | +5.7 s — WeasyPrint layout and PDF write |
+| 01 intake | 12.64 s | 11.34 s | — |
+| **02 detection** | **2.66 s** | **4.67 s** | **+2.01 s** — the U-Net over three candidate crops |
+| 03 characterisation | 0.03 s | 0.02 s | — |
+| 04 drift | 15.34 s | 18.30 s | — |
+| 05 traffic | 1.94 s | 1.45 s | — |
+| 06 dark channel | 0.70 s | 0.50 s | — |
+| 07 attribution | 0.94 s | 0.69 s | — |
+| **dossier** | **0.03 s** | **4.15 s** | **+4.12 s** — WeasyPrint layout, write and page-count check |
+| **total** | **34.3 s** | **41.1 s** | **+6.8 s** |
+
+Detection isolated and taken best-of-three agrees: 2.35 s classical, 4.41 s with
+the learned pass. The PDF renders in 3.07 s on its own; the rest of the dossier
+delta is the page-count read and rewriting `run.json` with it.
+
+> **§14.1 does not reproduce on this machine and needs re-measuring.** That table
+> records 6.36 s total against the 34.3 s measured here for the *same*
+> classical-only pipeline on the same CPU model. Nothing in this change touches
+> intake or drift, which is where the difference sits, so it is a discrepancy in
+> the older measurement rather than a regression — but it is not resolved, and
+> the numbers above are the ones to trust until it is. Both are well inside the
+> 600 s NFR-8 budget either way.
 
 **Why detection costs what it does.** A 487 k-parameter U-Net is about 35 GFLOP
-over a 640² scene, and numpy reaches roughly 30 GFLOP/s on this machine for
-*well-shaped* matrices — but a convolution's M dimension is the channel count,
-which is 16 at the outermost layers, and OpenBLAS gets about a seventh of peak
-on a matrix that thin. Three formulations were measured over a whole scene:
-nine per-offset products 15.6 s, the same with the shift on the output side
-12.5 s, blocked im2col 8.3 s.
+over a 640² scene, and numpy reaches roughly 30 GFLOP/s here on *well-shaped*
+matrices — but a convolution's M dimension is the channel count, which is 16 at
+the outermost layers, and OpenBLAS gets about a seventh of peak on a matrix that
+thin. Three formulations were measured over a whole scene: nine per-offset
+products 15.6 s, the same with the shift on the output side 12.5 s, blocked
+im2col 8.3 s.
 
 The fix was not a faster kernel. `detect_ml.refine` runs the network over a crop
-around each candidate rather than the whole scene, which is also the only
-region it is permitted to change — so the cost falls with the slick's size
-rather than the swath's, and the whole-scene path survives only for
-`ingest --detect`, where the map itself is the output.
+around each candidate rather than the whole scene — which is also the only
+region it is permitted to change — so the cost scales with the slick rather than
+the swath. The whole-scene path survives only for `ingest --detect`, where the
+probability map is itself the output.
 
-Both additions remain far inside the 600 s NFR-8 budget, and both are optional:
-`cli capabilities` reports which are live, and a machine without either runs the
-classical path at the §14.1 figures.
+Both additions are optional. `cli capabilities` reports which are live, and a
+machine with neither runs the classical path at the classical figures.
 
 ### 14.3 Complexity summary
 

@@ -233,7 +233,14 @@ function buildLayers(m: MapLibreMap, run: Run) {
       id: 'sar',
       type: 'raster',
       source: 'sar',
-      paint: { 'raster-opacity': 0.62, 'raster-contrast': -0.12, 'raster-saturation': -1 },
+      // The scene is the ground the argument is drawn on, not the argument.
+    // Held down far enough that a magenta region and a cyan cloud read over it.
+    paint: {
+      'raster-opacity': 0.45,
+      'raster-contrast': -0.2,
+      'raster-saturation': -1,
+      'raster-brightness-max': 0.82,
+    },
     })
   }
 
