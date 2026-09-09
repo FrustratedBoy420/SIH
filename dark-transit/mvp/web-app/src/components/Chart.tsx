@@ -11,7 +11,7 @@
  * then what we concluded from it, then who was there.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Map as MapLibreMap,
   NavigationControl,
@@ -73,7 +73,11 @@ export default function Chart({
 }: Props) {
   const holder = useRef<HTMLDivElement>(null)
   const map = useRef<MapLibreMap | null>(null)
-  const ready = useRef(false)
+  // Readiness is state, not a ref, on purpose. A ref does not re-run the
+  // effects that push data into the sources, so anything whose dependencies do
+  // not change again after the map finishes loading is simply never drawn --
+  // which is how the AIS tracks came to appear only after the first click.
+  const [ready, setReady] = useState(false)
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
 
@@ -105,7 +109,7 @@ export default function Chart({
     m.addControl(new ScaleControl({ maxWidth: 120, unit: 'metric' }), 'bottom-right')
 
     m.on('load', () => {
-      ready.current = true
+      setReady(true)
       try {
         buildLayers(m, run)
       } catch (err) {
@@ -127,33 +131,36 @@ export default function Chart({
     })
 
     map.current = m
+    // Exposed for `verify.mjs`, which asserts the evidence layers carry
+    // features before any interaction. Nothing in the app reads it.
+    ;(window as unknown as { __chart?: MapLibreMap }).__chart = m
     return () => {
       m.remove()
       map.current = null
-      ready.current = false
+      setReady(false)
     }
   }, [run])
 
   // ---- data that changes with the hour ---------------------------------- //
   useEffect(() => {
     const m = map.current
-    if (!m || !ready.current) return
+    if (!m || !ready) return
     setData(m, 'particles', particleFeatures(cloud, hour))
     setData(m, 'ships', shipFeatures(run, ranked, hour))
-  }, [cloud, hour, ranked, run])
+  }, [cloud, hour, ranked, run, ready])
 
   // ---- data that changes with ranking or selection ----------------------- //
   useEffect(() => {
     const m = map.current
-    if (!m || !ready.current) return
+    if (!m || !ready) return
     setData(m, 'tracks', trackFeatures(run, ranked, selected))
     setData(m, 'reachable', reachableFeatures(ranked, selected))
-  }, [run, ranked, selected])
+  }, [run, ranked, selected, ready])
 
   // ---- visibility -------------------------------------------------------- //
   useEffect(() => {
     const m = map.current
-    if (!m || !ready.current) return
+    if (!m || !ready) return
     const show: Record<string, boolean> = {
       sar: layers.sar,
       'slick-fill': layers.slick,
@@ -174,7 +181,7 @@ export default function Chart({
     for (const [id, on] of Object.entries(show)) {
       if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
     }
-  }, [layers])
+  }, [layers, ready])
 
   return <div className="map" ref={holder} aria-label="Incident chart" />
 }

@@ -182,6 +182,37 @@ async function main() {
   })
   check('UI-1  the chart canvas has real dimensions', painted)
 
+  // Every evidence layer must carry features before anything is clicked. This
+  // is a regression check: the tracks source was once filled by an effect that
+  // could not re-run after the map finished loading, so the AIS layer stayed
+  // empty until the first selection and the opening view silently lost a layer.
+  const sources = await page.evaluate(async () => {
+    const m = window.__chart
+    if (!m) return null
+    // Ask what is actually painted rather than what a source object holds:
+    // "drawn" is the claim, and querying rendered features is how to test it.
+    if (!m.loaded()) await new Promise((r) => m.once('idle', r))
+    const count = (id) =>
+      m.getLayer(id) ? m.queryRenderedFeatures({ layers: [id] }).length : -1
+    return {
+      tracks: count('tracks') + Math.max(0, count('tracks-dark')),
+      particles: count('particles'),
+      ships: count('ships'),
+    }
+  })
+  if (sources) {
+    check(
+      'UI-1  the AIS tracks are drawn on load, before any interaction',
+      sources.tracks > 0,
+      `${sources.tracks} track segments`,
+    )
+    check(
+      'UI-2  the drift cloud is drawn on load',
+      sources.particles > 0,
+      `${sources.particles} particles`,
+    )
+  }
+
   await page.screenshot({ path: `${SHOTS}/01-overview.png` })
 
   // ---- the transport scrubs, and reports growing uncertainty -------------- //
