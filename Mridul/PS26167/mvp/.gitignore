@@ -21,3 +21,9 @@ __pycache__/
 .venv/
 venv/
 .ipynb_checkpoints/
+
+# Frontend
+web/node_modules/
+web/dist/
+web/shots/
+*.tsbuildinfo

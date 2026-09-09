@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   SatQuery AI — design tokens
+   See ../../docs/06_Design_System.md
+
+   The palette is derived from remote sensing itself, not from a UI trend.
+
+   In a false-colour infrared composite — the iconic remote-sensing image —
+   vegetation renders crimson, water renders near-black, built-up areas render
+   cyan-grey and bare soil renders tan. Three of those become tokens:
+
+       --nir     crimson   change, attention, refusal
+       --sar     cyan      radar, structure
+       --optical amber     visible light
+
+   The ground is not "dark navy". It is the near-black of calm water on a SAR
+   scene — a very dark desaturated teal, so the imagery sits on something that
+   belongs to the same world rather than on a generic dashboard slate.
+   ========================================================================== */
+
+@theme {
+  /* ground and surfaces */
+  --color-void: #05090a;
+  --color-abyss: #080e10;
+  --color-surface: #0d1518;
+  --color-raised: #121c20;
+  --color-rule: #1b282c;
+  --color-rule-2: #26383d;
+
+  /* ink */
+  --color-ink: #e8f2f0;
+  --color-ink-2: #93a8a8;
+  --color-ink-3: #5e7375;
+
+  /* the false-colour signature */
+  --color-nir: #ff4d3d;
+  --color-nir-dim: #6b1f18;
+  --color-sar: #35e0e8;
+  --color-sar-dim: #0d4a4e;
+  --color-optical: #ffb454;
+  --color-optical-dim: #5a3d12;
+  --color-fusion: #b48cff;
+  --color-fusion-dim: #35245c;
+
+  /* semantic — kept separate from any modality colour */
+  --color-good: #3ddc97;
+  --color-warn: #ffc857;
+  --color-bad: #ff4d3d;
+
+  --font-display: "Bricolage Grotesque", Georgia, serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+@font-face { font-family: "Bricolage Grotesque"; src: local("Bricolage Grotesque"); font-display: swap; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Every VALUE is set as data — coordinates, dB figures, confidences, band
+   counts, EPSG codes. This does more for the instrument feel than any
+   background effect, and its absence is what makes a technical UI read as
+   generic. */
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+/* The graticule — a lat/lon grid, the one piece of ambient texture in the
+   interface. It is domain furniture rather than decoration: every map anyone
+   in this field has ever used has one. */
+.graticule {
+  background-image:
+    linear-gradient(rgba(53, 224, 232, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(53, 224, 232, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(53, 224, 232, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(53, 224, 232, 0.02) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-sar);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-rule-2); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-3); }
+
+input[type="range"] {
+  appearance: none;
+  height: 2px;
+  background: var(--color-rule-2);
+  border-radius: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--color-void);
+  border: 2px solid var(--color-sar);
+  cursor: grab;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--color-void);
+  border: 2px solid var(--color-sar);
+  cursor: grab;
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.18s var(--ease-out) both; }
+
+/* A slow radar sweep across the scene. One ambient motion, taken from the
+   subject rather than from a template — and it stops entirely under
+   prefers-reduced-motion. */
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
+.sweep { animation: sweep 7s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

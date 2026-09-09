@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Path alias — must mirror the `resolve.alias` entry in vite.config.ts.
+       Vite resolves at bundle time and TypeScript resolves at check time, so
+       both need telling; configuring only one produces a build that either
+       type-checks and fails to bundle, or bundles and fails to type-check.
+
+       No `baseUrl`: TypeScript 6 deprecates it, and since 5.4 `paths` entries
+       resolve relative to this file, which is what we want anyway. */
+    "paths": { "@/*": ["./src/*"] },
+
+    /* Strictness */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+}
