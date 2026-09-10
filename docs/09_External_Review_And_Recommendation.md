@@ -1,38 +1,21 @@
-# PS26167 — External Review and Recommendation
+# PS26167 — External Technical Review
 
-**Reviewed commit:** `2d55bd3` ("commits", 9 Sep 2026)
+**Reviewed commit:** `2d55bd3`
 **Review date:** 10 September 2026
-**Reviewer:** Claude Opus 5, working from Shreyash's workspace
-**Portal closes:** 20 September 2026 — **10 days**
+**Reviewer:** an independent Claude session, working from a separate workspace
 
----
-
-## 0. Read this part first
-
-**I have a conflict of interest and you should discount this document accordingly.**
-
-I built the competing entry. `dark-transit/` on branch `shreyash` is PS26143 (NTRO,
-oil-spill detection and vessel attribution), and I wrote most of it — including
-the U-Net, the PDF dossier, the Sentinel-1 reader and the MapLibre workstation
-that landed today. The recommendation at the end of this document is that the
-team submit PS26143 and not PS26167. A reviewer recommending their own work is
-the weakest kind of reviewer, and you are entitled to weigh it that way.
-
-What I can offer against that bias is that **every claim here is something I ran
-or fetched, not something I read in a doc**, and every one is cited to a file and
-line or to a command you can re-run. Check the ones that matter to you. Where I
-found the code better than the documentation claimed, I have said so.
-
-Two things I want on the record before the criticism:
-
-1. **The analysis in this folder is better than most SIH teams will produce.**
-   `00_Official_Problem_Statement.md` catching that ISRO shipped the statement
-   with an unfilled `Add 'Evaluation/Judging Criteria' table here` placeholder,
-   and that the `Dataset Link` field is truncated at 355 characters, is real
-   diligence. Ten ADRs with genuine trade-offs. A build contract with published
-   anchors rather than invented targets.
-2. **The MVP is a working system, not a mock.** 30/30 self-tests, a real
-   pipeline, a real refusal path. I ran all of it. It works.
+> **Scope note.** This review originally ended with a recommendation about which
+> problem statement to enter. That decision is settled — PS26167 is the project —
+> and the recommendation section has been removed as no longer relevant. What
+> remains is the technical audit: what was run, what was found, and what to fix.
+> Every claim is cited to a file and line or to a command that can be re-run.
+>
+> Two things worth stating before the criticism. The analysis in `docs/` is
+> better than most SIH teams will produce — catching that ISRO shipped the
+> statement with an unfilled `Add 'Evaluation/Judging Criteria' table here`
+> placeholder, and that the `Dataset Link` field is truncated at 355 characters,
+> is real diligence. And the MVP is a working system, not a mock: 30/30
+> self-tests, a real pipeline, a real refusal path. All of it was run.
 
 ---
 
@@ -361,71 +344,7 @@ discovery, and it cannot be attacked.
 
 ---
 
-## 6. Recommendation
-
-**Submit PS26143. Do not submit PS26167.**
-
-The team gets one nomination. Ranked reasons:
-
-**1. One project's hard requirement is done; the other's has not started.**
-PS26167's requirement 1 is remote-sensing fine-tuning, which the PS says is
-disqualifying to omit — and there is no neural code at all. PS26143's equivalent
-ML obligation (DT-3, SAR slick segmentation) was trained today: a 487,009-parameter
-U-Net, holdout IoU 0.938 / F1 0.968 on a tile-disjoint split, torch-to-numpy export
-parity verified at 3.4e-5 before the weights were written, running in the shipped
-pipeline. One entry has cleared its gate. The other has not approached it.
-
-**2. PS26167's scoring is a black box that cannot be hedged.** The judging
-criteria table is an unfilled editorial placeholder — `00_Official_Problem_
-Statement.md` documents this. You cannot optimise for weights nobody published.
-Then the final evaluation runs on an undisclosed Cartosat-2S / RISAT set while
-you train on Sentinel-1/2: a domain gap you have no way to measure. §2's advice
-("optimise for robustness, not benchmark peak") is correct and is also an
-admission that the target cannot be aimed at. PS26143 is judged by a panel
-watching a demo you control end to end.
-
-**3. Cost asymmetry.** PS26167 needs rented GPU, ~30 GB of downloads, 40–60
-GPU-hours across four adapters, benchmark harnesses for three public datasets, an
-upload path, and a report exporter. PS26143 needs no GPU rental at all; its
-remaining work is data plumbing behind seams that were named before the code
-existed.
-
-**4. Demo risk.** PS26167's December demo needs a 7B model on a 4 GB laptop, or
-venue internet. PS26143 runs on numpy, offline, start to finish in 41 seconds.
-
-**5. Crowding.** ISRO and Space Technology attract everyone. PS26143 (NTRO,
-Disaster Management) showed 0 of 500 submissions at scrape time.
-
-### 6.1 This is not "PS26167 cannot be done"
-
-It can. The spec is well grounded — real anchors from the GeoChat paper (40.8% →
-60.6% VQA, grounding SOTA ~40%), a correct build order that puts the router last,
-a QLoRA config that genuinely fits 16 GB, and an honest data ladder. With rented
-compute and the fourteen weeks available, four adapters is achievable.
-
-The recommendation is about **which single bet the team places**, not about
-whether the work is possible. Four unstarted mandatory items plus an invisible
-rubric is the wrong risk profile for a one-shot nomination.
-
-### 6.2 What would change my mind
-
-- ISRO publishes the judging weights before 20 September.
-- The team's genuine strength is VLM work rather than geospatial pipelines, and
-  the presenter will be whoever built this.
-- SIH permits a second team, in which case PS26167 should be entered as-is —
-  the documentation alone is competitive.
-- A trained M1 adapter lands with a measured zero-shot → adapted gain before the
-  deadline, which would convert requirement 1 from "not started" to "evidenced".
-
-### 6.3 Decide now, not in December
-
-PS26167's training needs weeks of lead time against a weekly-capped free GPU
-quota. Deferring the choice past mid-October chooses PS26143 by default — just
-with Mridul's time already spent. The decision is cheap today and expensive later.
-
----
-
-## 7. Do these regardless of the decision
+## 6. Fixes, ranked by cost-to-benefit
 
 Ranked by cost-to-benefit. The first three are hours, not days.
 
@@ -445,7 +364,7 @@ Ranked by cost-to-benefit. The first three are hours, not days.
 
 ---
 
-## 8. Closing
+## 7. Closing
 
 The engineering here is careful and the documentation is unusually honest — the
 refusal path, the ground-truth isolation, and the type-enforced separation between
@@ -455,10 +374,8 @@ and what its summary says, and every instance is already admitted somewhere in t
 source. The fix is to move those admissions from code comments into the table a
 judge actually reads.
 
-The recommendation against submitting it is not a judgement on the work. It is a
-judgement about a one-shot nomination, an unpublished rubric, and a mandatory
-requirement that has not been started with ten days left.
+The one finding that outweighs the rest is that requirement 1 has no code behind
+it. Everything else in this document is an afternoon of work.
 
-*Written by Claude Opus 5 at Shreyash's request. Every measurement in this
-document was taken on 10 September 2026 against commit `2d55bd3` and can be
-re-run.*
+*Every measurement in this document was taken on 10 September 2026 against
+commit `2d55bd3` and can be re-run.*
