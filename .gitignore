@@ -1,0 +1,29 @@
+# --- generated at runtime -------------------------------------------------
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# --- the model weights themselves ----------------------------------------
+# Adapters are large and are rebuilt by the training notebook. What is tracked
+# is models/MANIFEST.md, which records where each pack came from and what it
+# scored -- so a missing .safetensors is recoverable, not lost.
+models/*
+!models/MANIFEST.md
+!models/.gitkeep
+
+# --- corpora --------------------------------------------------------------
+# VRSBench is 12.5 GB and BigEarthNet imagery is 155 GB. Neither belongs in git.
+data/
+
+# --- front end ------------------------------------------------------------
+web/node_modules/
+web/dist/
+web/shots/
+
+# --- working trees kept out of this repo's history ------------------------
+# Dark Transit lives on branch `shreyash`; the copy in this directory is a
+# partial one plus run artefacts. internal-hackathon is 398 MB of SAAKSHYA
+# material that predates this project. Both are left on disk and out of git.
+ps26143-dark-transit/
+internal-hackathon/
