@@ -117,7 +117,7 @@ In development it can run in-process for convenience; the interface is defined s
 
 ## 3. Level 3 — Components
 
-Inside the two containers that carry logic. Modules map one-to-one onto files in `mvp/satquery/`.
+Inside the two containers that carry logic. Modules map one-to-one onto files in `satquery/` (flattened to repo root in the `cebd3d1` restructure — this section predates that move and originally said `mvp/satquery/`).
 
 ```mermaid
 flowchart TD
@@ -346,7 +346,7 @@ These belong in the TRD's non-functional section and are repeated here because t
 
 ## 8. What this document deliberately omits
 
-**C4 Level 4 — code and class diagrams.** Excluded on principle, not to save time. It is the only level that duplicates something already machine-readable, so it is the level that rots fastest and misleads worst once it has. The module map in §3 stops at file granularity; below that, `mvp/satquery/` is the documentation.
+**C4 Level 4 — code and class diagrams.** Excluded on principle, not to save time. It is the only level that duplicates something already machine-readable, so it is the level that rots fastest and misleads worst once it has. The module map in §3 stops at file granularity; below that, `satquery/` is the documentation.
 
 **A separate SAD, arc42, or 4+1 document.** Those templates are rearrangements of §1–§5 plus content that lives in the TRD and the ADRs. Producing one would be a third copy of material that already exists twice.
 
@@ -363,4 +363,4 @@ These belong in the TRD's non-functional section and are repeated here because t
 | [`03_Model_Specification.md`](03_Model_Specification.md) | What each model is, its data, its training config, its targets |
 | [`04_Documentation_Plan.md`](04_Documentation_Plan.md) | Which documents exist, which are deferred, the design direction |
 | [`ADR/`](ADR/) | **Why** each structural choice was made, and what was rejected |
-| `mvp/README.md` | The package, module map and build order |
+| [`../README.md`](../README.md) | The package, module map and build order |

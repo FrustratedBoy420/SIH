@@ -2,6 +2,8 @@
 
 **What to write, in what order, and what to cut.** Plus the UI direction, because half the documents below only exist to protect it.
 
+> **Historical snapshot — read `10_Decision_Record.md` first for anything current.** Written 9 September, one day before the `cebd3d1` restructure. Its predictions did not all hold: it recommends against ever writing a PRD ("a third copy that drifts") and reality now has one at `07_PRD.md`, for reasons `07_PRD.md`'s own header explains (a two-person ownership split that did not exist on 9 Sept). It plans a TRD at `05`; the TRD that was actually written lives at `08`, and `05` became `05_System_Design.md`, which this plan never anticipated. `02_Execution_Plan.md` was never written under that name — `10_Decision_Record.md` §8's checkpoint table now does that job. Its `mvp/` path references (§2, §6) predate the flattening restructure and are dead links. Treat everything in §4 (the design direction) as live and unaffected by any of this; treat §0–§3 and §5–§6 as a record of what was planned, not what exists.
+
 ---
 
 ## 0. The constraint that decides everything

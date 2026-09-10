@@ -2,7 +2,9 @@
 
 **The visual identity for SatQuery AI, and the rules that keep it from drifting.**
 
-Written before the interface, so it directs the build rather than describing whatever happened. The reference implementation is [`../mvp/web/index.html`](../mvp/web/index.html).
+Written before the interface, so it directs the build rather than describing whatever happened. The reference implementation is [`../web/src/index.css`](../web/src/index.css) — note `web/` was `mvp/web/` before the `cebd3d1` restructure flattened it to repo root.
+
+**Drift since this was written (2026-09-09):** the shipped `index.css` is on a "Revision 2" palette — dark ground, one accent, desaturated modality marks — that is not the light palette in §2 below. The reasoning behind Revision 2 (six simultaneous hues read as noise) is recorded in the CSS file's own header comment and is worth keeping; the light-vs-dark reversal is not sanctioned anywhere and should be resolved deliberately, not by whichever file was edited last. See `web/BUILD_PLAN.md` for the resolution this revision proposes.
 
 ---
 
@@ -293,4 +295,5 @@ The list exists so a teammate at 2 a.m. does not reintroduce what was deliberate
 | [`04_Documentation_Plan.md`](04_Documentation_Plan.md) | Why this document exists and when it was due |
 | [`05_System_Design.md`](05_System_Design.md) | Containers, components, runtime views |
 | [`ADR/008-trace-not-chain-of-thought.md`](ADR/008-trace-not-chain-of-thought.md) | Why the trace is shown and reasoning is not |
-| [`../mvp/web/index.html`](../mvp/web/index.html) | The reference implementation of everything above |
+| [`../web/src/index.css`](../web/src/index.css) | The reference implementation of everything above — currently drifted, see the note in §1 |
+| [`../web/BUILD_PLAN.md`](../web/BUILD_PLAN.md) | The rebuild plan that resolves that drift |
