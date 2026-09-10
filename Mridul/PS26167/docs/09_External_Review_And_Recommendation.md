@@ -213,17 +213,38 @@ without remote-sensing adaptation will not satisfy the requirements."*
 
 | # | Mandatory | State | Evidence |
 |---|---|---|---|
-| 1 | **Remote-sensing adaptation (fine-tuning)** | **Not started** | no `torch`, `transformers` or `peft` anywhere in `satquery/`; `specialists.py:105` `adapter_loaded: bool = False` with no code that ever sets it |
+| 1 | **Remote-sensing adaptation (fine-tuning)** | **Not started** | no `torch`, `transformers` or `peft` anywhere in `satquery/`; `adapter_loaded` is wired but never true — see below |
 | 2 | Single-image VQA + one more single-image task | Shape present, classical | `specialists.py` `VQA`, `Grounding`; classical CV plus templates |
 | 3 | Bi-temporal change analysis | Shape present, classical | `specialists.py` `Change`, change-vector analysis |
 | 4 | Optical–SAR cross-modal | Shape present, classical | `specialists.py` `Fusion` |
 | 5 | Agentic orchestration | Present | `router.py`, fixed registry, validation, refusal |
 
 Requirement 1 is the one the PS says is disqualifying, and it is the one with
-nothing behind it. `adapter_loaded` is a labelled socket with no wire — the
-docstring at `specialists.py:12` describes the neural path correctly, and the
-`method` property returns `"neural+classical"` when the flag is true, but nothing
-sets it and no loader exists.
+nothing behind it.
+
+**Correction to an earlier draft of this review.** The first version of this
+document claimed that "nothing sets" `adapter_loaded`. That was wrong, and the
+author's own review caught it. `pipeline.py:112` does set it:
+
+```python
+for spec in (self.grounding, self.vqa, self.change, self.fusion):
+    spec.adapter_loaded = bool(self.adapters.get(spec.model))
+```
+
+The accurate statement is narrower and the conclusion is unchanged. The flag is
+declared at `specialists.py:105`, written at `pipeline.py:112`, and read by the
+`method` property, which returns `"neural+classical"` when it is true. But **all
+13 `Pipeline(...)` constructions in the tree pass no `adapters` argument** —
+`evaluate.py:326`, `cli.py:98`, `cli.py:105`, `server.py:133` and nine call sites
+in `tests.py` — and there is no loader anywhere: `from_pretrained`, `torch.load`,
+`safetensors` and `peft` all return nothing under `grep`. So the socket is wired
+to a switch that no code can flip.
+
+That distinction matters for a reason worth stating: a claim can be false in the
+letter and sound in the effect, and a reviewer who does not separate the two
+loses the right to complain when a project's prose overstates its machine. This
+review made exactly the error it criticises in §2. The finding stands; the
+wording was wrong and is now fixed.
 
 ### 4.1 Deliverables outside the five
 
