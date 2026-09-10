@@ -1,0 +1,12 @@
+{
+  "version": "v4",
+  "file": "weights.v4.json",
+  "note": "The only place the attribution weights live. Weights normalise on read, so one can be moved without rebalancing the rest. Change this file, not the code.",
+  "weights": {
+    "containment": 22,
+    "timing": 18,
+    "heading": 26,
+    "broadcast": 24,
+    "class_prior": 10
+  }
+}

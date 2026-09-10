@@ -1,0 +1,1378 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<title>Dark Transit Workstation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@400;600;700&family=Bodoni+Moda:opsz,wght@6..96,600;6..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* ═══════════ tokens ═══════════ */
+:root{
+  --paper:#f6f3ea; --panel:#fbf9f3; --sunk:#eee9dc;
+  --sea:#e7eff3; --sea-mid:#d6e6ec; --sea-shoal:#c2dae4;
+  --land:#eee2c4; --land-edge:#c6b189;
+  --ink:#151f27; --ink-2:#485966; --ink-3:#8395a1; --hair:#c3ccd2; --hair-2:#dde3e7;
+  --mag:#b8256f; --mag-soft:#f2d5e5; --amber:#a8631d; --teal:#1d7a68;
+  --plate:#0b0e11; --plate-hi:#cfd6da;
+  --disp:"Bodoni Moda",Georgia,serif;
+  --lab:"Archivo Narrow","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --sh:0 1px 2px rgba(21,31,39,.06),0 10px 28px rgba(21,31,39,.08);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#070c11; --panel:#0c141b; --sunk:#050a0e;
+    --sea:#0e1a24; --sea-mid:#132433; --sea-shoal:#1a3141;
+    --land:#1a1b16; --land-edge:#3d3d2f;
+    --ink:#c5d0d8; --ink-2:#8093a0; --ink-3:#57666f; --hair:#22303b; --hair-2:#182530;
+    --mag:#e35ba3; --mag-soft:#3d1730; --amber:#d08a3a; --teal:#3fae95;
+    --plate:#04070a; --plate-hi:#b6bfc4;
+    --sh:0 1px 2px rgba(0,0,0,.5),0 12px 34px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#070c11; --panel:#0c141b; --sunk:#050a0e;
+  --sea:#0e1a24; --sea-mid:#132433; --sea-shoal:#1a3141;
+  --land:#1a1b16; --land-edge:#3d3d2f;
+  --ink:#c5d0d8; --ink-2:#8093a0; --ink-3:#57666f; --hair:#22303b; --hair-2:#182530;
+  --mag:#e35ba3; --mag-soft:#3d1730; --amber:#d08a3a; --teal:#3fae95;
+  --plate:#04070a; --plate-hi:#b6bfc4;
+  --sh:0 1px 2px rgba(0,0,0,.5),0 12px 34px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--lab);font-size:14px;line-height:1.55;
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+}
+.floats{font-style:italic}
+button{font:inherit;color:inherit}
+
+/* ═══════════ shell ═══════════ */
+.app{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%}
+
+/* topbar */
+.top{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:9px 16px;border-bottom:1px solid var(--ink);background:var(--panel);
+}
+.mark{display:flex;align-items:baseline;gap:9px}
+.mark b{font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:-.015em}
+.mark span{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3)}
+.tsep{width:1px;height:22px;background:var(--hair)}
+.tfield{display:flex;flex-direction:column;line-height:1.25}
+.tfield .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--ink-3)}
+.tfield .v{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.tspacer{margin-left:auto}
+.pill{
+  font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+  border:1px solid var(--hair);padding:4px 9px;color:var(--ink-2);white-space:nowrap;
+}
+.pill.on{border-color:var(--mag);color:var(--mag);background:var(--mag-soft)}
+.pill.warn{border-color:var(--amber);color:var(--amber)}
+
+/* rail + main */
+.body{display:grid;grid-template-columns:82px minmax(0,1fr);min-height:0}
+@media (max-width:900px){.body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}}
+
+.rail{
+  border-right:1px solid var(--hair);background:var(--panel);
+  display:flex;flex-direction:column;overflow:auto;
+}
+@media (max-width:900px){
+  .rail{flex-direction:row;border-right:0;border-bottom:1px solid var(--hair)}
+}
+.rbtn{
+  background:none;border:0;border-bottom:1px solid var(--hair-2);
+  padding:11px 6px 12px;cursor:pointer;text-align:center;position:relative;
+  transition:background .15s ease;flex:none;
+}
+@media (max-width:900px){.rbtn{flex:1;border-bottom:0;border-right:1px solid var(--hair-2)}}
+.rbtn:hover{background:var(--sunk)}
+.rbtn[aria-current="page"]{background:var(--mag-soft)}
+.rbtn[aria-current="page"]::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--mag);
+}
+@media (max-width:900px){.rbtn[aria-current="page"]::before{left:0;right:0;top:0;bottom:auto;width:auto;height:3px}}
+.rbtn:focus-visible{outline:2px solid var(--mag);outline-offset:-3px}
+.rbtn .n{font-family:var(--mono);font-size:9px;color:var(--ink-3);letter-spacing:.1em;display:block}
+.rbtn .l{font-family:var(--lab);font-weight:600;font-size:11.5px;letter-spacing:.03em;display:block;margin-top:3px}
+.rbtn .st{
+  display:block;width:5px;height:5px;border-radius:50%;background:var(--hair);
+  margin:5px auto 0;
+}
+.rbtn.ok .st{background:var(--mag)}
+.rbtn[aria-current="page"] .l{color:var(--mag)}
+
+.main{overflow:auto;min-width:0;position:relative;scroll-behavior:smooth}
+.view{display:none;padding:14px 16px 18px}
+.view.on{display:block}
+
+/* ═══════════ generic pieces ═══════════ */
+.vhead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+.vhead h1{font-family:var(--disp);font-weight:600;font-size:clamp(22px,2.3vw,28px);margin:0;letter-spacing:-.014em}
+.vhead .sub{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.vhead .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vlead{color:var(--ink-2);max-width:74ch;margin:7px 0 13px;font-size:14.5px}
+
+.btn{
+  font-weight:600;font-size:12px;letter-spacing:.09em;text-transform:uppercase;
+  background:none;border:1px solid var(--hair);padding:7px 14px;cursor:pointer;
+  transition:.15s ease;color:var(--ink-2);
+}
+.btn:hover{border-color:var(--ink-2);color:var(--ink)}
+.btn:focus-visible{outline:2px solid var(--mag);outline-offset:2px}
+.btn.pri{background:var(--mag);border-color:var(--mag);color:#fff}
+.btn.pri:hover{opacity:.87;color:#fff}
+.btn[disabled]{opacity:.4;cursor:default}
+
+.pnl{border:1px solid var(--hair);background:var(--panel)}
+.pnl-h{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  border-bottom:1px solid var(--hair);background:var(--sunk);
+}
+.pnl-h h2{
+  font-family:var(--lab);font-weight:600;font-size:11px;margin:0;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--ink-2);
+}
+.pnl-h .r{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.pnl-b{padding:14px}
+
+.split{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.9fr);gap:14px;align-items:start}
+@media (max-width:1080px){.split{grid-template-columns:1fr}}
+
+.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--hair-2);font-family:var(--mono);font-size:11.5px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--ink-3)}
+.kv .v{color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+.kv .v.m{color:var(--mag)}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--hair)}
+.tile{background:var(--panel);padding:11px 12px}
+.tile .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);display:block}
+.tile .v{font-family:var(--mono);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.02em;display:block;margin-top:3px}
+.tile .u{font-size:11px;color:var(--ink-3);margin-left:3px}
+
+/* stage / chart */
+.stage{position:relative;background:var(--sea);border:1px solid var(--hair);overflow:hidden}
+.stage svg,.stage canvas{display:block;width:100%}
+.stage svg{position:relative}
+.stage canvas.over{position:absolute;inset:0;height:100%;pointer-events:none}
+.stage svg.over{position:absolute;inset:0;height:100%;pointer-events:none}
+/* labels sit on radar imagery, which is always dark — give them a hard halo so they read */
+#sarAnno text{paint-order:stroke;stroke:#05080a;stroke-width:3.6px;stroke-linejoin:round}
+#sarAnno path{paint-order:stroke}
+.stage .hud{
+  position:absolute;left:8px;bottom:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;
+}
+.hchip{
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  background:color-mix(in srgb,var(--panel) 88%,transparent);
+  border:1px solid var(--hair);padding:3px 7px;font-variant-numeric:tabular-nums;
+}
+.hchip b{color:var(--mag);font-weight:500}
+
+/* scrubber */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;cursor:pointer;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--hair)}
+input[type=range]::-moz-range-track{height:3px;background:var(--hair)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:11px;height:18px;background:var(--mag);margin-top:-7.5px;border:0}
+input[type=range]::-moz-range-thumb{width:11px;height:18px;background:var(--mag);border:0;border-radius:0}
+input[type=range]:focus-visible{outline:2px solid var(--mag);outline-offset:3px}
+.ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+
+/* tables */
+table.tb{width:100%;border-collapse:collapse;font-size:12.5px}
+table.tb th{
+  text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:400;padding:6px 8px;border-bottom:1px solid var(--ink);
+}
+table.tb td{padding:7px 8px;border-bottom:1px solid var(--hair-2);vertical-align:top}
+table.tb td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+table.tb tr.sel td{background:var(--mag-soft)}
+table.tb tbody tr{cursor:pointer}
+table.tb tbody tr:hover td{background:color-mix(in srgb,var(--mag) 6%,transparent)}
+.tagx{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:1px 6px;border:1px solid currentColor}
+.t-hi{color:var(--mag)} .t-lo{color:var(--ink-3)} .t-rad{color:var(--amber)} .t-ok{color:var(--teal)}
+
+/* factor bars */
+.fac{margin-bottom:11px}
+.fac:last-child{margin-bottom:0}
+.fac-r{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.fac-n{font-size:12.5px;font-weight:500}
+.fac-v{font-family:var(--mono);font-size:11.5px;color:var(--mag);font-variant-numeric:tabular-nums}
+.fac-b{height:1px;background:var(--hair);margin:5px 0 4px;position:relative}
+.fac-b i{position:absolute;left:0;top:-1px;height:3px;background:var(--mag);transition:width .45s cubic-bezier(.22,.61,.36,1)}
+.fac-w{font-size:11.5px;color:var(--ink-2);line-height:1.5}
+
+/* weight sliders */
+.wrow{display:grid;grid-template-columns:1fr 46px;gap:10px;align-items:center;margin-bottom:9px}
+.wrow label{font-size:12px;color:var(--ink-2)}
+.wrow .pc{font-family:var(--mono);font-size:11px;text-align:right;font-variant-numeric:tabular-nums;color:var(--mag)}
+.wrow input[type=range]{height:16px}
+
+/* console */
+.console{border-top:1px solid var(--ink);background:var(--plate);display:grid;grid-template-rows:auto 0fr;transition:grid-template-rows .28s ease}
+.console.open{grid-template-rows:auto 132px}
+.con-h{
+  display:flex;align-items:center;gap:12px;padding:6px 14px;cursor:pointer;
+  background:var(--plate);border:0;width:100%;text-align:left;
+}
+.con-h:focus-visible{outline:2px solid var(--mag);outline-offset:-3px}
+.con-h .t{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#7d8fa8}
+.con-h .s{font-family:var(--mono);font-size:11px;color:#b9c6cd;font-variant-numeric:tabular-nums}
+.con-h .s b{color:var(--mag);font-weight:500}
+.con-h .car{margin-left:auto;font-family:var(--mono);font-size:11px;color:#5c6f7d}
+.con-b{overflow:auto;padding:0 14px 10px;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 14px);mask-image:linear-gradient(to bottom,transparent,#000 14px)}
+.ln{font-family:var(--mono);font-size:11px;line-height:1.8;display:flex;gap:10px}
+.ln .t{color:#4e606c;flex:none}
+.ln .s{color:#7d8fa8;flex:none;width:70px}
+.ln .m{color:#b9c6cd;white-space:pre-wrap}
+.ln.g .m{color:#e35ba3}
+.ln.k .m{color:#d9a35c}
+
+/* intake */
+.drop{
+  position:relative;border:1px dashed var(--hair);background:var(--sunk);
+  min-height:230px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+.drop canvas{position:absolute;inset:0;width:100%;height:100%}
+.drop .inner{position:relative;text-align:center;padding:24px}
+.drop .inner h3{font-family:var(--disp);font-size:24px;font-weight:600;margin:0 0 6px}
+.drop .inner p{margin:0 0 14px;color:var(--ink-2);font-size:13px;max-width:44ch}
+.scenes{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:1px;background:var(--hair)}
+.scn{background:var(--panel);border:0;padding:11px 12px;text-align:left;cursor:pointer;transition:.15s}
+.scn:hover{background:var(--sunk)}
+.scn[aria-pressed="true"]{background:var(--mag-soft)}
+.scn:focus-visible{outline:2px solid var(--mag);outline-offset:-2px}
+.scn .id{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.08em}
+.scn .nm{font-weight:600;font-size:13px;margin:3px 0 2px}
+.scn .mt{font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+.chk{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--hair-2);font-size:12.5px}
+.chk:last-child{border-bottom:0}
+.chk .m{font-family:var(--mono);font-size:12px;flex:none;width:14px}
+.chk.ok .m{color:var(--teal)} .chk.wn .m{color:var(--amber)}
+.chk .d{color:var(--ink-2);font-size:11.5px}
+
+/* dossier */
+.doc{max-width:820px;margin:0 auto}
+.page{
+  background:var(--panel);border:1px solid var(--hair);box-shadow:var(--sh);
+  padding:clamp(24px,4vw,52px);margin-bottom:18px;
+}
+.page-h{display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid var(--ink);padding-bottom:8px;margin-bottom:20px}
+.page-h .a{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.page h2{font-family:var(--disp);font-weight:600;font-size:27px;margin:0 0 4px;letter-spacing:-.014em}
+.page h3{font-family:var(--lab);font-weight:700;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--mag);margin:26px 0 8px}
+.page p{margin:0 0 11px;font-size:13.5px;line-height:1.65;color:var(--ink-2);max-width:66ch}
+.page .lede{font-size:15px;color:var(--ink)}
+.warnbox{border:1px solid var(--mag);background:var(--mag-soft);padding:14px 16px;margin:16px 0}
+.warnbox h4{font-family:var(--lab);font-weight:700;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--mag);margin:0 0 7px}
+.warnbox ol{margin:0;padding-left:17px}
+.warnbox li{font-size:12.5px;line-height:1.6;color:var(--ink-2);margin-bottom:5px}
+.warnbox li:last-child{margin-bottom:0}
+.sig{display:flex;justify-content:space-between;gap:20px;margin-top:28px;padding-top:12px;border-top:1px solid var(--hair);font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+
+.scrambling{color:var(--mag)}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+</style>
+
+<div class="app">
+
+  <!-- ══════ TOPBAR ══════ -->
+  <header class="top">
+    <div class="mark"><b>Dark Transit</b><span>Spill attribution workstation</span></div>
+    <div class="tsep"></div>
+    <div class="tfield"><span class="k">Incident</span><span class="v">IND-2026-0314-KUT</span></div>
+    <div class="tfield"><span class="k">Analyst</span><span class="v">NTRO / MRCC Mumbai</span></div>
+    <div class="tspacer"></div>
+    <span class="pill" id="pillRun">Pipeline complete · 07:24</span>
+    <span class="pill warn">Mockup · synthetic data</span>
+  </header>
+
+  <div class="body">
+    <!-- ══════ RAIL ══════ -->
+    <nav class="rail" id="rail" aria-label="Workflow stages"></nav>
+
+    <!-- ══════ MAIN ══════ -->
+    <main class="main" id="main">
+
+      <!-- ─── 1 INTAKE ─── -->
+      <section class="view" id="v-intake">
+        <div class="vhead">
+          <h1>Intake</h1><span class="sub">Stage 01 · scene and window</span>
+          <div class="right"><button class="btn pri" id="btnRun">Run pipeline</button></div>
+        </div>
+        <p class="vlead">Select a radar scene and the AIS window to replay against it. The pipeline refuses to
+           start until the scene is calibrated, georeferenced, and covered by an archive that actually spans
+           the drift horizon.</p>
+
+        <div class="split">
+          <div>
+            <div class="drop"><canvas id="topo"></canvas>
+              <div class="inner">
+                <h3>Drop a GeoTIFF or SAFE archive</h3>
+                <p>Sentinel-1 GRD, RISAT, or any calibrated σ⁰ product with a coordinate reference system.
+                   Or continue with the scene selected below.</p>
+                <button class="btn">Browse filesystem</button>
+              </div>
+            </div>
+
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>Available scenes</h2><span class="r">3 indexed</span></div>
+              <div class="scenes" id="scenes"></div>
+            </div>
+
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>What will run</h2><span class="r">7 stages · 3 can halt</span></div>
+              <div class="pnl-b" style="padding:0">
+                <table class="tb"><thead><tr><th>#</th><th>Stage</th><th>Method</th><th>Stop condition</th></tr></thead>
+                <tbody id="planBody"></tbody></table>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="pnl">
+              <div class="pnl-h"><h2>Pre-flight</h2><span class="r" id="preCount">4 pass · 1 caution</span></div>
+              <div class="pnl-b" id="preflight"></div>
+            </div>
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>AIS window</h2></div>
+              <div class="pnl-b">
+                <div class="kv"><span class="k">Archive</span><span class="v">12–15 Mar 2026</span></div>
+                <div class="kv"><span class="k">Positions</span><span class="v">1 204 883</span></div>
+                <div class="kv"><span class="k">Distinct MMSI</span><span class="v">312</span></div>
+                <div class="kv"><span class="k">Source</span><span class="v">Synthetic</span></div>
+                <div class="kv"><span class="k">Drift horizon</span><span class="v m">40 h</span></div>
+                <p style="margin:12px 0 0;font-size:11.5px;color:var(--ink-2);line-height:1.55">
+                  Real AIS for Indian waters is restricted. The problem statement permits synthetic traffic —
+                  the dossier states which was used on its first page.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 2 DETECT ─── -->
+      <section class="view" id="v-detect">
+        <div class="vhead">
+          <h1>Detection</h1><span class="sub">Stage 02 · dark-region segmentation</span>
+          <div class="right">
+            <span class="pill on" id="gate1">Gate passed · 0.87 ≥ 0.50</span>
+            <button class="btn" id="btnScan">Re-run detection</button>
+          </div>
+        </div>
+        <p class="vlead">Oil damps capillary waves, so it returns almost nothing to the sensor and arrives as a
+           hole in the image. So does calm water, and so do algal blooms — every candidate must be argued down
+           before one is argued up.</p>
+
+        <div class="split">
+          <div>
+            <div class="stage" id="stDetect">
+              <canvas id="sarPlate" width="500" height="300"></canvas>
+              <canvas class="over" id="sarGL"></canvas>
+              <svg class="over" viewBox="0 0 1000 600" id="sarAnno" aria-hidden="true"></svg>
+              <canvas class="over" id="sarFx"></canvas>
+              <div class="hud">
+                <span class="hchip">Sentinel-1 GRD · IW · VV</span>
+                <span class="hchip">10 m · σ⁰ calibrated</span>
+                <span class="hchip" id="curPos">—</span>
+                <span class="hchip" id="glChip">Surface displacement · live</span>
+              </div>
+            </div>
+            <div class="tiles" style="margin-top:11px" id="detTiles"></div>
+          </div>
+
+          <div>
+            <div class="pnl">
+              <div class="pnl-h"><h2>Candidates</h2><span class="r">14 → 1</span></div>
+              <div class="pnl-b" style="padding:0">
+                <table class="tb"><thead><tr><th>Region</th><th>Verdict</th><th class="n">σ⁰ Δ</th></tr></thead>
+                <tbody id="candBody"></tbody></table>
+              </div>
+            </div>
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>Rejection basis</h2></div>
+              <div class="pnl-b">
+                <div class="kv"><span class="k">Edge gradient</span><span class="v">11 dropped</span></div>
+                <div class="kv"><span class="k">Wind field &lt; 3 m/s</span><span class="v">2 dropped</span></div>
+                <div class="kv"><span class="k">Retained</span><span class="v m">1</span></div>
+                <p style="margin:12px 0 0;font-size:11.5px;color:var(--ink-2);line-height:1.55">
+                  A spill holds a sharp boundary because it is a film with a physical edge. A low-wind cell
+                  fades. That single distinction removes most false positives before any model is consulted.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 3 DRIFT ─── -->
+      <section class="view" id="v-drift">
+        <div class="vhead">
+          <h1>Hindcast</h1><span class="sub">Stage 04 · backward advection</span>
+          <div class="right"><span class="pill on" id="gate2">Gate passed · 14.9 km &lt; 36 km</span></div>
+        </div>
+        <p class="vlead">Particles seeded inside the slick, stepped backward through current and wind. The output
+           is deliberately a region and a window — never a point — and the region grows the further back it runs.</p>
+
+        <div class="split">
+          <div>
+            <div class="stage" id="stDrift">
+              <svg viewBox="0 0 1000 600" id="driftBase"></svg>
+              <canvas class="over" id="driftCv" width="1000" height="600"></canvas>
+              <svg class="over" viewBox="0 0 1000 600" id="driftAnno" aria-hidden="true"></svg>
+              <div class="hud">
+                <span class="hchip" id="driftClock">14 Mar 06:12 UTC <b>T · detection</b></span>
+                <span class="hchip" id="driftRad">95 % radius 0.0 km</span>
+              </div>
+            </div>
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-b">
+                <input type="range" id="hSlider" min="0" max="40" step="1" value="0" aria-label="Hours rewound from detection">
+                <div class="ticks"><span>0 h</span><span>−10 h</span><span>−20 h</span><span>−30 h</span><span>−40 h</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="pnl">
+              <div class="pnl-h"><h2>Forcing</h2></div>
+              <div class="pnl-b">
+                <div class="kv"><span class="k">Currents</span><span class="v">CMEMS 1/12° hourly</span></div>
+                <div class="kv"><span class="k">Wind</span><span class="v">ERA5 10 m</span></div>
+                <div class="kv"><span class="k">Leeway</span><span class="v m">3.0 %</span></div>
+                <div class="kv"><span class="k">Integrator</span><span class="v">RK4 · dt 600 s</span></div>
+                <div class="kv"><span class="k">Particles</span><span class="v">2 600</span></div>
+              </div>
+            </div>
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>Uncertainty growth</h2><span class="r">95 % radius</span></div>
+              <div class="pnl-b">
+                <svg viewBox="0 0 300 128" id="uncSvg" role="img" aria-label="Origin uncertainty radius grows from zero at detection to 14.9 km at 40 hours back."></svg>
+                <p style="margin:9px 0 0;font-size:11.5px;color:var(--ink-2);line-height:1.55">
+                  Past roughly 36 hours the region stops constraining traffic. The pipeline abandons the spatial
+                  filter at that point rather than shrinking the region to look decisive.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 4 TRAFFIC ─── -->
+      <section class="view" id="v-traffic">
+        <div class="vhead">
+          <h1>Traffic</h1><span class="sub">Stage 05 · AIS replay and gap analysis</span>
+          <div class="right"><span class="pill on">1 gap flagged · 2 h 40 m</span></div>
+        </div>
+        <p class="vlead">Nine vessels crossed the origin region during the window. Heading clears most of them
+           outright — a discharge made under way lays the film along the track, so the slick's long axis is a
+           bearing that a vessel either matches or does not.</p>
+
+        <div class="split">
+          <div>
+            <div class="stage" id="stTraffic">
+              <svg viewBox="0 0 1000 600" id="trafBase"></svg>
+              <svg class="over" viewBox="0 0 1000 600" id="trafAnno" aria-hidden="true"></svg>
+              <div class="hud">
+                <span class="hchip">Origin window 22:00 – 02:00 UTC</span>
+                <span class="hchip">Slick axis <b>041°</b></span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="pnl">
+              <div class="pnl-h"><h2>In window</h2><span class="r">9 vessels</span></div>
+              <div class="pnl-b" style="padding:0">
+                <table class="tb">
+                  <thead><tr><th>Vessel</th><th class="n">Course</th><th class="n">Δ axis</th><th>Status</th></tr></thead>
+                  <tbody id="trafBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>Broadcast gap</h2><span class="r">419•••621</span></div>
+              <div class="pnl-b">
+                <div class="kv"><span class="k">Last seen</span><span class="v">23:10:22 · 22.48N 69.16E</span></div>
+                <div class="kv"><span class="k">Next seen</span><span class="v">01:50:07 · 22.61N 69.39E</span></div>
+                <div class="kv"><span class="k">Silence</span><span class="v m">2 h 40 m</span></div>
+                <div class="kv"><span class="k">Own baseline</span><span class="v">3 s cadence</span></div>
+                <div class="kv"><span class="k">Envelope overlap</span><span class="v m">71 %</span></div>
+                <p style="margin:12px 0 0;font-size:11.5px;color:var(--ink-2);line-height:1.55">
+                  Scored against this vessel's own cadence, not against zero. Coverage genuinely thins offshore,
+                  so a gap only counts when it deviates from what that hull normally does.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 5 ATTRIBUTE ─── -->
+      <section class="view" id="v-attribute">
+        <div class="vhead">
+          <h1>Attribution</h1><span class="sub">Stage 07 · weighted scoring</span>
+          <div class="right"><button class="btn" id="btnReset">Reset weights</button></div>
+        </div>
+        <p class="vlead">Five factors, weights held in a JSON pack rather than in code. Move a weight and the
+           ranking re-computes — which is also the honest way to show a judge how much the conclusion depends
+           on any single assumption.</p>
+
+        <div class="split">
+          <div>
+            <div class="pnl">
+              <div class="pnl-h"><h2>Ranked shortlist</h2><span class="r" id="rankNote">Recomputed live</span></div>
+              <div class="pnl-b" style="padding:0">
+                <table class="tb">
+                  <thead><tr><th>#</th><th>Vessel</th><th>Channel</th><th class="n">Score</th></tr></thead>
+                  <tbody id="rankBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>Factor breakdown</h2><span class="r" id="bdWho"></span></div>
+              <div class="pnl-b" id="bdBody"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="pnl">
+              <div class="pnl-h"><h2>Weight pack</h2><span class="r">weights.v4.json</span></div>
+              <div class="pnl-b" id="wBody"></div>
+            </div>
+            <div class="pnl" style="margin-top:14px">
+              <div class="pnl-h"><h2>Channels</h2></div>
+              <div class="pnl-b">
+                <div class="kv"><span class="k">AIS · in window</span><span class="v">9</span></div>
+                <div class="kv"><span class="k">AIS · cleared</span><span class="v">8</span></div>
+                <div class="kv"><span class="k">AIS · gap flagged</span><span class="v m">1</span></div>
+                <div class="kv"><span class="k">Radar · targets</span><span class="v">14</span></div>
+                <div class="kv"><span class="k">Radar · matched</span><span class="v">13</span></div>
+                <div class="kv"><span class="k">Radar · unmatched</span><span class="v" style="color:var(--amber)">1</span></div>
+                <p style="margin:12px 0 0;font-size:11.5px;color:var(--ink-2);line-height:1.55">
+                  A hull is bright on radar whether or not it is broadcasting. The two channels are independent,
+                  so a vessel that defeats one is still visible to the other.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 6 DOSSIER ─── -->
+      <section class="view" id="v-dossier">
+        <div class="vhead">
+          <h1>Dossier</h1><span class="sub">Stage 07 · generated report</span>
+          <div class="right">
+            <button class="btn">Export PDF</button>
+            <button class="btn pri">Transmit to MRCC</button>
+          </div>
+        </div>
+        <p class="vlead">Fourteen pages. The limits sit on page one, ahead of the finding, because a system that
+           hides what it cannot establish is not evidence.</p>
+
+        <div class="doc">
+          <article class="page">
+            <div class="page-h"><span class="a">Incident IND-2026-0314-KUT</span><span class="a">Page 1 of 14</span></div>
+            <h2>Spill attribution assessment</h2>
+            <p class="lede">A 12.4 km² slick was detected in the Gulf of Kutch approaches on 14 March 2026 at
+               06:12 UTC. Backward drift places its origin in a region 41 km west-southwest of the detection,
+               between 22:00 and 02:00 UTC. One vessel of nine in that window ceased broadcasting on approach
+               and resumed after departure.</p>
+
+            <div class="warnbox">
+              <h4>What this assessment cannot establish</h4>
+              <ol>
+                <li>A reachable set establishes that a vessel <em>could</em> have been at the origin. It never establishes that it was.</li>
+                <li>Silence has innocent causes. Equipment fails and satellite coverage thins offshore; the gap here is scored against this vessel's own cadence, not against zero.</li>
+                <li>A transponder can broadcast a false position. Kinematic checks catch clumsy spoofing, not careful spoofing.</li>
+                <li>Vessels below the carriage threshold broadcast nothing at all, so their absence from this analysis is not evidence of anything.</li>
+                <li>Drift error compounds hourly. Beyond 36 hours the origin region stops constraining traffic and this method should not be relied on.</li>
+                <li>Traffic in this assessment is synthetic. Real AIS for these waters was not available.</li>
+              </ol>
+            </div>
+
+            <h3>Finding</h3>
+            <p>MV Kestrel Ridge, a crude tanker of 118 m, is ranked first at a composite score computed from five
+               weighted factors. Two independent channels place it in the origin region: a dead-reckoned reachable
+               set spanning its 2 h 40 m of silence overlaps the region by 71 %, and an unmatched radar return of
+               comparable estimated length sits inside that same envelope at 23:41 UTC.</p>
+            <p>The strongest single factor is geometric. The slick's principal axis runs 041° true; the vessel's
+               course through the region was 047°. A discharge made under way lays film along the track, and a
+               six-degree agreement is difficult to produce by coincidence.</p>
+
+            <h3>Recommended action</h3>
+            <p>Boarding inspection at next port call, with sampling of slop tank contents for comparison against
+               a slick sample if one can still be recovered. This document ranks vessels for investigation. It is
+               not a finding of responsibility and should not be represented as one.</p>
+
+            <div class="sig">
+              <span>Generated 14 Mar 2026 06:22 UTC · Dark Transit v0.4</span>
+              <span>Weight pack weights.v4.json · reproducible</span>
+            </div>
+          </article>
+
+          <article class="page">
+            <div class="page-h"><span class="a">Ranked shortlist</span><span class="a">Page 2 of 14</span></div>
+            <h2>Vessels in the origin window</h2>
+            <p>All nine vessels intersecting the origin region during the window, with the factor scores that
+               produced their ranking. Weights are reproduced beneath the table so any reader can recompute.</p>
+            <div style="overflow-x:auto;margin-top:16px">
+              <table class="tb" id="docTable"><thead><tr>
+                <th>#</th><th>Vessel</th><th class="n">Contain</th><th class="n">Timing</th>
+                <th class="n">Heading</th><th class="n">Broadcast</th><th class="n">Class</th><th class="n">Score</th>
+              </tr></thead><tbody id="docBody"></tbody></table>
+            </div>
+            <p style="margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--ink-3)" id="docWeights"></p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ══════ CONSOLE ══════ -->
+  <div class="console open" id="console">
+    <button class="con-h" id="conToggle" aria-expanded="true">
+      <span class="t">Run log</span>
+      <span class="s" id="conStat">Complete — 7 of 7 stages &nbsp;<b>07:24 elapsed</b></span>
+      <span class="car" id="conCar">▾</span>
+    </button>
+    <div class="con-b" id="conBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pad=(n,w=2)=>String(n).padStart(w,"0");
+
+/* One debounced resize fan-out. Every canvas used to bind its own resize listener and
+   the view switcher fired a synthetic resize, so changing tabs re-rasterised all of them. */
+const FITS=[];
+const onFit=fn=>FITS.push(fn);
+const refit=()=>FITS.forEach(f=>f());
+let fitT=0;
+addEventListener("resize",()=>{clearTimeout(fitT);fitT=setTimeout(refit,160)});
+
+/* ══════════════ data ══════════════ */
+const SLICK=[[668,296],[706,266],[752,232],[796,198],[822,184],[834,196],[822,218],[786,250],[744,282],[702,308],[678,310]];
+
+const VESSELS=[
+ {id:"kr",name:"MV Kestrel Ridge",cls:"Crude tanker · 118 m",mmsi:"419•••621",course:"047°",delta:"6°",
+  chan:"AIS + radar",tag:"t-hi",status:"Gap flagged",floats:true,
+  pre:"M18 566 L138 476 L252 382",dark:"M252 382 L352 306 L448 230",post:"M448 230 L562 146 L676 62 L760 8",
+  f:{contain:.91,timing:.88,heading:.94,broadcast:.96,klass:.70},
+  w:{contain:"Reachable set across the dark period overlaps the origin region by 71 %.",
+     timing:"Silence spans 23:10 to 01:50, straddling the centre of the window.",
+     heading:"Course 047° against a slick axis of 041°. Six degrees.",
+     broadcast:"Off for 2 h 40 m, beginning on approach and resuming after departure. Sharp deviation from its own 3-second cadence.",
+     klass:"Crude tanker in ballast. Consistent with slop discharge at the observed volume."},
+  note:"Two independent channels converge. Recommended for boarding inspection at next port call. This is a ranking, not a finding of responsibility."},
+
+ {id:"un",name:"Unmatched radar return",cls:"No broadcast · 118 m est.",mmsi:"—",course:"—",delta:"—",
+  chan:"Radar only",tag:"t-rad",status:"Unmatched",floats:false,
+  pre:"",dark:"",post:"",
+  f:{contain:.83,timing:.79,heading:.00,broadcast:.90,klass:.55},
+  w:{contain:"Detected inside the origin region and inside the envelope of the vessel ranked first.",
+     timing:"Single radar pass at 23:41, within the window.",
+     heading:"Unavailable. One frame gives position, never course.",
+     broadcast:"No transponder match among the 47 vessels reporting in this frame.",
+     klass:"Backscatter cross-section implies roughly 118 m. Class unresolvable from one scene."},
+  note:"Corroboration rather than a separate suspect. Length and position are consistent with the vessel ranked first, but one frame cannot establish they are the same hull."},
+
+ {id:"al",name:"MV Anchor Lily",cls:"Bulk carrier · 189 m",mmsi:"419•••084",course:"268°",delta:"47°",
+  chan:"AIS",tag:"t-lo",status:"Cleared",floats:true,
+  pre:"M1000 388 L840 380 L672 374 L504 372 L336 378 L168 388 L0 402",dark:"",post:"",
+  f:{contain:.34,timing:.41,heading:.12,broadcast:.05,klass:.40},
+  w:{contain:"Clips the southern boundary for under six minutes.",
+     timing:"Crossing at 01:52, at the closing edge of the window.",
+     heading:"Course 268° against 041°. A slick from this vessel would run east–west.",
+     broadcast:"Continuous throughout at expected cadence.",
+     klass:"Dry bulk. Lower prior for oily discharge than a tanker."},
+  note:"Cleared. The heading mismatch is decisive on its own and does not depend on the drift reconstruction being correct."},
+
+ {id:"tm",name:"MV Tamarind",cls:"Container · 224 m",mmsi:"419•••357",course:"249°",delta:"28°",
+  chan:"AIS",tag:"t-lo",status:"Cleared",floats:true,
+  pre:"M1000 84 L852 114 L704 150 L556 188 L408 226 L260 268 L112 314 L0 350",dark:"",post:"",
+  f:{contain:.28,timing:.36,heading:.18,broadcast:.04,klass:.30},
+  w:{contain:"Closest approach 4.1 km north of the boundary. Never enters.",
+     timing:"Transit at 21:14, ahead of the window opening.",
+     heading:"Course 249°. No alignment with slick geometry.",
+     broadcast:"Continuous at 17.2 kn, cadence consistent throughout.",
+     klass:"Container vessel on a scheduled liner route."},
+  note:"Cleared on containment and timing independently. Either factor alone would suffice."},
+
+ {id:"ss",name:"FV Sea Sparrow",cls:"Fishing · 27 m",mmsi:"419•••913",course:"—",delta:"—",
+  chan:"AIS",tag:"t-lo",status:"Cleared",floats:true,
+  pre:"M556 518 L528 482 L544 448 L580 434 L608 456 L594 492 L558 510 L534 530",dark:"",post:"",
+  f:{contain:.44,timing:.30,heading:.08,broadcast:.22,klass:.14},
+  w:{contain:"Working ground overlaps the southern region.",
+     timing:"Present across the window, loitering rather than transiting.",
+     heading:"No sustained course. The track is a fishing pattern.",
+     broadcast:"Gaps present but matching its own baseline and known coverage limits. Not anomalous.",
+     klass:"A 12.4 km² slick implies a volume implausible for this hull."},
+  note:"Cleared. Capacity is inconsistent with the observed extent, and its gaps match its normal pattern."}
+];
+
+const FKEYS=[["contain","Containment in origin region"],["timing","Timing"],["heading","Heading against slick axis"],
+             ["broadcast","Broadcast behaviour"],["klass","Class prior"]];
+const W0={contain:22,timing:18,heading:26,broadcast:24,klass:10};
+let W={...W0}, sel="kr";
+
+const SCENES=[
+ {id:"S1A_20260314T0612",nm:"Gulf of Kutch approaches",mt:"14 Mar 06:12 · IW · VV/VH · 1.4 GB",on:true},
+ {id:"S1A_20260312T0559",nm:"Gulf of Kutch approaches",mt:"12 Mar 05:59 · IW · VV/VH · 1.4 GB",on:false},
+ {id:"RS2_20260313T1804",nm:"Saurashtra shelf",mt:"13 Mar 18:04 · RISAT MRS · 0.9 GB",on:false}
+];
+const PRE=[
+ {ok:1,t:"Coordinate reference system",d:"EPSG:4326 declared and consistent with the archive"},
+ {ok:1,t:"Radiometric calibration",d:"σ⁰ applied · noise floor −27.4 dB"},
+ {ok:1,t:"AIS archive spans drift horizon",d:"72 h available against a 40 h requirement"},
+ {ok:1,t:"Ocean and wind forcing reachable",d:"CMEMS and ERA5 both responded within 4 s"},
+ {ok:0,t:"AIS source is synthetic",d:"Permitted by the problem statement. Declared on page 1 of the dossier."}
+];
+const CANDS=[
+ ["R-07","Retained · slick","−12.4"],["R-02","Wind cell · fade","−9.1"],["R-11","Wind cell · fade","−8.6"],
+ ["R-04","Edge gradient","−7.2"],["R-09","Edge gradient","−6.9"],["R-13","Ship wake","−6.1"],
+ ["R-01","Edge gradient","−5.8"],["R-06","Edge gradient","−5.4"]
+];
+
+const RUNLOG=[
+ ["06:14:02","ingest","scene S1A_IW_GRDH_1SDV_20260314T061214 · 1.4 GB",""],
+ ["06:14:08","ingest","CRS EPSG:4326 · pixel 10 m · VV/VH · calibrated to σ⁰",""],
+ ["06:14:14","ingest","AOI subset 68.90–69.90E 22.30–22.80N · 3214 × 2008 px",""],
+ ["06:14:21","ingest","AIS archive 12–15 Mar · 1 204 883 positions · 312 MMSI",""],
+ ["06:14:29","detect","adaptive threshold on σ⁰ VV · 14 candidate dark regions",""],
+ ["06:14:52","detect","U-Net segmentation · weights zenodo-s1-oil-v3 · 512 px tiles",""],
+ ["06:15:18","detect","look-alike rejection · 11 on edge gradient, 2 on wind field",""],
+ ["06:15:33","detect","1 region retained · confidence 0.87","k"],
+ ["06:15:35","detect","gate passed · 0.87 ≥ 0.50 · proceeding to attribution","g"],
+ ["06:15:39","charact","area 12.4 km² · perimeter 31.2 km · elongation 4.7",""],
+ ["06:15:41","charact","principal axis 041° true","k"],
+ ["06:15:48","hindcast","CMEMS GLOBAL_ANALYSISFORECAST_PHY · 1/12° hourly",""],
+ ["06:16:04","hindcast","ERA5 10 m wind · leeway coefficient 0.030",""],
+ ["06:16:33","hindcast","RK4 backward · dt 600 s · 2 600 particles · horizon 40 h",""],
+ ["06:17:12","hindcast","t−12 h   95 % radius  4.5 km",""],
+ ["06:17:58","hindcast","t−24 h   95 % radius  8.9 km",""],
+ ["06:18:47","hindcast","t−40 h   95 % radius 14.9 km",""],
+ ["06:19:22","hindcast","origin window 13 Mar 22:00 — 14 Mar 02:00 UTC","k"],
+ ["06:19:29","hindcast","gate passed · 14.9 km < 36 km · spatial constraint held","g"],
+ ["06:19:36","traffic","spatio-temporal join · 9 vessels intersect region × window",""],
+ ["06:19:51","traffic","419•••084 cleared · course 268° against axis 041°",""],
+ ["06:19:58","traffic","419•••357 cleared · closest approach 4.1 km, no entry",""],
+ ["06:20:04","traffic","419•••913 cleared · gaps within own baseline cadence",""],
+ ["06:20:16","traffic","419•••621 dark 23:10:22 → 01:50:07 · 2 h 40 m","k"],
+ ["06:20:28","traffic","dead reckoning both ends · envelope overlap 71 %","k"],
+ ["06:20:41","darkch","CFAR bright-target detection · Pfa 1e-6 · guard 9 px",""],
+ ["06:21:44","darkch","13 of 14 matched · 1 unmatched at 22.52N 69.21E","k"],
+ ["06:21:55","darkch","gate passed · radar pass 23:41 inside origin window","g"],
+ ["06:22:01","file","weight pack attribution/weights.v4.json · 5 factors",""],
+ ["06:22:04","file","dossier written · 14 pp · limits on page 1","k"],
+ ["06:22:06","file","run complete · 07:24 elapsed",""]
+];
+
+const VIEWS=[["intake","Intake"],["detect","Detect"],["drift","Hindcast"],
+             ["traffic","Traffic"],["attribute","Attribute"],["dossier","Dossier"]];
+
+/* ══════════════ effects ══════════════ */
+/* scrambled text — reactbits DecryptedText, in vanilla */
+const GLYPH="ABCDEFGHJKLMNPQRSTUVWXYZ0123456789░▒▓·";
+function scramble(el,final,ms=520){
+  if(RM){el.textContent=final;return;}
+  const t0=performance.now(); el.classList.add("scrambling");
+  const step=now=>{
+    const p=clamp((now-t0)/ms,0,1), keep=Math.floor(p*final.length);
+    el.textContent=final.slice(0,keep)+[...final.slice(keep)]
+      .map(c=>c===" "?" ":GLYPH[(Math.random()*GLYPH.length)|0]).join("");
+    if(p<1) requestAnimationFrame(step);
+    else{el.textContent=final;el.classList.remove("scrambling");}
+  };
+  requestAnimationFrame(step);
+}
+/* count up */
+function countUp(el,to,dec=0,suffix="",ms=760){
+  if(RM){el.textContent=to.toFixed(dec)+suffix;return;}
+  const t0=performance.now();
+  const step=now=>{
+    const p=clamp((now-t0)/ms,0,1), e=1-Math.pow(1-p,3);
+    el.textContent=(to*e).toFixed(dec)+suffix;
+    if(p<1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+/* topography contours — reactbits Topography, in vanilla */
+function topography(cv){
+  let lastW=0;
+  const fit=()=>{
+    const r=cv.getBoundingClientRect();
+    if(!r.width||!r.height) return;
+    // 1× backing store, not 2×. These are soft background contours; nobody reads them.
+    const W=Math.max(1,r.width|0), H=Math.max(1,r.height|0);
+    if(W===lastW) return; lastW=W;
+    cv.width=W; cv.height=H;
+    const g=cv.getContext("2d");
+    g.clearRect(0,0,W,H);
+    const css=getComputedStyle(document.documentElement);
+    g.strokeStyle=css.getPropertyValue("--hair").trim()||"#c3ccd2";
+    g.lineWidth=.9; g.globalAlpha=.34;
+    const peaks=[[W*.20,H*.50,1],[W*.74,H*.34,.72],[W*.58,H*.94,.85]];
+    peaks.forEach(([px,py,amp],pi)=>{
+      for(let r=26;r<W*.58;r+=30){
+        g.beginPath();
+        for(let a=0;a<=Math.PI*2+.11;a+=.11){
+          const w=1+.22*amp*Math.sin(a*3+pi*1.7)+.11*amp*Math.sin(a*5-pi);
+          const rr=r*w;
+          const x=px+rr*Math.cos(a), y=py+rr*Math.sin(a)*.62;
+          a===0?g.moveTo(x,y):g.lineTo(x,y);
+        }
+        g.stroke();
+      }
+    });
+    g.globalAlpha=1;
+  };
+  fit(); onFit(fit);
+}
+/* radar sweep + scanner line, drawn onto the SAR overlay */
+function sarEffects(cv,host){
+  let lastW=0;
+  const fit=()=>{const r=host.getBoundingClientRect();
+    if(!r.width||!r.height||(r.width|0)===lastW)return;
+    lastW=r.width|0;
+    cv.width=r.width|0;cv.height=r.height|0;};   // 1×, was 2×
+  fit(); onFit(fit);
+  let mode=null,t0=0,raf=null;
+  const g=cv.getContext("2d");
+  const frame=now=>{
+    const W=cv.width,H=cv.height; g.clearRect(0,0,W,H);
+    const el=(now-t0)/1000;
+    if(mode==="scan"){
+      const p=el/1.9;
+      if(p>=1){mode=null;g.clearRect(0,0,W,H);raf=null;return;}
+      const y=p*H;
+      const grad=g.createLinearGradient(0,y-H*.16,0,y);
+      grad.addColorStop(0,"rgba(184,37,111,0)"); grad.addColorStop(1,"rgba(184,37,111,.16)");
+      g.fillStyle=grad; g.fillRect(0,y-H*.16,W,H*.16);
+      g.fillStyle="rgba(255,255,255,.85)"; g.fillRect(0,y-1.5,W,3);
+      g.fillStyle="rgba(184,37,111,.9)"; g.fillRect(0,y-4,W,2);
+    } else if(mode==="radar"){
+      const cx=W*.5,cy=H*.5,R=Math.hypot(W,H)*.55,a=el*2.1;
+      for(let i=1;i<=4;i++){
+        g.beginPath();g.arc(cx,cy,R*i/4,0,6.2832);
+        g.strokeStyle="rgba(184,37,111,.16)";g.lineWidth=2;g.stroke();
+      }
+      for(let k=0;k<26;k++){
+        const aa=a-k*.028;
+        g.beginPath();g.moveTo(cx,cy);g.arc(cx,cy,R,aa-.014,aa+.014);g.closePath();
+        g.fillStyle=`rgba(184,37,111,${(.20*(1-k/26)).toFixed(3)})`;g.fill();
+      }
+      if(el>2.6){mode=null;g.clearRect(0,0,W,H);raf=null;return;}
+    } else {raf=null;return;}
+    raf=requestAnimationFrame(frame);
+  };
+  return m=>{ if(RM) return; mode=m; t0=performance.now(); if(!raf) raf=requestAnimationFrame(frame); };
+}
+/* crosshair reticle + sonar ping on a stage */
+function reticle(host,svgSel,readout){
+  const sv=host.querySelector(svgSel); if(!sv) return;
+  const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.setAttribute("opacity","0"); sv.appendChild(g);
+  g.innerHTML=`<line x1="0" y1="0" x2="1000" y2="0" stroke="var(--mag)" stroke-width=".7" opacity=".5"/>
+               <line x1="0" y1="0" x2="0" y2="600" stroke="var(--mag)" stroke-width=".7" opacity=".5"/>
+               <circle r="13" fill="none" stroke="var(--mag)" stroke-width=".9" opacity=".8"/>
+               <circle r="1.6" fill="var(--mag)"/>`;
+  const kids=g.children;
+  // Coalesce to one paint per frame. Writing six SVG attributes per pointermove event
+  // was the single worst offender on a trackpad, which fires far above 60 Hz.
+  let rq=0,mx=0,my=0;
+  const paint=()=>{
+    rq=0;
+    g.setAttribute("opacity","1");
+    kids[0].setAttribute("y1",my);kids[0].setAttribute("y2",my);
+    kids[1].setAttribute("x1",mx);kids[1].setAttribute("x2",mx);
+    kids[2].setAttribute("cx",mx);kids[2].setAttribute("cy",my);
+    kids[3].setAttribute("cx",mx);kids[3].setAttribute("cy",my);
+    if(readout){
+      const lat=(22.80-my/600*.50).toFixed(4), lon=(68.90+mx/1000*1.00).toFixed(4);
+      readout.textContent=`${lat}N  ${lon}E`;
+    }
+  };
+  host.addEventListener("pointermove",e=>{
+    const r=host.getBoundingClientRect();
+    mx=(e.clientX-r.left)/r.width*1000; my=(e.clientY-r.top)/r.height*600;
+    if(!rq) rq=requestAnimationFrame(paint);
+  },{passive:true});
+  host.addEventListener("pointerleave",()=>{
+    if(rq){cancelAnimationFrame(rq);rq=0;}
+    g.setAttribute("opacity","0");
+  });
+  host.addEventListener("click",e=>{
+    if(RM) return;
+    const r=host.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width*1000, y=(e.clientY-r.top)/r.height*600;
+    const c=document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("cx",x);c.setAttribute("cy",y);c.setAttribute("r","2");
+    c.setAttribute("fill","none");c.setAttribute("stroke","var(--mag)");c.setAttribute("stroke-width","1.6");
+    sv.appendChild(c);
+    const t0=performance.now();
+    const gro=now=>{const p=clamp((now-t0)/900,0,1);
+      c.setAttribute("r",(2+p*70).toFixed(1)); c.setAttribute("opacity",(1-p).toFixed(2));
+      p<1?requestAnimationFrame(gro):c.remove();};
+    requestAnimationFrame(gro);
+  });
+}
+
+/* ripple distortion — reactbits RippleDistortion, rebuilt as raw WebGL over the σ⁰ plate.
+   The plate is an image of a water surface, so displacing it on touch is the one animation
+   here that is honest about its medium. Nothing moves unless the analyst moves it. */
+const MAXR=4;
+function rippleGL(srcCanvas,glCanvas,host){
+  const gl=glCanvas.getContext("webgl",{antialias:false,alpha:false});
+  if(!gl){ glCanvas.style.display="none"; const c=$("#glChip"); if(c) c.remove(); return null; }
+
+  const VS=`attribute vec2 p;varying vec2 v;void main(){v=p*.5+.5;gl_Position=vec4(p,0.,1.);}`;
+  const FS=`precision highp float;
+    uniform sampler2D t;uniform vec2 res;uniform float time;uniform vec3 rip[${MAXR}];
+    varying vec2 v;
+    void main(){
+      vec2 uv=v; vec2 asp=vec2(res.x/res.y,1.); float crest=0.;
+      for(int i=0;i<${MAXR};i++){
+        vec3 r=rip[i];
+        if(r.z<0.) continue;
+        float age=time-r.z;
+        if(age<0.||age>2.6) continue;
+        vec2 d=(uv-r.xy)*asp; float dist=length(d);
+        float rad=age*0.40;
+        float band=smoothstep(0.15,0.0,abs(dist-rad));
+        float decay=max(0.,1.-age/2.6);
+        float amp=band*decay*decay;
+        uv+=normalize(d+vec2(1e-5))*amp*0.030;
+        crest+=amp;
+      }
+      vec3 col=texture2D(t,uv).rgb;
+      col+=crest*0.13;
+      gl_FragColor=vec4(col,1.);
+    }`;
+  const sh=(ty,src)=>{const s=gl.createShader(ty);gl.shaderSource(s,src);gl.compileShader(s);return s;};
+  const pr=gl.createProgram();
+  gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));
+  gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));
+  gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ glCanvas.style.display="none"; return null; }
+  gl.useProgram(pr);
+
+  const buf=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(pr,"p");
+  gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+
+  const tex=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,srcCanvas);
+
+  const uRes=gl.getUniformLocation(pr,"res"), uTime=gl.getUniformLocation(pr,"time"),
+        uRip=gl.getUniformLocation(pr,"rip");
+  const rip=new Float32Array(MAXR*3).fill(-1);
+  let head=0, t0=performance.now(), raf=null, dirty=true, lastW=0;
+
+  function size(){
+    const r=host.getBoundingClientRect();
+    if(!r.width||!r.height||(r.width|0)===lastW) return;
+    lastW=r.width|0;
+    // 1× only. At dpr 2 this shader ran four times the fragments for no visible gain.
+    glCanvas.width=Math.max(1,r.width|0); glCanvas.height=Math.max(1,r.height|0);
+    gl.viewport(0,0,glCanvas.width,glCanvas.height);
+    gl.uniform2f(uRes,glCanvas.width,glCanvas.height);
+    dirty=true; kick();
+  }
+  function draw(now){
+    const t=(now-t0)/1000;
+    gl.uniform1f(uTime,t); gl.uniform3fv(uRip,rip);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    const live=[...Array(MAXR)].some((_,i)=>rip[i*3+2]>=0 && t-rip[i*3+2]<2.6);
+    if(live && !RM){ raf=requestAnimationFrame(draw); } else { raf=null; }
+  }
+  function kick(){ if(!raf) raf=requestAnimationFrame(draw); }
+  function ping(x,y){
+    if(RM) return;
+    rip[head*3]=x; rip[head*3+1]=1-y; rip[head*3+2]=(performance.now()-t0)/1000;
+    head=(head+1)%MAXR; kick();
+  }
+
+  size(); onFit(size);
+  // Click only. The old pointermove handler seeded a ripple every 150 ms, which kept a
+  // full-viewport fragment shader running for as long as the cursor was over the plate.
+  host.addEventListener("click",e=>{
+    const r=host.getBoundingClientRect();
+    ping((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
+  });
+  return {ping,refresh:()=>{gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,srcCanvas);dirty=true;kick();}};
+}
+
+/* ══════════════ chart base ══════════════ */
+function chartBase(){
+  let grat="",snd="";
+  for(let x=92;x<1000;x+=92) grat+=`<line x1="${x}" y1="0" x2="${x}" y2="600"/>`;
+  for(let y=92;y<600;y+=92) grat+=`<line x1="0" y1="${y}" x2="1000" y2="${y}"/>`;
+  let s=13;const rnd=()=>((s=s*1664525+1013904223>>>0)/4294967296);
+  for(let i=0;i<74;i++){
+    const x=10+rnd()*968,y=16+rnd()*530;
+    snd+=`<text x="${x|0}" y="${y|0}">${Math.round(5+(560-y)/560*36+rnd()*6)}</text>`;
+  }
+  return `<rect width="1000" height="600" fill="var(--sea)"/>
+   <path d="M0 412 C160 396 300 434 448 424 C596 414 720 452 860 440 C920 434 966 444 1000 438 L1000 600 L0 600 Z" fill="var(--sea-mid)"/>
+   <path d="M0 504 C150 492 292 526 440 518 C588 510 726 540 866 532 C926 528 968 536 1000 532 L1000 600 L0 600 Z" fill="var(--sea-shoal)"/>
+   <path d="M0 412 C160 396 300 434 448 424 C596 414 720 452 860 440 C920 434 966 444 1000 438" fill="none" stroke="var(--hair)" stroke-width=".7" stroke-dasharray="1 4"/>
+   <path d="M0 504 C150 492 292 526 440 518 C588 510 726 540 866 532 C926 528 968 536 1000 532" fill="none" stroke="var(--hair)" stroke-width=".7" stroke-dasharray="1 4"/>
+   <text x="66" y="409" font-family="IBM Plex Mono, monospace" font-size="7.5" fill="var(--ink-3)">20</text>
+   <text x="66" y="501" font-family="IBM Plex Mono, monospace" font-size="7.5" fill="var(--ink-3)">10</text>
+   <g stroke="var(--hair)" stroke-width=".6" opacity=".5">${grat}</g>
+   <g fill="var(--ink-3)" font-family="IBM Plex Mono, monospace" font-size="8">${snd}</g>
+   <path d="M0 572 L92 566 L182 576 L276 568 L368 580 L462 572 L556 584 L648 576 L742 586 L836 578 L928 588 L1000 582 L1000 600 L0 600 Z" fill="var(--land)" stroke="var(--land-edge)" stroke-width="1"/>
+   <ellipse cx="238" cy="536" rx="25" ry="11" fill="var(--land)" stroke="var(--land-edge)" stroke-width="1"/>
+   <circle cx="238" cy="536" r="2.4" fill="var(--mag)"/>
+   <text x="250" y="527" font-family="Archivo Narrow, sans-serif" font-size="8" fill="var(--ink-3)" letter-spacing=".08em">PIRAM I.</text>
+   <g font-family="IBM Plex Mono, monospace" font-size="8" fill="var(--ink-3)">
+     <text x="5" y="124">22.7N</text><text x="5" y="308">22.5N</text><text x="5" y="492">22.3N</text>
+     <text x="250" y="596">69.1E</text><text x="560" y="596">69.4E</text><text x="870" y="596">69.7E</text>
+   </g>`;
+}
+
+/* ══════════════ SAR plate ══════════════ */
+function buildSAR(){
+  // The plate rasterises at half the annotation grid (500×300) and is scaled up by CSS.
+  // Speckle is noise; upsampling it costs nothing visually and saves three quarters of
+  // the pixel loop, which is what used to lock the main thread on load.
+  const c=$("#sarPlate"),W=c.width,H=c.height,g=c.getContext("2d");
+  const SC=W/1000, F=1/SC;                    // annotation units → plate pixels, and back
+  const m=document.createElement("canvas");m.width=W;m.height=H;
+  const mg=m.getContext("2d");
+  mg.fillStyle="#000";mg.fillRect(0,0,W,H);
+  mg.filter=`blur(${(5*SC).toFixed(2)}px)`;mg.fillStyle="#fff";mg.beginPath();
+  SLICK.forEach(([x,y],i)=>i?mg.lineTo(x*SC,y*SC):mg.moveTo(x*SC,y*SC));mg.closePath();mg.fill();mg.filter="none";
+  const rg=mg.createRadialGradient(392*SC,140*SC,4*SC,392*SC,140*SC,58*SC);
+  rg.addColorStop(0,"rgba(255,255,255,.70)");rg.addColorStop(1,"rgba(255,255,255,0)");
+  mg.fillStyle=rg;mg.fillRect(330*SC,78*SC,128*SC,128*SC);
+  const mask=mg.getImageData(0,0,W,H).data;
+  const img=g.createImageData(W,H),d=img.data;
+  // 8-look speckle: gamma(L)/L has mean 1 and std 1/sqrt(L). Three looks reads as television
+  // static; eight keeps the grain but lets the wind banding and the slick edge survive it.
+  // Drawn from a 2048-entry table rather than summed per pixel — the distribution is what
+  // matters, not that every pixel gets its own independent draw.
+  const L=8, NL=2048, LUT=new Float32Array(NL);
+  for(let i=0;i<NL;i++){let s=0;for(let l=0;l<L;l++)s+=-Math.log(Math.random()+1e-9);LUT[i]=s/L;}
+  for(let y=0;y<H;y++){
+    // The banding terms are written in annotation units so the texture keeps its scale.
+    const ay=y*F, row=26+(y/H)*20;
+    for(let x=0;x<W;x++){
+      const ax=x*F, i=y*W+x;
+      let mean=row+13*Math.sin(ay*.016+Math.sin(ax*.0052)*2.4)
+                  +8*Math.sin(ax*.0088+ay*.0037)
+                  +5*Math.sin(ax*.021+ay*.014);
+      mean*=(1-mask[i*4]/255*.84);
+      const v=clamp(mean*LUT[(Math.random()*NL)|0],0,255),o=i*4;
+      d[o]=v;d[o+1]=v*1.02;d[o+2]=v*1.07;d[o+3]=255;
+    }
+  }
+  g.putImageData(img,0,0);
+  g.globalCompositeOperation="lighter";
+  [[368,290,1],[604,190,.72],[248,446,.62],[820,378,.55],[142,206,.5],[712,492,.46]].forEach(([ax,ay,s])=>{
+    const x=ax*SC,y=ay*SC,rad=(9*s+3)*SC;
+    const r=g.createRadialGradient(x,y,0,x,y,rad);
+    r.addColorStop(0,`rgba(236,240,242,${.95*s})`);r.addColorStop(1,"rgba(236,240,242,0)");
+    g.fillStyle=r;g.fillRect(x-14*SC,y-14*SC,28*SC,28*SC);
+    g.fillStyle=`rgba(226,232,236,${.34*s})`;g.fillRect(x-.9*SC,y-16*s*SC,1.8*SC,32*s*SC);
+  });
+  g.globalCompositeOperation="source-over";
+  $("#sarAnno").innerHTML=`
+    <path d="${SLICK.map(([x,y],i)=>(i?"L":"M")+x+" "+y).join(" ")} Z" fill="none" stroke="var(--mag)" stroke-width="1.5"/>
+    <path d="M836 190 L868 164" stroke="var(--mag)" stroke-width=".8"/>
+    <text x="988" y="158" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--mag)">R-07 · RETAINED</text>
+    <text x="988" y="170" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--mag)">12.4 km² · conf 0.87</text>
+    <circle cx="392" cy="140" r="42" fill="none" stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="3 4"/>
+    <path d="M420 110 L472 82" stroke="var(--ink-2)" stroke-width=".8"/>
+    <text x="478" y="80" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-2)">R-02 · REJECTED</text>
+    <text x="478" y="92" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">wind 2.1 m/s · soft edge</text>
+    <circle cx="368" cy="290" r="16" fill="none" stroke="var(--amber)" stroke-width="1" opacity=".7"/>
+    <circle cx="368" cy="290" r="3.4" fill="var(--amber)"/>
+    <path d="M386 290 L446 290" stroke="var(--amber)" stroke-width=".8"/>
+    <text x="452" y="287" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--amber)">UNMATCHED RETURN</text>
+    <text x="452" y="299" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--amber)">23:41 · no AIS</text>`;
+}
+
+/* ══════════════ drift ══════════════ */
+const NP=1100,P=[];   // the cloud reads the same; the panel still states 2 600 seeded
+(function(){
+  const inside=(x,y)=>{let f=false;
+    for(let i=0,j=SLICK.length-1;i<SLICK.length;j=i++){
+      const[xi,yi]=SLICK[i],[xj,yj]=SLICK[j];
+      if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)f=!f;
+    }return f;};
+  while(P.length<NP){
+    const x=660+Math.random()*180,y=180+Math.random()*136;
+    if(inside(x,y))P.push({x,y,a:Math.random()*6.2832,r:Math.sqrt(Math.random()),b:Math.random()});
+  }
+})();
+const DX=-10.12,DY=1.60,HMAX=40;
+let hours=0;
+function drawDrift(){
+  const cv=$("#driftCv"),g=cv.getContext("2d"),W=cv.width,S=W/1000;
+  g.clearRect(0,0,W,cv.height);
+  if(hours<.4)return;
+  const sp=11*Math.sqrt(hours),t=hours/HMAX,sz=1.7*S;
+  // One fillStyle assignment per opacity bucket instead of one per particle: setting the
+  // style is the expensive half of a 1-pixel fillRect.
+  const BK=6, bins=Array.from({length:BK},()=>[]);
+  for(const p of P){
+    const x=(p.x+DX*hours+Math.cos(p.a)*sp*p.r)*S;
+    const y=(p.y+DY*hours+Math.sin(p.a)*sp*p.r)*S;
+    bins[clamp((p.b*BK)|0,0,BK-1)].push(x,y);
+  }
+  for(let k=0;k<BK;k++){
+    const q=bins[k]; if(!q.length) continue;
+    g.fillStyle=`rgba(184,37,111,${((.40-.19*t)*(.55+((k+.5)/BK)*.45)).toFixed(3)})`;
+    for(let i=0;i<q.length;i+=2) g.fillRect(q[i],q[i+1],sz,sz);
+  }
+}
+function driftUI(){
+  const d=new Date(Date.UTC(2026,2,14,6,12)-hours*36e5);
+  $("#driftClock").innerHTML=`${d.getUTCDate()} Mar ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC `+
+    `<b>${hours<.5?"T · detection":"T − "+hours+" h"}</b>`;
+  $("#driftRad").textContent=`95 % radius ${(hours*.372).toFixed(1)} km`;
+  $("#driftAnno").innerHTML = hours>=22
+    ? `<rect x="248" y="228" width="204" height="164" fill="none" stroke="var(--mag)" stroke-width="1.2" stroke-dasharray="7 5"/>
+       <text x="248" y="220" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--mag)">ORIGIN REGION · 22:00–02:00 UTC</text>` : "";
+  const dot=$("#uncDot");
+  if(dot){dot.setAttribute("cx",(30+hours/40*258).toFixed(1));
+          dot.setAttribute("cy",(100-Math.pow(hours/40,1.18)*84).toFixed(1));}
+}
+
+/* ══════════════ scoring ══════════════ */
+const total=()=>FKEYS.reduce((a,[k])=>a+W[k],0);
+const score=v=>FKEYS.reduce((a,[k])=>a+W[k]*v.f[k],0)/total();
+const ranked=()=>[...VESSELS].sort((a,b)=>score(b)-score(a));
+
+function paintRank(){
+  const R=ranked();
+  $("#rankBody").innerHTML=R.map((v,i)=>`
+    <tr data-id="${v.id}" class="${v.id===sel?"sel":""}">
+      <td class="n" style="color:var(--ink-3)">${pad(i+1)}</td>
+      <td><span class="${v.floats?"floats":""}" style="font-weight:600">${v.name}</span>
+          <div style="font-family:var(--mono);font-size:10.5px;color:var(--ink-3)">${v.cls}</div></td>
+      <td><span class="tagx ${v.tag}">${v.chan}</span></td>
+      <td class="n" style="font-size:15px;color:${score(v)>.5?"var(--mag)":"var(--ink-3)"}">${score(v).toFixed(2)}</td>
+    </tr>`).join("");
+  $("#rankNote").textContent=`Leader margin ${(score(R[0])-score(R[1])).toFixed(2)}`;
+  paintDoc();
+}
+function paintBreak(){
+  const v=VESSELS.find(x=>x.id===sel);
+  $("#bdWho").textContent=v.mmsi;
+  $("#bdBody").innerHTML=FKEYS.map(([k,label])=>`
+    <div class="fac">
+      <div class="fac-r"><span class="fac-n">${label}</span>
+        <span class="fac-v">${v.f[k].toFixed(2)} <span style="color:var(--ink-3)">× ${W[k]}%</span></span></div>
+      <div class="fac-b"><i style="width:${v.f[k]*100}%"></i></div>
+      <div class="fac-w">${v.w[k]}</div>
+    </div>`).join("")+
+    `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--ink)">
+       <span style="font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--mag)">Assessment</span>
+       <p style="margin:6px 0 0;font-size:13px;color:var(--ink-2);line-height:1.6">${v.note}</p></div>`;
+}
+function paintWeights(){
+  $("#wBody").innerHTML=FKEYS.map(([k,label])=>`
+    <div class="wrow">
+      <label for="w-${k}">${label}</label><span class="pc" id="pc-${k}">${W[k]}%</span>
+      <input type="range" id="w-${k}" data-k="${k}" min="0" max="40" step="1" value="${W[k]}"
+             style="grid-column:1/3" aria-label="${label} weight">
+    </div>`).join("")+
+    `<p style="margin:10px 0 0;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);line-height:1.6">
+       Weights normalise to 100 % on read. Drop <em>heading</em> to zero and watch the leader margin collapse —
+       that dependency is worth showing, not hiding.</p>`;
+}
+function paintDoc(){
+  const R=ranked();
+  $("#docBody").innerHTML=R.map((v,i)=>`
+    <tr><td class="n" style="color:var(--ink-3)">${pad(i+1)}</td>
+    <td><span class="${v.floats?"floats":""}">${v.name}</span></td>
+    ${FKEYS.map(([k])=>`<td class="n">${v.f[k].toFixed(2)}</td>`).join("")}
+    <td class="n" style="color:var(--mag);font-weight:600">${score(v).toFixed(2)}</td></tr>`).join("");
+  $("#docWeights").textContent="Weights — "+FKEYS.map(([k,l])=>`${l.toLowerCase()} ${(W[k]/total()*100).toFixed(0)}%`).join(" · ");
+}
+
+/* ══════════════ paint static views ══════════════ */
+$("#rail").innerHTML=VIEWS.map(([id,label],i)=>`
+  <button class="rbtn ok" data-v="${id}" ${i===0?'aria-current="page"':""}>
+    <span class="n">${pad(i+1)}</span><span class="l">${label}</span><span class="st"></span>
+  </button>`).join("");
+
+$("#scenes").innerHTML=SCENES.map(s=>`
+  <button class="scn" data-s="${s.id}" aria-pressed="${s.on}">
+    <div class="id">${s.id}</div><div class="nm">${s.nm}</div><div class="mt">${s.mt}</div>
+  </button>`).join("");
+
+const PLAN=[
+ ["Ingest","rasterio · pyais",""],
+ ["Detect","U-Net on σ⁰","Below 0.50 confidence, report a look-alike and stop"],
+ ["Characterise","shapely · PCA",""],
+ ["Hindcast","OpenDrift · RK4","Past a 36 km radius, drop the spatial filter"],
+ ["Traffic","geopandas · reachable sets",""],
+ ["Dark channel","CFAR · AIS match","No pass in window, declare the channel unavailable"],
+ ["Score & file","weight pack · WeasyPrint",""]
+];
+$("#planBody").innerHTML=PLAN.map(([n,m,g],i)=>`
+  <tr><td class="n" style="color:var(--ink-3)">${pad(i+1)}</td>
+  <td style="font-weight:600">${n}</td>
+  <td style="font-family:var(--mono);font-size:11px;color:var(--ink-3)">${m}</td>
+  <td>${g?`<span style="color:var(--mag);font-size:11.5px">${g}</span>`
+        :`<span style="color:var(--ink-3);font-size:11.5px">—</span>`}</td></tr>`).join("");
+$("#preflight").innerHTML=PRE.map(p=>`
+  <div class="chk ${p.ok?"ok":"wn"}"><span class="m">${p.ok?"✓":"!"}</span>
+    <span><span style="font-weight:600">${p.t}</span><div class="d">${p.d}</div></span></div>`).join("");
+
+$("#candBody").innerHTML=CANDS.map(([r,v,s],i)=>`
+  <tr class="${i===0?"sel":""}"><td style="font-family:var(--mono)">${r}</td>
+  <td><span class="tagx ${i===0?"t-hi":"t-lo"}">${v}</span></td>
+  <td class="n">${s} dB</td></tr>`).join("");
+
+$("#detTiles").innerHTML=[
+  ["Area","12.4","km²",1],["Perimeter","31.2","km",1],["Principal axis","41","° true",0],
+  ["Elongation","4.7","",1],["Confidence","0.87","",2]
+].map(([k,v,u,d])=>`<div class="tile"><span class="k">${k}</span>
+  <span class="v"><span data-cu="${v}" data-dec="${d}">0</span><span class="u">${u}</span></span></div>`).join("");
+
+$("#trafBody").innerHTML=VESSELS.filter(v=>v.pre).map(v=>`
+  <tr data-id="${v.id}" class="${v.id===sel?"sel":""}">
+    <td><span class="${v.floats?"floats":""}" style="font-weight:600">${v.name}</span>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--ink-3)">${v.mmsi}</div></td>
+    <td class="n">${v.course}</td><td class="n">${v.delta}</td>
+    <td><span class="tagx ${v.tag}">${v.status}</span></td></tr>`).join("");
+
+$("#conBody").innerHTML=RUNLOG.map(([t,s,m,c])=>
+  `<div class="ln ${c}"><span class="t">${t}</span><span class="s">${s}</span><span class="m">${m}</span></div>`).join("");
+
+$("#driftBase").innerHTML=chartBase();
+$("#trafBase").innerHTML=chartBase();
+
+/* uncertainty sparkline */
+$("#uncSvg").innerHTML=`
+  <line x1="30" y1="12" x2="30" y2="100" stroke="var(--hair)"/><line x1="30" y1="100" x2="288" y2="100" stroke="var(--hair)"/>
+  <line x1="30" y1="56" x2="288" y2="56" stroke="var(--hair-2)" stroke-dasharray="2 3"/>
+  <path d="M30 100 L94 84 L158 64 L223 40 L288 16 L288 100 Z" fill="var(--mag)" fill-opacity=".1"/>
+  <path d="M30 100 L94 84 L158 64 L223 40 L288 16" fill="none" stroke="var(--mag)" stroke-width="1.6"/>
+  <circle id="uncDot" cx="30" cy="100" r="3.6" fill="var(--mag)" stroke="var(--panel)" stroke-width="1.4"/>
+  <text x="25" y="103" font-family="IBM Plex Mono, monospace" font-size="8" fill="var(--ink-3)" text-anchor="end">0</text>
+  <text x="25" y="59" font-family="IBM Plex Mono, monospace" font-size="8" fill="var(--ink-3)" text-anchor="end">7</text>
+  <text x="25" y="19" font-family="IBM Plex Mono, monospace" font-size="8" fill="var(--ink-3)" text-anchor="end">15</text>
+  <text x="30" y="116" font-family="IBM Plex Mono, monospace" font-size="8" fill="var(--ink-3)">0 h</text>
+  <text x="288" y="116" font-family="IBM Plex Mono, monospace" font-size="8" fill="var(--ink-3)" text-anchor="end">−40 h</text>`;
+
+/* traffic tracks */
+$("#trafAnno").innerHTML=VESSELS.filter(v=>v.pre).map(v=>{
+  const on=v.id==="kr", col=on?"var(--mag)":"var(--ink-2)", w=on?2:1.1, o=on?1:.5;
+  let s=`<path d="${v.pre}" fill="none" stroke="${col}" stroke-width="${w}" opacity="${o}"/>`;
+  if(v.dark){
+    s+=`<path d="${v.dark}" fill="none" stroke="var(--mag)" stroke-width="${w}" stroke-dasharray="2 9"/>`;
+    s+=`<ellipse cx="350" cy="306" rx="150" ry="62" transform="rotate(-38.9 350 306)" fill="var(--mag)" fill-opacity=".07" stroke="var(--mag)" stroke-width="1.1" stroke-dasharray="4 4"/>`;
+    s+=`<circle cx="252" cy="382" r="3.4" fill="var(--mag)"/><circle cx="448" cy="230" r="3.4" fill="none" stroke="var(--mag)" stroke-width="1.4"/>`;
+    s+=`<text x="196" y="414" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--mag)">DARK 23:10 → 01:50</text>`;
+  }
+  if(v.post)s+=`<path d="${v.post}" fill="none" stroke="${col}" stroke-width="${w}" opacity="${o}"/>`;
+  return s;
+}).join("")+
+`<circle cx="368" cy="290" r="15" fill="none" stroke="var(--amber)" stroke-width="1" opacity=".7"/>
+ <circle cx="368" cy="290" r="3.2" fill="var(--amber)"/>
+ <text x="388" y="288" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--amber)">UNMATCHED · 23:41</text>`;
+
+paintRank(); paintBreak(); paintWeights(); drawDrift(); driftUI();
+topography($("#topo"));
+reticle($("#stDrift"),"#driftAnno",null);
+reticle($("#stTraffic"),"#trafAnno",null);
+
+/* The detection stage owns the expensive machinery: the σ⁰ raster, a WebGL context and
+   two more canvases. None of it is on screen until the Detect tab is opened, so none of
+   it is built until then. Intake now paints on the first frame. */
+let ripple=null, fx=null, detectReady=false;
+function initDetect(){
+  if(detectReady) return; detectReady=true;
+  buildSAR();
+  ripple=rippleGL($("#sarPlate"),$("#sarGL"),$("#stDetect"));
+  fx=sarEffects($("#sarFx"),$("#stDetect"));
+  reticle($("#stDetect"),"#sarAnno",$("#curPos"));
+}
+
+/* ══════════════ interaction ══════════════ */
+let firstDetect=true;
+function go(id){
+  $$(".view").forEach(v=>v.classList.toggle("on",v.id==="v-"+id));
+  $$(".rbtn").forEach(b=>b.dataset.v===id?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  $("#main").scrollTop=0;
+  // Canvases inside a hidden view measure zero, so re-fit now that this one is laid out.
+  // Each fitter no-ops when its width has not changed, so this is nearly free on a revisit.
+  refit();
+  if(id==="detect"){
+    initDetect(); refit();
+    if(firstDetect){firstDetect=false;
+      $$("[data-cu]").forEach(el=>countUp(el,+el.dataset.cu,+el.dataset.dec));
+    }
+    if(fx) fx("scan");
+    if(ripple) setTimeout(()=>ripple.ping(.75,.42),1700);
+  }
+}
+$("#rail").addEventListener("click",e=>{
+  const b=e.target.closest(".rbtn");
+  if(b){ go(b.dataset.v); history.replaceState(null,"","#"+b.dataset.v); }
+});
+{ const h=location.hash.slice(1);
+  if(VIEWS.some(([id])=>id===h)) go(h); else go("intake"); }
+
+$("#scenes").addEventListener("click",e=>{
+  const b=e.target.closest(".scn");if(!b)return;
+  $$(".scn").forEach(x=>x.setAttribute("aria-pressed",x===b));
+});
+
+$("#btnRun").addEventListener("click",()=>{ go("detect"); });
+$("#btnScan").addEventListener("click",()=>{initDetect();if(fx)fx("scan");});
+
+// Coalesce scrub redraws to one per frame — a dragged range input fires input far faster.
+let scrubQ=0;
+$("#hSlider").addEventListener("input",e=>{
+  hours=+e.target.value;
+  if(!scrubQ) scrubQ=requestAnimationFrame(()=>{scrubQ=0;drawDrift();driftUI();});
+});
+
+$("#rankBody").addEventListener("click",e=>{
+  const r=e.target.closest("tr");if(!r)return;
+  sel=r.dataset.id;paintRank();paintBreak();
+});
+$("#trafBody").addEventListener("click",e=>{
+  const r=e.target.closest("tr");if(!r)return;
+  sel=r.dataset.id;$$("#trafBody tr").forEach(x=>x.classList.toggle("sel",x.dataset.id===sel));
+  paintRank();paintBreak();
+});
+$("#wBody").addEventListener("input",e=>{
+  const k=e.target.dataset.k;if(!k)return;
+  W[k]=+e.target.value;$("#pc-"+k).textContent=W[k]+"%";
+  paintRank();paintBreak();
+});
+$("#btnReset").addEventListener("click",()=>{
+  W={...W0};paintWeights();paintRank();paintBreak();
+});
+
+$("#conToggle").addEventListener("click",()=>{
+  const c=$("#console"),open=c.classList.toggle("open");
+  $("#conToggle").setAttribute("aria-expanded",open);
+  $("#conCar").textContent=open?"▾":"▴";
+});
+
+/* scrambled readouts on the topbar pill, once */
+setTimeout(()=>scramble($("#pillRun"),"Pipeline complete · 07:24",700),260);
+</script>
+
+</body></html>
