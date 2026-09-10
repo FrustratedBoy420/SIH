@@ -20,10 +20,3 @@ data/
 web/node_modules/
 web/dist/
 web/shots/
-
-# --- working trees kept out of this repo's history ------------------------
-# Dark Transit lives on branch `shreyash`; the copy in this directory is a
-# partial one plus run artefacts. internal-hackathon is 398 MB of SAAKSHYA
-# material that predates this project. Both are left on disk and out of git.
-ps26143-dark-transit/
-internal-hackathon/
