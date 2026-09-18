@@ -152,7 +152,11 @@ def main() -> int:
                         help=f"one of {list(config.BASES)}, or a HuggingFace id")
     parser.add_argument("--data", default=None, help="VRSBench root (default: HF cache)")
     parser.add_argument("--json", default=None, help="specific VQA json (default: auto-detect)")
-    parser.add_argument("--limit", type=int, default=None, help="evaluate only the first N items")
+    parser.add_argument("--limit", type=int, default=None, help="evaluate only N items")
+    parser.add_argument("--split", default="auto",
+                        help="annotation folder to read: auto (prefers val), train, val, test")
+    parser.add_argument("--seed", type=int, default=0,
+                        help="shuffle seed for subset selection — keep it fixed across runs")
     parser.add_argument("--out", default=None, help="output directory")
     parser.add_argument("--dtype", default=config.DEFAULT_DTYPE, choices=["fp16", "bf16", "fp32"])
     parser.add_argument("--load-in-4bit", action="store_true", help="QLoRA-style 4-bit weights")
@@ -180,6 +184,8 @@ def main() -> int:
         root,
         json_path=Path(args.json) if args.json else None,
         limit=args.limit,
+        split=args.split,
+        seed=args.seed,
     )
     if not items:
         print("nothing to evaluate")
@@ -239,6 +245,8 @@ def main() -> int:
         "condition": "zero-shot",
         "dataset": "VRSBench VQA",
         "dataset_root": str(root),
+        "split": args.split,
+        "seed": args.seed,
         "limit": args.limit,
         "dtype": args.dtype,
         "load_in_4bit": args.load_in_4bit,

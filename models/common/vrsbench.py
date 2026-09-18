@@ -1,20 +1,32 @@
-"""VRSBench loading, written to survive not knowing the exact file layout.
+"""VRSBench loading.
 
-The repository `xiang709/VRSBench` publishes its VQA split as JSON plus image
-archives. The precise filenames and field names are not pinned here on purpose:
-a loader that hard-codes `record["question"]` fails silently the day the upload
-uses `Question`, and that failure looks like a bad model rather than a bad key.
+The published layout, confirmed by running `--inspect` against the real
+download rather than assumed from the paper:
 
-So this module *discovers* instead of assuming. `inspect()` prints what is
-actually on disk — run it once, read the output, and the loader below will
-almost certainly already handle it. If it does not, add the key to the tuples
-at the top of this file; that is the only edit needed.
+    VRSBench/
+      Annotations_train/00002_0000.json     one JSON per image, ~59,000 of them
+      Annotations_val/...
+      Images_train/00002_0000.png           ~29,600 images
+      Images_val/...
+
+Each annotation file is a dict:
+
+    {"caption": "...", "image": "00002_0000.png",
+     "objects": [...], "qa_pairs": [{"question": ..., "answer": ...}, ...]}
+
+So the unit on disk is an image, not a split file, and the QA pairs are nested.
+Both facts are handled below. Field names are still discovered rather than
+hard-coded -- a loader that assumes `record["question"]` fails silently the day
+an upload uses `Question`, and that failure looks like a bad model rather than
+a bad key.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import random
+from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -22,7 +34,7 @@ from typing import Any, Iterator
 # the loader.
 QUESTION_KEYS = ("question", "Question", "q", "instruction", "text")
 ANSWER_KEYS = ("ground_truth", "answer", "Answer", "gt_answer", "gt", "output", "response")
-IMAGE_KEYS = ("image_id", "image", "img", "file_name", "filename", "image_path")
+IMAGE_KEYS = ("image", "image_id", "img", "file_name", "filename", "image_path")
 TYPE_KEYS = ("type", "question_type", "category", "qa_type")
 ID_KEYS = ("question_id", "qid", "id")
 
@@ -30,6 +42,10 @@ ID_KEYS = ("question_id", "qid", "id")
 NESTED_KEYS = ("qa_pairs", "conversations", "questions", "qa", "annotations")
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
+
+# Directory-name hints, in the order a split is preferred when none is asked
+# for. A baseline is measured on held-out data, so validation beats train.
+SPLIT_PREFERENCE = ("val", "test", "eval", "train")
 
 
 @dataclass(frozen=True)
@@ -41,6 +57,44 @@ class VQAItem:
     qtype: str
 
 
+@dataclass
+class Scan:
+    """One filesystem walk, reused. Three separate rglobs over 89,000 files is
+    three times the wait for the same information."""
+
+    root: Path
+    images: dict[str, Path] = field(default_factory=dict)
+    image_count: int = 0
+    json_groups: dict[Path, list[Path]] = field(default_factory=lambda: defaultdict(list))
+
+    @property
+    def json_count(self) -> int:
+        return sum(len(v) for v in self.json_groups.values())
+
+
+def scan(root: Path) -> Scan:
+    """Walk the dataset once: index images, group annotation files by folder."""
+    result = Scan(root=root)
+    seen: set[Path] = set()
+
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        suffix = path.suffix.lower()
+        if suffix in IMAGE_SUFFIXES:
+            if path not in seen:
+                seen.add(path)
+                result.image_count += 1
+            # Both spellings map to the same file so a reference of either
+            # shape resolves. This inflates dict length, never the count above.
+            result.images.setdefault(path.name, path)
+            result.images.setdefault(path.stem, path)
+        elif suffix == ".json" and path.stat().st_size > 0:
+            result.json_groups[path.parent].append(path)
+
+    return result
+
+
 # --------------------------------------------------------------------------
 # Locating the download
 # --------------------------------------------------------------------------
@@ -49,7 +103,7 @@ def find_root(explicit: str | Path | None = None) -> Path:
     """Where VRSBench landed.
 
     Prefers an explicit path. Otherwise asks the HuggingFace cache where it put
-    the snapshot — `local_files_only` so this never triggers a download as a
+    the snapshot -- `local_files_only` so this never triggers a download as a
     side effect of merely looking.
     """
     if explicit:
@@ -79,73 +133,60 @@ def find_root(explicit: str | Path | None = None) -> Path:
         ) from exc
 
 
-def json_files(root: Path) -> list[Path]:
-    return sorted(p for p in root.rglob("*.json") if p.stat().st_size > 0)
-
-
 # --------------------------------------------------------------------------
-# Inspection — run this before the first real evaluation
+# Inspection -- run this once, before the first real evaluation
 # --------------------------------------------------------------------------
 
-def inspect(root: Path, sample: int = 1) -> None:
-    """Print what is on disk. Cheap, and it removes every guess downstream."""
-    print(f"root: {root}\n")
+def inspect(root: Path, detail: int = 2) -> None:
+    """Summarise the layout.
 
-    images = index_images(root)
-    print(f"images indexed: {len(images):,}")
+    Deliberately capped. VRSBench ships ~59,000 annotation files; printing each
+    one floods the notebook and tells you nothing the first two did not. The
+    per-directory counts are the part that matters.
+    """
+    found = scan(root)
 
-    files = json_files(root)
-    print(f"json files: {len(files)}\n")
+    print(f"root: {found.root}\n")
+    print(f"images:          {found.image_count:,}")
+    print(f"annotation json: {found.json_count:,}")
+    print(f"json folders:    {len(found.json_groups)}\n")
 
-    for path in files:
-        size_mb = path.stat().st_size / 1e6
-        print(f"--- {path.relative_to(root)}  ({size_mb:,.1f} MB)")
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            print(f"    unreadable: {exc}\n")
-            continue
+    for folder, files in sorted(found.json_groups.items(), key=lambda kv: -len(kv[1])):
+        rel = folder.relative_to(found.root) if folder != found.root else Path(".")
+        print(f"--- {rel}/   {len(files):,} files")
 
-        records = _as_records(data)
-        print(f"    top-level: {type(data).__name__}, records: {len(records):,}")
-        if records:
-            head = records[0]
+        for path in sorted(files)[:detail]:
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                print(f"    {path.name}: unreadable: {exc}")
+                continue
+
+            records = _as_records(data)
+            head = records[0] if records else None
             keys = sorted(head.keys()) if isinstance(head, dict) else "not a dict"
-            print(f"    keys: {keys}")
-            for record in records[:sample]:
-                text = json.dumps(record, ensure_ascii=False)
-                tail = "..." if len(text) > 400 else ""
-                print(f"    sample: {text[:400]}{tail}")
+            print(f"    {path.name}  keys={keys}")
+
+            rows = list(_expand(head)) if head else []
+            print(f"      qa rows in this file: {len(rows)}")
+            if rows:
+                text = json.dumps(rows[0], ensure_ascii=False)
+                tail = "..." if len(text) > 300 else ""
+                print(f"      first row: {text[:300]}{tail}")
         print()
+
+    print(f"split folders detected: {[p.name for p in found.json_groups]}")
 
 
 def _as_records(data: Any) -> list[Any]:
     if isinstance(data, list):
         return data
     if isinstance(data, dict):
-        for key in ("data", "annotations", "questions", "records"):
+        for key in ("data", "records"):
             if isinstance(data.get(key), list):
                 return data[key]
         return [data]
     return []
-
-
-# --------------------------------------------------------------------------
-# Image lookup
-# --------------------------------------------------------------------------
-
-def index_images(root: Path) -> dict[str, Path]:
-    """Filename and stem to path, built once.
-
-    A per-item `rglob` over 29,614 images turns a one-hour evaluation into a
-    much longer one for no reason.
-    """
-    index: dict[str, Path] = {}
-    for path in root.rglob("*"):
-        if path.suffix.lower() in IMAGE_SUFFIXES and path.is_file():
-            index.setdefault(path.name, path)
-            index.setdefault(path.stem, path)
-    return index
 
 
 # --------------------------------------------------------------------------
@@ -164,104 +205,132 @@ def _expand(record: Any) -> Iterator[dict]:
     if not isinstance(record, dict):
         return
 
-    if _first(record, QUESTION_KEYS) is not None:
-        yield record
-        return
-
     for key in NESTED_KEYS:
         nested = record.get(key)
-        if isinstance(nested, list):
+        if isinstance(nested, list) and nested:
             shared = {k: v for k, v in record.items() if k != key}
             for item in nested:
                 if isinstance(item, dict):
                     yield {**shared, **item}
             return
 
+    if _first(record, QUESTION_KEYS) is not None:
+        yield record
 
-def pick_vqa_file(root: Path, prefer: str = "eval") -> Path:
-    """Choose the VQA split file.
 
-    `prefer` biases towards the evaluation split, which is what a baseline is
-    measured on. The training split has the same shape and loads identically.
+def choose_group(found: Scan, split: str = "auto") -> tuple[Path, list[Path]]:
+    """Pick which annotation folder to read.
+
+    `split="auto"` prefers validation over train, because a baseline measured
+    on training data is not a baseline. An explicit split wins outright.
     """
-    files = json_files(root)
-    if not files:
-        raise FileNotFoundError(f"no .json under {root}")
+    if not found.json_groups:
+        raise FileNotFoundError(f"no .json under {found.root}")
 
-    def score(path: Path) -> tuple[bool, bool, int]:
-        name = path.name.lower()
-        return (
-            "vqa" in name,
-            prefer in name or any(t in name for t in ("test", "val")),
-            -path.stat().st_size,  # tie-break towards the smaller eval file
-        )
+    groups = dict(found.json_groups)
 
-    best = max(files, key=score)
-    if "vqa" not in best.name.lower():
-        raise FileNotFoundError(
-            f"no file with 'vqa' in its name under {root}. Run --inspect and "
-            f"pass the right one with --json. Found: {[p.name for p in files]}"
-        )
-    return best
+    if split != "auto":
+        matches = {k: v for k, v in groups.items() if split.lower() in k.name.lower()}
+        if not matches:
+            raise FileNotFoundError(
+                f"no folder matching split={split!r}. "
+                f"Available: {[p.name for p in groups]}"
+            )
+        groups = matches
+    else:
+        for hint in SPLIT_PREFERENCE:
+            matches = {k: v for k, v in groups.items() if hint in k.name.lower()}
+            if matches:
+                groups = matches
+                break
+
+    folder = max(groups, key=lambda k: len(groups[k]))
+    return folder, groups[folder]
 
 
 def load_vqa(
     root: Path,
     json_path: Path | None = None,
     limit: int | None = None,
+    split: str = "auto",
+    seed: int = 0,
 ) -> list[VQAItem]:
-    """Read the VQA split into a uniform shape.
+    """Read a split into a uniform shape.
+
+    The file order is SHUFFLED with a fixed seed before any limit is applied.
+    VRSBench filenames are tile-ordered, so taking the alphabetically first N
+    would sample a handful of neighbouring locations -- the same geographic
+    clustering that `docs/03_Model_Specification.md` section 10 warns makes a
+    reported number meaningless. A seeded shuffle keeps the subset both
+    representative and reproducible.
 
     Items whose image cannot be found are dropped and *counted*, not silently
     skipped. A large drop count means the image archive was never extracted,
     and that is worth knowing before a six-hour run rather than after it.
     """
-    path = json_path or pick_vqa_file(root)
-    data = json.loads(path.read_text(encoding="utf-8"))
-    images = index_images(root)
+    found = scan(root)
+
+    if json_path:
+        folder, files = json_path.parent, [json_path]
+    else:
+        folder, files = choose_group(found, split)
+
+    files = sorted(files)
+    random.Random(seed).shuffle(files)
 
     items: list[VQAItem] = []
     missing_image = 0
     missing_field = 0
+    files_read = 0
 
-    for index, record in enumerate(_as_records(data)):
-        for row in _expand(record):
-            question = _first(row, QUESTION_KEYS)
-            answer = _first(row, ANSWER_KEYS)
-            image_ref = _first(row, IMAGE_KEYS)
+    for path in files:
+        files_read += 1
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
 
-            if question is None or answer is None or image_ref is None:
-                missing_field += 1
-                continue
+        for record in _as_records(data):
+            for position, row in enumerate(_expand(record)):
+                question = _first(row, QUESTION_KEYS)
+                answer = _first(row, ANSWER_KEYS)
+                image_ref = _first(row, IMAGE_KEYS)
 
-            image_path = _resolve_image(str(image_ref), images, root)
-            if image_path is None:
-                missing_image += 1
-                continue
+                if question is None or answer is None or image_ref is None:
+                    missing_field += 1
+                    continue
 
-            uid = str(_first(row, ID_KEYS) or f"{path.stem}:{index}:{len(items)}")
-            items.append(
-                VQAItem(
-                    uid=uid,
-                    image=image_path,
-                    question=str(question).strip(),
-                    answer=str(answer).strip(),
-                    qtype=str(_first(row, TYPE_KEYS) or "unspecified"),
+                image_path = _resolve_image(str(image_ref), found.images, root)
+                if image_path is None:
+                    missing_image += 1
+                    continue
+
+                uid = str(_first(row, ID_KEYS) or f"{path.stem}:{position}")
+                items.append(
+                    VQAItem(
+                        uid=uid,
+                        image=image_path,
+                        question=str(question).strip(),
+                        answer=str(answer).strip(),
+                        qtype=str(_first(row, TYPE_KEYS) or "unspecified"),
+                    )
                 )
-            )
-            if limit and len(items) >= limit:
-                break
+
         if limit and len(items) >= limit:
             break
 
+    if limit:
+        items = items[:limit]
+
     print(
-        f"loaded {len(items):,} VQA items from {path.name}  "
-        f"(dropped: {missing_image:,} no image, {missing_field:,} missing field)"
+        f"loaded {len(items):,} VQA items from {folder.name}/  "
+        f"({files_read:,} files read, seed={seed}; "
+        f"dropped {missing_image:,} no image, {missing_field:,} missing field)"
     )
     if missing_image and not items:
         raise RuntimeError(
             "every item was dropped for a missing image. The image archives are "
-            "probably still zipped — extract them under the dataset root first."
+            "probably still zipped -- extract them under the dataset root first."
         )
     return items
 

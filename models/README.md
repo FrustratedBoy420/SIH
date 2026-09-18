@@ -80,10 +80,28 @@ ke liye chahiye. Default HuggingFace cache bade disk par hai.
 !python models/eval_baseline.py --inspect
 ```
 
-Ye har JSON file, uske keys, aur ek sample record print karta hai. Loader
-tolerant likha hai — `question` / `Question` / `q` sab handle karta hai — par
-output padh lena. Agar koi key list mein nahi hai toh `common/vrsbench.py` ke
-top par tuple mein add kar dena. Bas wahi ek edit chahiye hoga.
+Ye per-folder summary deta hai (har file nahi — VRSBench mein ~59,000
+annotation files hain, sab print karne se notebook bhar jaata hai).
+
+Asli layout, jo `--inspect` chalane par confirm hua:
+
+```
+VRSBench/
+  Annotations_train/00002_0000.json    ek JSON per image, ~59,000 files
+  Annotations_val/...
+  Images_train/00002_0000.png          ~29,600 images
+  Images_val/...
+```
+
+Har annotation file aisi hai:
+
+```json
+{"caption": "...", "image": "00002_0000.png",
+ "objects": [...], "qa_pairs": [{"question": "...", "answer": "...", "type": "..."}]}
+```
+
+Loader field names discover karta hai, assume nahi — agar koi key handle na ho
+toh `common/vrsbench.py` ke top par tuple mein add kar dena. Bas wahi ek edit.
 
 ### 6. Smoke test — 20 items (5 minute)
 
@@ -139,7 +157,9 @@ likho — **jab wo naapa gaya hai tab, yaad karke baad mein nahi.**
 |---|---|
 | `--inspect` | dataset ka layout print karke exit — pehli baar ye chalao |
 | `--base` | `qwen2vl`, `qwen2vl-2b`, `geochat`, `llava`, ya koi bhi HF id |
-| `--limit N` | sirf pehle N items — smoke test ke liye |
+| `--limit N` | sirf N items — smoke test ke liye |
+| `--split` | `auto` (val prefer karta hai), ya `train` / `val` / `test` |
+| `--seed` | subset shuffle seed. Runs ke beech **same rakhna** |
 | `--load-in-4bit` | 4-bit weights, kam VRAM |
 | `--dtype` | Kaggle par `fp16` (default). T4/P100 bf16 support nahi karte |
 | `--resume` | JSONL mein jo ho chuka hai wo skip karo |
