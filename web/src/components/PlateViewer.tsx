@@ -37,8 +37,10 @@ function niceStep(span: number, target = 5) {
 const FIT_BOX = { containerType: 'size' } as const
 
 export default function PlateViewer({
-  src, geo, items, threshold, overlays, selected, onSelect, alt, className, runKey, compact = false,
+  src, geo, items, threshold, overlays, selected, onSelect, alt, className, runKey, compact = false, processing,
 }: {
+  /** while a run replays: what is executing; the plate shows a scan instead of evidence */
+  processing?: string
   src?: string
   geo?: PlateGeo
   items: EvidenceItem[]
@@ -222,6 +224,13 @@ export default function PlateViewer({
                 </motion.div>
               ))}
             </div>
+            {processing && src && (
+              <div className="pointer-events-none absolute inset-0 bg-accent/10" data-testid="processing" aria-hidden>
+                <motion.div className="absolute inset-x-0 h-[2px] bg-accent shadow-[0_0_14px_3px_rgb(14_124_134/0.5)]"
+                  initial={{ top: '0%' }} animate={{ top: '100%' }} transition={{ duration: 0.8, ease: 'linear', repeat: Infinity }} />
+                <span className="mono absolute left-2 top-2 bg-ink/85 px-1.5 py-0.5 text-[10.5px] text-paper">executing · {processing}</span>
+              </div>
+            )}
             {!src && <div className="absolute inset-0 grid place-items-center text-ink-2"><span className="label">No imagery loaded</span></div>}
           </div>
 

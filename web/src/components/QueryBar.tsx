@@ -12,17 +12,19 @@ interface Props {
   onChange: (v: string) => void
   onSubmit: () => void
   running: boolean
+  /** why the bar is locked, when it is not a run in progress */
+  busy?: string
   threshold: number
   onThreshold: (v: number) => void
   onPalette: () => void
   inputsLabel: string
 }
 
-const QueryBar = forwardRef<HTMLInputElement, Props>(function QueryBar({ value, onChange, onSubmit, running, threshold, onThreshold, onPalette, inputsLabel }, ref) {
+const QueryBar = forwardRef<HTMLInputElement, Props>(function QueryBar({ value, onChange, onSubmit, running, busy, threshold, onThreshold, onPalette, inputsLabel }, ref) {
   return (
     <form
       className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-ink bg-surface px-3 py-2.5 sm:px-4"
-      onSubmit={(e) => { e.preventDefault(); onSubmit() }}
+      onSubmit={(e) => { e.preventDefault(); if (!running) onSubmit() }}
       role="search"
     >
       <span className="mono hidden shrink-0 border border-rule px-2 py-1 text-[11px] text-ink-2 md:inline" title="What the router will see">{inputsLabel}</span>
@@ -51,7 +53,7 @@ const QueryBar = forwardRef<HTMLInputElement, Props>(function QueryBar({ value, 
       <Magnetic>
         <button type="submit" disabled={running} data-testid="query-submit"
           className="h-10 shrink-0 bg-ink px-5 text-[14px] font-medium text-paper hover:bg-accent-2 disabled:opacity-60">
-          {running ? 'Analysing…' : 'Analyse'}
+          {busy ?? (running ? 'Analysing…' : 'Analyse')}
         </button>
       </Magnetic>
     </form>

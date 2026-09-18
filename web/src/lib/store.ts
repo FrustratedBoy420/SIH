@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import type { LoadedRaster } from './api'
 import type { Modality, QueryResult, Role } from './contract'
+import { replaySeconds } from './replay'
 
 export type View = 'map' | 'stack' | 'compare'
 
@@ -12,6 +13,8 @@ interface State {
   derived: { fusion?: string; change?: string }
   result: QueryResult | null
   running: boolean
+  /** the trace of the current result is still replaying; evidence waits for it */
+  replaying: boolean
   threshold: number
   view: View
   base: string
@@ -31,12 +34,13 @@ interface State {
   setSeparation: (v: number) => void
 }
 
-export const useStation = create<State>((set) => ({
+export const useStation = create<State>((set, get) => ({
   inputs: {},
   loading: {},
   derived: {},
   result: null,
   running: false,
+  replaying: false,
   threshold: 0.45,
   view: 'map',
   base: 'optical:base',
@@ -51,7 +55,12 @@ export const useStation = create<State>((set) => ({
   }),
   setLoading: (role, v) => set((s) => ({ loading: { ...s.loading, [role]: v } })),
   setDerived: (derived) => set({ derived }),
-  setResult: (result) => set({ result, selected: null }),
+  setResult: (result) => {
+    const t = result ? replaySeconds(result.trace) : 0
+    set({ result, selected: null, replaying: t > 0 })
+    // only the result that started this clock may stop it
+    if (t > 0) setTimeout(() => { if (get().result === result) set({ replaying: false }) }, t * 1000)
+  },
   setRunning: (running) => set({ running }),
   setThreshold: (threshold) => set({ threshold }),
   setView: (view) => set({ view }),

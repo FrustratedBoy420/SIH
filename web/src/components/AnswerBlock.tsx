@@ -16,17 +16,22 @@ import { cn } from '@/lib/utils'
 
 export interface Remedy { label: string; run: () => void }
 
-export default function AnswerBlock({ result, running, remedies = [], preview }: {
+export default function AnswerBlock({ result, running, replaying = false, remedies = [], preview }: {
   result: QueryResult | null
   running: boolean
+  /** the result exists and its trace is replaying; the answer lands when it ends */
+  replaying?: boolean
   remedies?: Remedy[]
   preview: boolean
 }) {
-  if (running) {
+  if (running || (replaying && result)) {
+    const route = result?.tools.join(' → ')
     return (
-      <div className="relative h-[112px] overflow-hidden border-l-[3px] border-accent bg-surface px-4 py-3" role="status" aria-live="polite">
-        <p className="label">Running</p>
-        <p className="mt-2 text-ink-2">Validating inputs, routing, measuring…</p>
+      <div className="relative h-[112px] overflow-hidden border-l-[3px] border-accent bg-surface px-4 py-3" role="status" aria-live="polite" data-testid="answer-pending">
+        <p className="label">{replaying ? 'Executing' : 'Running'}</p>
+        <p className="mt-2 text-ink-2">{replaying && result
+          ? <>{result.task ? <>Task <span className="mono text-ink">{result.task}</span>{route ? <> · route <span className="mono text-ink">{route}</span></> : null}.</> : 'Checking the inputs.'} The trace below is the run, step by step.</>
+          : 'Validating inputs, routing, measuring…'}</p>
         <div className="animate-sweep absolute inset-x-0 bottom-0 h-[2px] bg-accent" />
       </div>
     )

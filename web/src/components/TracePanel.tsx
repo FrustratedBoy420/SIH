@@ -9,6 +9,7 @@
 import { motion, useReducedMotion } from 'motion/react'
 import type { TraceStep } from '@/lib/contract'
 import { ms } from '@/lib/format'
+import { stepDelay } from '@/lib/replay'
 import { cn } from '@/lib/utils'
 
 export default function TracePanel({ steps, runKey, compact = false }: { steps: TraceStep[]; runKey: string; compact?: boolean }) {
@@ -16,13 +17,11 @@ export default function TracePanel({ steps, runKey, compact = false }: { steps: 
   if (!steps.length) {
     return <p className="px-1 py-3 text-[13.5px] text-ink-2">The trace appears here the moment a query runs: validation, task, compatibility, tools, parameters, execution, gate.</p>
   }
-  const last = steps[steps.length - 1]?.ms || 1
-  const pace = Math.min(1, 1100 / last)
   return (
     <ol className="relative" aria-label="Execution trace">
       <span className="absolute bottom-3 left-[7px] top-3 w-px bg-rule" aria-hidden />
       {steps.map((s, i) => {
-        const delay = reduce ? 0 : (i * 90 + s.ms * pace) / 1000
+        const delay = reduce ? 0 : stepDelay(steps, i)
         const dataKeys = Object.keys(s.data ?? {})
         return (
           <motion.li

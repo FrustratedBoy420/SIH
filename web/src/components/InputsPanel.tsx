@@ -68,15 +68,15 @@ function Meta({ s }: { s: RasterSummary }) {
   )
 }
 
-function Slot({ role, r, loading, error, onFile, onRemove }: {
-  role: Role; r?: LoadedRaster; loading?: boolean; error?: ApiError; onFile: (f: File) => void; onRemove: () => void
+function Slot({ role, r, loading, error, onFile, onRemove, reading }: {
+  role: Role; r?: LoadedRaster; loading?: boolean; error?: ApiError; onFile: (f: File) => void; onRemove: () => void; reading?: boolean
 }) {
   const [over, setOver] = useState(false)
   const file = useRef<HTMLInputElement>(null)
   return (
     <div
       data-testid={`slot-${role}`}
-      className={cn('border-b border-rule py-3', over && 'bg-accent-bg/50')}
+      className={cn('border-b border-rule py-3 transition-colors duration-200', (over || reading) && 'bg-accent-bg/50')}
       onDragOver={(e) => { e.preventDefault(); setOver(true) }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) onFile(f) }}
@@ -84,7 +84,7 @@ function Slot({ role, r, loading, error, onFile, onRemove }: {
       <div className="flex items-center gap-2">
         <span className="inline-block h-3 w-[3px]" style={{ background: MARK[role] }} />
         <h3 className="text-[13px] font-semibold">{ROLE_LABEL[role]}</h3>
-        <span className="mono ml-auto text-[10.5px] text-ink-2">{loading ? 'reading…' : r ? (r.summary.synthetic ? 'built-in · synthetic' : 'uploaded') : 'empty'}</span>
+        <span className={cn('mono ml-auto text-[10.5px]', reading ? 'text-accent' : 'text-ink-2')}>{loading ? 'reading…' : reading ? '● read by this run' : r ? (r.summary.synthetic ? 'built-in · synthetic' : 'uploaded') : 'empty'}</span>
         {r && !loading && <button type="button" aria-label={`Remove ${ROLE_LABEL[role]}`} onClick={onRemove} className="mono px-1 text-[12px] text-ink-2 hover:text-nir">✕</button>}
       </div>
 
@@ -123,7 +123,9 @@ function Slot({ role, r, loading, error, onFile, onRemove }: {
   )
 }
 
-export default function InputsPanel({ inputs, loading, errors, onFile, onRemove, onDemo }: {
+export default function InputsPanel({ inputs, loading, errors, onFile, onRemove, onDemo, reading = [] }: {
+  /** roles the replaying run read — their slots light while the trace lands */
+  reading?: Role[]
   inputs: Partial<Record<Role, LoadedRaster>>
   loading: Partial<Record<Role, boolean>>
   errors: Partial<Record<Role, ApiError>>
@@ -149,7 +151,7 @@ export default function InputsPanel({ inputs, loading, errors, onFile, onRemove,
       </div>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4">
         {ROLES.map((role) => (
-          <Slot key={role} role={role} r={inputs[role]} loading={loading[role]} error={errors[role]}
+          <Slot key={role} role={role} r={inputs[role]} loading={loading[role]} error={errors[role]} reading={reading.includes(role)}
             onFile={(f) => onFile(role, f)} onRemove={() => onRemove(role)} />
         ))}
         <div className="py-3" data-testid="alignment">

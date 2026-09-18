@@ -43,7 +43,7 @@ export function layerOptions(inputs: Partial<Record<Role, LoadedRaster>>, derive
 }
 
 export default function SceneRegion({ items, onLoadCrossModal }: { items: EvidenceItem[]; onLoadCrossModal: () => void }) {
-  const { inputs, derived, view, setView, base, setBase, overlays, toggleOverlay, selected, select, result, separation, setSeparation, threshold } = useStation()
+  const { inputs, derived, view, setView, base, setBase, overlays, toggleOverlay, selected, select, result, separation, setSeparation, threshold, replaying } = useStation()
   const options = useMemo(() => layerOptions(inputs, derived), [inputs, derived])
   const layer = options.find((o) => o.value === base) ?? options[0]
   const [comparePair, setComparePair] = useState<'sensors' | 'dates'>('sensors')
@@ -99,7 +99,8 @@ export default function SceneRegion({ items, onLoadCrossModal }: { items: Eviden
       <div className="relative min-h-[360px] flex-1 bg-paper">
         {view === 'map' && (
           <PlateViewer src={layer?.src} geo={layer?.geo} items={items} threshold={result?.evidence.threshold ?? threshold}
-            overlays={overlays} selected={selected} onSelect={select} runKey={result?.run_id} alt={layer?.label ?? 'Scene'} />
+            overlays={overlays} selected={selected} onSelect={select} runKey={result?.run_id} alt={layer?.label ?? 'Scene'}
+            processing={replaying && result ? (result.tools.join(' → ') || 'input checks') : undefined} />
         )}
 
         {view === 'stack' && (canStack ? (

@@ -16,7 +16,7 @@ import { EXAMPLES } from '@/lib/examples'
 import { lat, lon } from '@/lib/format'
 import { useEngineMode } from '@/lib/hooks'
 import { useStation } from '@/lib/store'
-import { download } from '@/lib/utils'
+import { cn, download } from '@/lib/utils'
 import AnswerBlock, { type Remedy } from '@/components/AnswerBlock'
 import EvidenceList from '@/components/EvidenceList'
 import InputsPanel from '@/components/InputsPanel'
@@ -159,10 +159,13 @@ export default function Workstation() {
 
   /* ------------------------------------------------------------- header */
 
+  // a question asked while a scene is still being read would be refused for want of it
+  const reading = Object.values(s.loading).some(Boolean)
   const loaded = ROLES.filter((r) => s.inputs[r])
   const first = loaded.map((r) => s.inputs[r]!)[0]
   const inputsLabel = s.inputs.t1 && s.inputs.t2 ? 'bi-temporal pair' : s.inputs.optical && s.inputs.sar ? 'optical + SAR pair' : loaded.length ? `single · ${loaded[0]}` : 'no imagery'
-  const items = result?.evidence.items ?? []
+  // evidence is drawn once the trace has replayed — what the run produced last appears last
+  const items = s.replaying ? [] : result?.evidence.items ?? []
   const groups = [...new Set(EXAMPLES.map((e) => e.group))].map((g) => ({
     heading: g,
     items: EXAMPLES.filter((e) => e.group === g).map((e) => ({ id: e.id, label: e.q, meta: `${e.rq ? e.rq + ' · ' : ''}${e.needs}`, onSelect: () => run(e.q) })),
@@ -185,7 +188,8 @@ export default function Workstation() {
       </div>
 
       <aside className="border-rule bg-surface lg:row-start-2 lg:min-h-0 lg:border-r" aria-label="Inputs">
-        <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo} />
+        <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo}
+          reading={s.replaying && result ? result.manifest.rasters.map((r) => r.role).filter((r): r is Role => !!r && (ROLES as string[]).includes(r)) : []} />
       </aside>
 
       <section className="h-[64vh] min-h-0 lg:row-start-2 lg:h-auto" aria-label="Scene">
@@ -207,9 +211,9 @@ export default function Workstation() {
           </div>
           {/* one scroll container: the answer and its evidence move together */}
           <div className="scroll-thin min-h-[180px] flex-1 overflow-y-auto px-4 pb-3">
-            <AnswerBlock result={result} running={s.running} remedies={remedies} preview={preview} />
+            <AnswerBlock result={result} running={s.running} replaying={s.replaying} remedies={remedies} preview={preview} />
             {queryError && <p role="alert" className="mt-2 border-l-2 border-nir px-2 text-[12.5px] text-nir">{queryError.message} <span className="text-ink-2">{queryError.remedy}</span></p>}
-            <div className="mt-2">
+            <div className={cn('mt-2', s.replaying && 'hidden')}>
               <EvidenceList items={items} threshold={result?.evidence.threshold ?? s.threshold} selected={s.selected} onSelect={s.select} runKey={result?.run_id ?? ''} />
             </div>
           </div>
@@ -226,7 +230,7 @@ export default function Workstation() {
       </aside>
 
       <div className="sticky bottom-8 z-40 col-span-3 lg:static">
-        <QueryBar ref={input} value={query} onChange={setQuery} onSubmit={() => run(query)} running={s.running}
+        <QueryBar ref={input} value={query} onChange={setQuery} onSubmit={() => run(query)} running={s.running || s.replaying || reading} busy={reading && !s.running ? 'Reading inputs…' : undefined}
           threshold={s.threshold} onThreshold={s.setThreshold} onPalette={() => setPalette(true)} inputsLabel={inputsLabel} />
       </div>
 
