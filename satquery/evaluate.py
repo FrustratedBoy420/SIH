@@ -20,7 +20,9 @@ anything at all.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, asdict, field
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
@@ -353,3 +355,150 @@ def full_report(size: int = 256, seed: int = 7) -> dict[str, Any]:
 
 def dumps(size: int = 256, seed: int = 7) -> str:
     return json.dumps(full_report(size, seed), indent=2)
+
+
+# --------------------------------------------------------------------------- #
+# the shape the API and the dashboard consume — EVL-01, EVL-04, EVL-05
+# --------------------------------------------------------------------------- #
+
+#: Printed beside every capability number, because a composite score with an
+#: unstated formula is a claim, not a measurement (EVL-05).
+CAPABILITY_FORMULA = ("capability = 0.50 x mean_f1 + 0.25 x router_accuracy "
+                      "+ 0.25 x cross_modal_recovery_present")
+
+#: Calibration below this many predictions is reported but not relied on
+#: (NFR-06, audit B8).
+CALIBRATION_N = 200
+CALIBRATION_BINS = 10
+
+HELDOUT_PATH = Path("reference/router_heldout.jsonl")
+
+
+def heldout_router(path: str | Path = HELDOUT_PATH) -> dict[str, Any]:
+    """Router accuracy on paraphrases written before the rules were read (RTR-07).
+
+    Absent file means absent number. Reporting the in-sample cases here would
+    be the single easiest way to publish a figure that means nothing, so the
+    two sets never share a code path: `ROUTER_CASES` is development feedback,
+    this is the measurement.
+    """
+    from .router import classify
+
+    p = Path(path)
+    if not p.exists():
+        return {"accuracy": None, "n": 0, "confusion": {},
+                "note": f"No held-out set at {p}. Not measured."}
+
+    cases: list[tuple[str, str]] = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if "query" in row and "task" in row:
+            cases.append((str(row["query"]), str(row["task"])))
+
+    hits = 0
+    confusion: dict[str, dict[str, int]] = {}
+    for q, want in cases:
+        got = classify(q)[0]
+        confusion.setdefault(want, {}).setdefault(got, 0)
+        confusion[want][got] += 1
+        hits += got == want
+    return {
+        "accuracy": round(hits / len(cases), 4) if cases else None,
+        "n": len(cases),
+        "confusion": confusion,
+        "note": f"{hits}/{len(cases)} on paraphrases held out of development.",
+    }
+
+
+def cross_modal_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
+    """Optical-only, SAR-only, fused — EVL-06.
+
+    Built-up F1 against the scene class map, with cloud present, so the
+    comparison is made under the condition that makes two sensors worth
+    carrying. The fusion rule is the one the system actually ships (ADR-005,
+    late fusion): optical where the scene is clear, SAR where it is not.
+    Measuring some other rule here would produce a number no user can obtain.
+
+    `under_cloud` is reported separately because it is where the whole claim
+    lives — a whole-scene mean dilutes the one region optical cannot see into
+    the much larger region where both sensors agree.
+    """
+    sc = scenes.build(size=size, seed=seed)
+    opt, sar = sc.optical(seed), sc.sar(seed)
+    truth = sc.classes == scenes.BUILT
+
+    vv = cv.lee_filter(sar.named("vv"), 7, 4)
+    sar_pred = cv.closing(cv.opening(vv >= cv.otsu_multi(vv, 3)[-1], 1), 1)
+
+    g = opt.rgb().mean(axis=2)
+    ndwi = cv.ndwi(opt.named("green"), opt.named("nir"))
+    cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data), 1), 3)
+    # Optical built-up: bright, and not water. Cloud is left in, because an
+    # optical-only system has no way to know it is looking at cloud rather
+    # than at a bright roof — that error is the point of the comparison.
+    opt_pred = cv.closing(cv.opening((g >= cv.otsu_multi(g, 3)[-1]) & (ndwi < 0), 1), 1)
+
+    fused = np.where(cloud, sar_pred, opt_pred)
+
+    def under(mask: np.ndarray) -> float:
+        """F1 restricted to the clouded region."""
+        return prf(mask & cloud, truth & cloud)["f1"]
+
+    cloud_pct = round(float(cloud.mean()) * 100, 2)
+    return {
+        "optical": prf(opt_pred, truth)["f1"],
+        "sar": prf(sar_pred, truth)["f1"],
+        "both": prf(fused, truth)["f1"],
+        "metric": "built-up F1 against the scene class map, cloud present",
+        "under_cloud": {"optical": under(opt_pred), "sar": under(sar_pred),
+                        "both": under(fused), "cloud_pct": cloud_pct},
+        "fusion_rule": "late fusion (ADR-005): optical where clear, SAR under cloud",
+    }
+
+
+def contract_report(size: int = 256, seed: int = 7,
+                    source: str = "api") -> dict[str, Any]:
+    """`GET /api/evaluation` — API-08.
+
+    Every field is either a measured number or null. Null means not measured
+    yet and says so in `note`; it never means zero and is never filled with a
+    plausible placeholder (EVL-01, `10` §9 rule 1).
+    """
+    base = full_report(size=size, seed=seed)
+    ab = base["ablation"]
+    heldout = heldout_router()
+
+    rows = [{
+        "config": r["config"], "name": r["name"], "runs": r["note"],
+        "built_f1": r["built_f1"], "water_f1": r["water_f1"],
+        "mean_f1": r["mean_f1"], "router_accuracy": r["router_accuracy"],
+        "recovered_under_cloud_pct": r["recovered_under_cloud_pct"],
+        "capability": r["capability"], "delta_vs_A": r["delta_vs_A"],
+    } for r in ab["rows"]]
+
+    cal = base["calibration"]
+    return {
+        "source": source,
+        "measured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "scene": {"size": size, "seed": seed},
+        "tasks": base["tasks"],
+        "system_ablation": {"rows": rows, "formula": CAPABILITY_FORMULA,
+                            "note": ab["note"]},
+        # Mridul's runs on the VRSBench test split. Null until they exist —
+        # the two ablations are separate measurements and are never merged
+        # into one table (audit B6).
+        "adaptation": {"zero_shot": None, "adapted": None, "gain": None,
+                       "split": "VRSBench test"},
+        "cross_modal": cross_modal_ablation(size, seed),
+        "calibration": {"ece": cal["ece"], "n": cal["n"],
+                        "bins": CALIBRATION_BINS,
+                        "required_n": CALIBRATION_N},
+        "router_heldout": {"accuracy": heldout["accuracy"], "n": heldout["n"]},
+        "note": base["note"],
+    }

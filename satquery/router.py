@@ -144,6 +144,15 @@ class Inputs:
 PATTERNS: list[tuple[Task, str]] = [
     ("temporal_change", r"\b(chang(e|ed|es|ing)|differ(ence|ent)?|between these two|"
                         r"since|before and after|bi-?temporal|grew|expansion|new .*(built|construct))\b"),
+    # Implicit temporal (RTR-06). "Has the built-up area increased?" names no
+    # date and no second image, yet it can only be answered by comparing two.
+    # A verb of change over a quantity is a temporal question; routing it to
+    # single-image VQA returns a confident area that answers something else.
+    ("temporal_change", r"\b(increas(e|ed|es|ing)|decreas(e|ed|es|ing)|"
+                        r"grow(n|s|ing)?|shr(a|u)nk|shrink(ing|s)?|expand(ed|s|ing)?|"
+                        r"reduc(e|ed|es|ing)|declin(e|ed|es|ing)|rise|risen|rose|"
+                        r"fell|fallen|over time|trend|encroach(ed|ment)?|"
+                        r"lost|gained|disappeared|cleared|deforest\w*)\b"),
     ("cross_modal",     r"\b(sar|radar|backscatter|both (images|sensors)|together|"
                         r"complementary|cross[- ]modal|optical and|under (the )?cloud)\b"),
     ("grounding",       r"\b(highlight|where (is|are)|show me|locate|mark|outline|"

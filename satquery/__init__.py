@@ -33,9 +33,10 @@ No analysis module has access to it — which is the only arrangement under whic
 a synthetic benchmark measures anything.
 """
 
-__version__ = "0.3.0-mvp"
+__version__ = "0.4.0"
 
 __all__ = [
-    "cv", "datasets", "evaluate", "evidence", "pipeline",
-    "raster", "router", "scene", "specialists",
+    "cv", "datasets", "errors", "evaluate", "evidence", "pipeline",
+    "raster", "report", "router", "runtime", "scene", "specialists",
+    "store", "validate",
 ]

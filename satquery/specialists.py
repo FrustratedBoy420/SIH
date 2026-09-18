@@ -29,6 +29,7 @@ from typing import Any
 import numpy as np
 
 from . import cv
+from .validate import TOLERANCE_PX
 from .evidence import (Evidence, EvidenceSet, GeoBox, boxes_from_props,
                        confidence_from_separation, mask_area_ha)
 from .raster import Raster, coregistration_offset
@@ -142,7 +143,8 @@ class Grounding(Specialist):
         score, modality, method = self._score(target, spec, optical, sar)
         if score is None:
             es.add(self._ev(claim=f"cannot ground {target} from the supplied bands",
-                            confidence=0.0, method=method))
+                            confidence=0.0, method=method,
+                            conflicts=[method[0].upper() + method[1:] + "."]))
             return es
 
         mask, thr, split = self._threshold(score, spec["mode"], spec.get("floor"))
@@ -181,8 +183,8 @@ class Grounding(Specialist):
             value=len(props), unit="regions",
             confidence=conf if props else 0.15,
             modality=modality,
-            boxes=boxes_from_props(props, ref.transform),
-            mask_area_ha=mask_area_ha(mask, ref.transform),
+            boxes=boxes_from_props(props, ref.transform, georeferenced=ref.georeferenced),
+            mask_area_ha=mask_area_ha(mask, ref.transform, ref.georeferenced),
             method=method,
             supporting=[split,
                         f"{len(props)} regions above {min_area} px",
@@ -235,10 +237,22 @@ class Grounding(Specialist):
         if idx == "backscatter" and sar is not None:
             vv = cv.lee_filter(sar.named("vv"), size=7, looks=4)
             return vv, "sar", "Lee-filtered VV backscatter, 7x7, 4 looks"
-        if optical is not None:
+        # Brightness is a defensible proxy for built-up surfaces only: roofs
+        # and pavement are bright in every visible band. For water it is the
+        # opposite of right — water is dark — and substituting it returned
+        # bright roofs labelled as a river. Every other target without its
+        # bands is refused by name (ING-04: a missing band is a loud error,
+        # never a wrong band).
+        if idx == "backscatter" and optical is not None:
             g = optical.rgb().mean(axis=2)
-            return g, "optical", "panchromatic brightness (no suitable index)"
-        return None, "derived", "no band combination supports this target"
+            return g, "optical", "visible brightness as a built-up proxy (no SAR supplied)"
+        need = {"ndwi": ("green", "nir"), "ndvi": ("red", "nir"),
+                "backscatter": ("vv",)}.get(idx, ())
+        have = sorted({b for r in (optical, sar) if r is not None for b in r.band_names})
+        missing = [b for b in need if b not in have]
+        return None, "derived", (f"missing band: {target} needs {' and '.join(need)}; "
+                                 f"{', '.join(missing) or 'none'} absent from the "
+                                 f"supplied bands ({', '.join(have) or 'none'})")
 
 
 # --------------------------------------------------------------------------- #
@@ -311,8 +325,41 @@ class VQA(Specialist):
                 supporting=src.supporting))
             return es
 
+        if kind == "describe":
+            return self._describe(optical, sar, threshold, es)
+
         # dominant land cover — the general fallback
         return self._dominant(optical, sar, es)
+
+    def _describe(self, optical: Raster | None, sar: Raster | None,
+                  threshold: float, es: EvidenceSet) -> EvidenceSet:
+        """A structured scene summary, built from evidence — audit B3.
+
+        "Describe this scene" is the query a captioning model answers most
+        fluently and least verifiably. Here it is answered as a list of
+        measurements: the land-cover shares, then one record per class that
+        could actually be detected in the bands supplied. The answer layer
+        phrases those records; it has nothing else to phrase.
+        """
+        self._dominant(optical, sar, es)
+        for target in ("built", "water", "vegetation"):
+            spec = TARGETS[target]
+            if spec["index"] == "backscatter" and sar is None and optical is None:
+                continue
+            if spec["index"] in ("ndwi", "ndvi") and (optical is None or not optical.has("nir")):
+                continue
+            sub = Grounding().run(optical, sar, target, threshold)
+            if not sub.items:
+                continue
+            src = sub.items[0]
+            es.add(self._ev(
+                claim=f"detected {target} regions", value=src.value,
+                unit="regions", confidence=src.confidence,
+                modality=src.modality, boxes=src.boxes[:8],
+                mask_area_ha=src.mask_area_ha,
+                method="per-class grounding, summarised",
+                supporting=src.supporting))
+        return es
 
     def _dominant(self, optical: Raster | None, sar: Raster | None,
                   es: EvidenceSet) -> EvidenceSet:
@@ -353,7 +400,10 @@ class VQA(Specialist):
             return "presence"
         if re.search(r"how much|area|hectare|extent|coverage", q):
             return "area"
-        return "describe"
+        if re.search(r"describ|summar|overview|what('s| is| does)? (in|on|shown)|"
+                     r"what does .* (show|contain)|tell me about", q):
+            return "describe"
+        return "dominant"
 
 
 # --------------------------------------------------------------------------- #
@@ -391,12 +441,13 @@ class Change(Specialist):
 
         labels, n = cv.connected_components(mask)
         props = cv.region_props(labels, n, min_area=80)
+        # Misalignment is judged once, by the pipeline (validate.coregistration),
+        # with one tolerance and one penalty. Judging it here as well charged
+        # change queries twice, at two different tolerances.
         conf = confidence_from_separation(mag, thr)
-        if not reg["aligned"]:
-            conf = max(0.0, conf - 0.20)
 
-        area_ha = mask_area_ha(mask, t2.transform)
-        total_ha = mask_area_ha(np.ones_like(mask, bool), t2.transform)
+        area_ha = mask_area_ha(mask, t2.transform, t2.georeferenced)
+        total_ha = mask_area_ha(np.ones_like(mask, bool), t2.transform, t2.georeferenced)
 
         direction, semantics = self._semantics(t1, t2, mask)
 
@@ -406,20 +457,18 @@ class Change(Specialist):
             value=len(props), unit="regions",
             confidence=conf if props else max(0.35, conf - 0.15),
             modality="temporal",
-            boxes=boxes_from_props(props, t2.transform),
+            boxes=boxes_from_props(props, t2.transform, georeferenced=t2.georeferenced),
             mask_area_ha=area_ha,
             method="change vector analysis, Otsu threshold, morphological clean",
             supporting=[
-                f"changed area {area_ha:.2f} ha of {total_ha:.2f} ha "
-                f"({area_ha / max(total_ha, 1e-9) * 100:.2f}%)",
+                (f"changed area {area_ha:.2f} ha of {total_ha:.2f} ha "
+                 f"({mask.mean() * 100:.2f}%)" if t2.georeferenced else
+                 f"changed area {int(mask.sum())} px of {mask.size} px "
+                 f"({mask.mean() * 100:.2f}%); not georeferenced, so no ground area"),
                 f"otsu threshold {thr:.4f}",
                 f"co-registration offset {reg['offset_px']:.2f} px",
                 semantics,
                 f"path: {self.path}"])
-        if not reg["aligned"]:
-            ev.conflicts.append(
-                f"co-registration offset {reg['offset_px']:.2f} px exceeds 1 px — "
-                "change may be apparent rather than real")
         es.add(ev)
 
         if direction is not None:
@@ -484,10 +533,10 @@ class Fusion(Specialist):
 
         reg = coregistration_offset(optical, sar)
         es.add(self._ev(
-            claim="co-registration verified" if reg["aligned"]
+            claim="co-registration verified" if reg["offset_px"] <= TOLERANCE_PX
                   else "co-registration outside tolerance",
             value=reg["offset_px"], unit="px",
-            confidence=0.95 if reg["aligned"] else 0.30,
+            confidence=0.95 if reg["offset_px"] <= TOLERANCE_PX else 0.30,
             modality="fused", method="geometric extent + phase correlation",
             supporting=[f"geometric {reg['geometric_px']:.2f} px",
                         f"phase {reg['phase_px']:.2f} px",
@@ -501,7 +550,7 @@ class Fusion(Specialist):
             claim="optical scene obscured by cloud",
             value=round(cloud_pct, 2), unit="%",
             confidence=0.88, modality="optical",
-            mask_area_ha=mask_area_ha(cloud, optical.transform),
+            mask_area_ha=mask_area_ha(cloud, optical.transform, optical.georeferenced),
             method="brightness and spectral flatness across visible bands",
             supporting=[f"{cloud.sum():,} px of {cloud.size:,}"]))
 
@@ -519,8 +568,8 @@ class Fusion(Specialist):
         es.add(self._ev(
             claim="built-up areas detected by backscatter",
             value=len(props), unit="areas", confidence=sar_conf, modality="sar",
-            boxes=boxes_from_props(props, sar.transform),
-            mask_area_ha=mask_area_ha(hard, sar.transform),
+            boxes=boxes_from_props(props, sar.transform, georeferenced=sar.georeferenced),
+            mask_area_ha=mask_area_ha(hard, sar.transform, sar.georeferenced),
             method="Lee filter, Otsu on backscatter, connected components",
             supporting=[f"threshold {thr:.4f} linear "
                         f"({cv.to_db(np.array([thr]))[0]:.1f} dB), "
@@ -533,7 +582,7 @@ class Fusion(Specialist):
         recovered = hard & cloud
         rec_labels, rec_n = cv.connected_components(recovered)
         rec_props = cv.region_props(rec_labels, rec_n, min_area=min_area)
-        rec_ha = mask_area_ha(recovered, sar.transform)
+        rec_ha = mask_area_ha(recovered, sar.transform, sar.georeferenced)
         share = (recovered.sum() / max(hard.sum(), 1)) * 100
 
         es.add(self._ev(
@@ -541,7 +590,7 @@ class Fusion(Specialist):
             value=len(rec_props), unit="areas",
             confidence=round(min(0.95, sar_conf * 0.96), 3),
             modality="fused",
-            boxes=boxes_from_props(rec_props, sar.transform),
+            boxes=boxes_from_props(rec_props, sar.transform, georeferenced=sar.georeferenced),
             mask_area_ha=rec_ha,
             method="intersection of the SAR structure mask with the optical cloud mask",
             supporting=[

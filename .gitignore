@@ -20,3 +20,9 @@ data/
 web/node_modules/
 web/dist/
 web/shots/
+
+# --- backend runtime state -----------------------------------------------
+# Uploaded rasters and stored runs. Reproducible from inputs + seed (OPS-02).
+/var/
+/runs/
+*.egg-info/
