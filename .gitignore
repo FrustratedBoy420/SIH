@@ -1,22 +1,93 @@
 # --- generated at runtime -------------------------------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
 .venv/
 venv/
+env/
+
+# --- secrets --------------------------------------------------------------
+# kaggle.json holds a live API token. A pushed token is a revoked token at
+# best; assume anything committed here has been read by someone.
+.env
+.env.*
+kaggle.json
+.kaggle/
+*.pem
+*.key
+secrets.json
 
 # --- the model weights themselves ----------------------------------------
-# Adapters are large and are rebuilt by the training notebook. What is tracked
-# is models/MANIFEST.md, which records where each pack came from and what it
+# Adapters are large and are rebuilt by the training scripts. What is tracked is
+# models/MANIFEST.md, which records where each pack came from and what it
 # scored -- so a missing .safetensors is recoverable, not lost.
+#
+# The scripts that PRODUCE the weights are source and ARE tracked. The
+# deliverable is "codes and models including test and demonstration"; an
+# untracked training script means the result cannot be reproduced.
 models/*
 !models/MANIFEST.md
+!models/README.md
+!models/requirements.txt
+!models/*.py
+!models/common/
+!models/adapters/
+!models/eval/
 !models/.gitkeep
 
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.gguf
+*.onnx
+
+# --- training and evaluation output ---------------------------------------
+# Predictions, checkpoints and logs are reproducible from the script plus the
+# recorded config. The measured NUMBERS belong in models/MANIFEST.md, which is
+# tracked; the artefacts that produced them do not.
+runs/
+checkpoints/
+outputs/
+wandb/
+lightning_logs/
+*.log
+
 # --- corpora --------------------------------------------------------------
-# VRSBench is 12.5 GB and BigEarthNet imagery is 155 GB. Neither belongs in git.
+# VRSBench is 12.5 GB and BigEarthNet imagery is 155 GB. Neither belongs in git,
+# and neither needs to: both are a one-line snapshot_download away, and on a
+# cloud GPU that download is minutes.
 data/
+datasets/
+*.zip
+*.tar
+*.tar.gz
+*.lmdb/
 
 # --- front end ------------------------------------------------------------
 web/node_modules/
 web/dist/
 web/shots/
+
+# --- editors and operating systems ----------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+*.swo
+*~
+
+# --- not part of this repository ------------------------------------------
+# Mridul/ is an older copy of the root project (PS26167/mvp/{satquery,web});
+# dark-transit/ is a different project that happens to live in this directory.
+# Both are ignored rather than deleted -- that call is the author's, not the
+# tooling's -- but neither should reach GitHub. Together they are ~500 MB and
+# 17,000 files, almost all of it node_modules and generated run output.
+Mridul/
+dark-transit/

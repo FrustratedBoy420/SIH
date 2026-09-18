@@ -1,0 +1,12 @@
+# Adaptation work only. The classical pipeline in ../satquery/ needs none of this.
+#
+# On Kaggle, torch is preinstalled and CUDA-matched — do NOT reinstall it.
+# Install with:  pip install -q -r models/requirements.txt --no-deps-torch
+# or simply:     pip install -q transformers accelerate bitsandbytes peft
+#
+transformers>=4.45
+accelerate>=0.34
+bitsandbytes>=0.43
+peft>=0.13
+huggingface_hub>=0.25
+pillow>=10.0

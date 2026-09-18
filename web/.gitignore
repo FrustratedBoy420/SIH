@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build and verification output. `refshots/` is tracked on purpose -- those are
+# the reference images `verify.mjs` compares against, so they are source, not
+# output. `shots/` is what a run produces and is ignored at the repository root.
+.vite/
+test-results/
+playwright-report/
+
