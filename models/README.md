@@ -158,14 +158,18 @@ hona chahiye, warna gain kis se compare karoge?
 
 ### Ladder — ek saath poora mat chalao
 
-T4 par 4-bit weights aur gradient checkpointing ke saath roughly **1.0–1.5 sec
-per sample** lagta hai. Toh budget samples ka hai, epochs ka nahi:
+**Measured 18 September 2026** on a Kaggle T4, 4-bit weights, gradient
+checkpointing, `--max-pixels 512*512`: **2.0 sec per sample** (63.8 s per
+optimizer step at `--grad-accum 32`). Budget samples, not epochs:
 
 | Rung | Command | Time | Sawaal |
 |---|---|---|---|
-| 1 | `--limit 4000 --epochs 1` | ~1.5 h | gain aata bhi hai ya nahi? |
-| 2 | `--limit 12000 --epochs 2` | ~8 h | **ek Kaggle session mein fit** |
-| 3 | zyada | — | sirf tab jab curve abhi bhi upar ja rahi ho |
+| 1 | `--limit 4000 --epochs 1` | ~2.2 h | gain aata bhi hai ya nahi? |
+| 2 | `--limit 12000 --epochs 1` | ~6.7 h | **ek Kaggle session mein fit** |
+| 3 | `--limit 12000 --epochs 2` | ~13.3 h | do session, `--resume` zaroori |
+
+Pehla andaza 1.0–1.5 s/sample tha; measurement ne 2.0 nikala, aur ladder us
+hisaab se dobara likhi gayi. Guess ki jagah naapa hua number.
 
 **Rung 1 pehle chalao aur naapo.** Jo run 4,000 samples pe gain nahi deta, wo
 40,000 pe bhi nahi dega — aur ye pata karne mein 1.5 ghanta lagega, poora
