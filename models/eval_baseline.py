@@ -106,13 +106,27 @@ def load_model(model_id: str, dtype: str, load_in_4bit: bool):
     # spelling, fall back to the old one rather than guessing from a version
     # string — the argument name is the fact, the version is a proxy for it.
     try:
-        model = model_cls.from_pretrained(
-            model_id, trust_remote_code=True, dtype=torch_dtype, **kwargs
-        )
-    except TypeError:
-        model = model_cls.from_pretrained(
-            model_id, trust_remote_code=True, torch_dtype=torch_dtype, **kwargs
-        )
+        try:
+            model = model_cls.from_pretrained(
+                model_id, trust_remote_code=True, dtype=torch_dtype, **kwargs
+            )
+        except TypeError:
+            model = model_cls.from_pretrained(
+                model_id, trust_remote_code=True, torch_dtype=torch_dtype, **kwargs
+            )
+    except ValueError as exc:
+        if "does not recognize this architecture" not in str(exc):
+            raise
+        raise SystemExit(
+            f"\n  {model_id} declares an architecture this transformers "
+            f"({transformers.__version__}) does not implement, and the "
+            "checkpoint ships no remote code to supply it.\n\n"
+            "  This is a property of the candidate, not of the harness: a base "
+            "that will not load here cannot be shipped as part of the "
+            "deliverable either. Measuring it needs its own pinned "
+            "environment.\n\n"
+            "  See the note beside BASES in models/common/config.py.\n"
+        ) from exc
 
     model.eval()
     return model, processor

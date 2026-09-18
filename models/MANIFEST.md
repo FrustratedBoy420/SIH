@@ -18,6 +18,19 @@ training run exists.
 | Date | Base | n | Exact | Lenient | Latency p50 | Notes |
 |---|---|---|---|---|---|---|
 | 2026-09-18 | `Qwen/Qwen2-VL-7B-Instruct` | 2,000 | **0.5270** | 0.5355 | 0.70 s | 4-bit NF4, fp16 compute, T4. `--seed 0` |
+| 2026-09-18 | `MBZUAI/geochat-7B` | — | **did not load** | — | — | see below |
+
+**GeoChat was attempted and could not be measured.** On transformers 5.18.0.dev0
+the checkpoint raises `ValueError: ... has model type 'geochat' but Transformers
+does not recognize this architecture`. It declares `model_type: "geochat"` and
+ships no `auto_map`, so `trust_remote_code` has nothing to load; the architecture
+lives only in `github.com/mbzuai-oryx/GeoChat`, which pins transformers ~4.31 —
+a pin that breaks Qwen2-VL.
+
+Recorded rather than worked around. `docs/10_Decision_Record.md` §5 asked for
+both candidates to be measured before choosing; the measurement returned "this
+one does not run in the stack we ship", which settles the choice on its own. A
+base an evaluator cannot load is not a deliverable.
 
 **Per category** (same run):
 

@@ -21,11 +21,27 @@ from pathlib import Path
 BASES: dict[str, str] = {
     "qwen2vl":    "Qwen/Qwen2-VL-7B-Instruct",
     "qwen2vl-2b": "Qwen/Qwen2-VL-2B-Instruct",   # fits 4 GB VRAM — demo fallback
-    "geochat":    "MBZUAI/geochat-7B",
     "llava":      "llava-hf/llava-1.5-7b-hf",
+    "geochat":    "MBZUAI/geochat-7B",           # does not load — see below
 }
 
 DEFAULT_BASE = "qwen2vl"
+
+# GeoChat, measured 18 September 2026 on transformers 5.18.0.dev0:
+#
+#   ValueError: The checkpoint you are trying to load has model type `geochat`
+#   but Transformers does not recognize this architecture.
+#
+# The checkpoint declares `model_type: "geochat"` and ships no `auto_map`, so
+# `trust_remote_code` has nothing to fetch — the architecture lives only in
+# github.com/mbzuai-oryx/GeoChat, which pins transformers ~4.31. Installing that
+# pin breaks Qwen2-VL, which needs a modern release.
+#
+# Recorded rather than worked around. The deliverable is "codes and models
+# including test and demonstration": a base that will not load in the stack we
+# ship is a base we cannot hand to an evaluator, and that is a measurement
+# result about the candidate, not a defect in the harness. If a GeoChat number
+# is wanted later it needs its own pinned environment, not this one.
 
 VRSBENCH_REPO = "xiang709/VRSBench"
 
