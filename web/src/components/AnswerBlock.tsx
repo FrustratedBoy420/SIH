@@ -61,7 +61,7 @@ export default function AnswerBlock({ result, running, replaying = false, remedi
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className={cn('label', state === 'refused' && '!text-nir', state === 'abstained' && '!text-warn')}>
-              {state === 'refused' ? 'Refused · no model invoked' : state === 'abstained' ? 'Abstained · no claim made' : 'Analysis complete'}
+              {state === 'refused' ? 'Cannot establish · refused, no model ran' : state === 'abstained' ? 'Cannot establish · abstained, no claim made' : 'Analysis complete'}
             </p>
             {state !== 'answered' && (
               <p className="mono mt-0.5 break-words text-[11px] text-ink-2">
@@ -85,20 +85,7 @@ export default function AnswerBlock({ result, running, replaying = false, remedi
 
         {state === 'answered' && <Readout result={result} preview={preview} />}
 
-        {state === 'refused' && (
-          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-3 border-t border-nir/30 pt-2.5">
-            <p className="label !text-ink">What to do</p>
-            <p className="mt-1 text-[14px]">{remedy || 'Supply imagery that can answer this question.'}</p>
-            {remedies.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{remedies.map((r) => <RemedyButton key={r.label} r={r} />)}</div>}
-          </motion.div>
-        )}
-        {state === 'abstained' && (
-          <div className="mt-3 border-t border-warn/30 pt-2.5">
-            <p className="label !text-ink">What to do</p>
-            <p className="mt-1 text-[14px]">Every measurement fell below the gate at <span className="mono">{result.evidence.threshold.toFixed(2)}</span>. Ask about something the specialists can measure — water, vegetation, built-up, bare soil — or lower the threshold and read the evidence critically.</p>
-            {remedies.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{remedies.map((r) => <RemedyButton key={r.label} r={r} />)}</div>}
-          </div>
-        )}
+        {state !== 'answered' && <CannotEstablish result={result} remedy={remedy} remedies={remedies} />}
       </motion.div>
     </AnimatePresence>
   )
@@ -134,6 +121,53 @@ function Readout({ result, preview }: { result: QueryResult; preview: boolean })
         </Fragment>
       ))}
     </dl>
+  )
+}
+
+const NEEDS: Record<string, string> = {
+  bi_temporal: 'a T1 + T2 pair of the same place',
+  optical_sar: 'an optical + SAR pair of the same place',
+  single: 'one image',
+}
+
+/**
+ * Refusal and abstention as a statement of evidence (brief §20): what the
+ * system had, what the question needed that it did not have, and what to do.
+ * Every line comes from the result — the manifest, the failed trace step, the
+ * records under the gate — never from a template about the question.
+ */
+function CannotEstablish({ result, remedy, remedies }: { result: QueryResult; remedy: string; remedies: Remedy[] }) {
+  const refused = result.refused
+  const thr = result.evidence.threshold
+  const failed = result.trace.find((t) => !t.ok)
+  const need = failed?.detail.match(/requires (\w+)/)?.[1]
+  const available = refused
+    ? result.manifest.rasters.map((r) => `${(r.role ?? r.sensor).toUpperCase()} · ${r.bands} band${r.bands === 1 ? '' : 's'} · ${r.crs}`)
+    : result.evidence.items.map((e) => `${e.claim} · ${e.confidence.toFixed(2)}, under the gate`)
+  const missing = refused
+    ? need ? `${NEEDS[need] ?? need}${failed ? ` — ${failed.detail}` : ''}` : failed?.detail ?? 'imagery that supports this question'
+    : `a measurement at or above the gate (${thr.toFixed(2)})`
+  const next = refused
+    ? remedy || 'Supply imagery that can answer this question.'
+    : 'Ask about something the specialists measure — water, vegetation, built-up, bare soil, change — or lower the gate and read the evidence critically.'
+  const tone = refused ? 'border-nir/30' : 'border-warn/30'
+  return (
+    <motion.dl initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+      className={cn('mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-y-2 border-t pt-2.5 text-[13px]', tone)} data-testid="cannot-establish">
+      <dt className="mono pt-px text-[10.5px] uppercase tracking-[0.06em] text-ink-3">available</dt>
+      <dd className="min-w-0">
+        {available.length
+          ? <ul>{available.map((a) => <li key={a} className="mono break-words text-[11.5px]">{refused ? <span className="text-good">✓</span> : <span className="text-ink-3">○</span>} {a}</li>)}</ul>
+          : <p className="mono text-[11.5px] text-ink-2">nothing — no imagery was supplied</p>}
+      </dd>
+      <dt className="mono pt-px text-[10.5px] uppercase tracking-[0.06em] text-ink-3">missing</dt>
+      <dd className="mono min-w-0 break-words text-[11.5px]"><span className={refused ? 'text-nir' : 'text-warn'}>✕</span> {missing}</dd>
+      <dt className="mono pt-px text-[10.5px] uppercase tracking-[0.06em] text-ink-3">next step</dt>
+      <dd className="min-w-0">
+        <p className="text-[13.5px] leading-snug">{next}</p>
+        {remedies.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{remedies.map((r) => <RemedyButton key={r.label} r={r} />)}</div>}
+      </dd>
+    </motion.dl>
   )
 }
 
