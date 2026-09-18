@@ -170,6 +170,8 @@ def main(argv: list[str] | None = None) -> int:
             xm = "yes" if r["recovered_under_cloud_pct"] is not None else "—"
             print(f"    {r['config']:<4}{r['name']:<34}{r['mean_f1']:>8.4f}{ra:>8}"
                   f"{xm:>9}{r['capability']:>12.4f}{r['delta_vs_A']:>+9.4f}")
+        print(f"\n    {rep['ablation']['capability_formula']}")
+        print(f"    {rep['ablation']['engine']}")
         print(f"\n    {rep['ablation']['note']}")
         rec = rep["ablation"]["rows"][-1]["recovered_under_cloud_pct"]
         if rec is not None:

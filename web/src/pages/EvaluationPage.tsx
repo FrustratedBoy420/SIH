@@ -79,7 +79,10 @@ export default function EvaluationPage() {
             Ablation — what each layer contributes
           </h2>
           <p className="mt-1.5 max-w-[56ch] text-[13px] leading-relaxed text-ink-2">
-            Five configurations, from a generic model to the full system. The
+            Five configurations, from a bare brightness threshold to the full
+            system. Every row is classical computer vision — no neural model is
+            loaded in this ablation; the trained adapters replace these rows
+            rather than renaming them. The
             segmentation column is flat across C, D and E because the router and
             the evidence layer do not sharpen masks — they add capability the
             mask metric cannot see. Reporting the flat column anyway is the
@@ -91,7 +94,8 @@ export default function EvaluationPage() {
           </div>
           <p className="mono mt-2 text-[10.5px] leading-relaxed text-ink-3">
             capability = 0.50 × segmentation F1 + 0.25 × router accuracy
-            + 0.25 × cross-modal recovery
+            + 0.25 × cross-modal recovery — a composite defined by this project,
+            not a standard metric; the weights are a stated judgement.
           </p>
         </section>
       </div>

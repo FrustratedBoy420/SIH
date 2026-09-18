@@ -18,6 +18,7 @@ requirements, so a regression there is a scoring regression.
 from __future__ import annotations
 
 import inspect
+import json
 import time
 import traceback
 from typing import Callable
@@ -389,6 +390,70 @@ def _():
         ok(abs(back.transform.origin_x - opt.transform.origin_x) < 1e-6,
            "origin drifted on the round trip")
         ok(back.crs.upper().startswith("EPSG"), f"CRS lost: {back.crs}")
+
+
+# ------------------------------------------------------------ adapter socket #
+#
+# `Pipeline(adapters=...)` is the seam the trained LoRA pack will arrive
+# through. Until one exists, no call site in the tree passes the argument, so
+# the whole branch has never executed -- see docs/10_Decision_Record.md section
+# 6. These checks run it now, against a stub, so that its first execution is not
+# on the day the real weights land under deadline pressure.
+#
+# The stub deliberately carries no model behaviour. What is under test is the
+# wiring: that a pack reaches the right specialist, that it reaches only that
+# one, and that the claim it produces travels all the way out to `Result.engine`
+# where a judge reads it. Loading actual weights is a separate problem and is
+# not what breaks first.
+
+
+class _StubPack:
+    """Stands in for a loaded LoRA pack. Truthiness is all the seam inspects."""
+
+    def __init__(self, name: str = "stub") -> None:
+        self.name = name
+
+
+@check("adapter socket — a pack flips exactly its own specialist to neural")
+def _():
+    pipe = Pipeline(adapters={"adapter_B_grounding": _StubPack()})
+    ok(pipe.grounding.adapter_loaded, "the pack did not reach the grounding specialist")
+    ok(pipe.grounding.path == "neural+classical",
+       f"grounding reports {pipe.grounding.path!r}")
+    for spec in (pipe.vqa, pipe.change, pipe.fusion):
+        ok(not spec.adapter_loaded, f"{spec.name} claims a pack it was not given")
+        ok(spec.path == "classical", f"{spec.name} reports {spec.path!r}")
+
+
+@check("adapter socket — a loaded pack reaches Result.engine and the trace")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    pipe = Pipeline(adapters={"adapter_B_grounding": _StubPack()})
+    r = pipe.run("highlight the water body", Inputs(optical=sc.optical(5)))
+    ok(not r.refused, f"grounding refused: {r.answer[:80]}")
+    ok(r.engine == "neural+classical", f"engine reported {r.engine!r}")
+    executed = [s for s in r.trace if s["step"].startswith("Executed")]
+    ok(executed, "no execution step in the trace")
+    ok(any("path neural+classical" in s["detail"] for s in executed),
+       f"trace does not name the neural path: {[s['detail'] for s in executed]}")
+
+
+@check("adapter socket — with no pack, nothing anywhere claims to be neural")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    r = Pipeline().run("highlight the water body", Inputs(optical=sc.optical(5)))
+    ok(r.engine == "classical", f"engine claims {r.engine!r} with no pack loaded")
+    ok("neural" not in json.dumps(r.trace),
+       "the trace claims a neural path that no pack provides")
+
+
+@check("adapter socket — an unrecognised pack key marks nothing loaded")
+def _():
+    # A typo in a pack name must not silently load nothing while the system
+    # reports success. The failure has to be visible as "still classical".
+    pipe = Pipeline(adapters={"adapter_Z_does_not_exist": _StubPack()})
+    for spec in (pipe.grounding, pipe.vqa, pipe.change, pipe.fusion):
+        ok(not spec.adapter_loaded, f"{spec.name} loaded from an unknown key")
 
 
 # ---------------------------------------------------------------- runner #

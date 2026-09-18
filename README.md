@@ -83,10 +83,15 @@ Otsu, run-based connected components, change vector analysis, NDVI/NDWI,
 phase-correlation co-registration, inverse affine geotransform, the router's
 classify–validate–select–sequence–execute cycle, and the confidence gate.
 
-**Not built — the LoRA adapters of `docs/03_Model_Specification.md` §5.1.** The
-neural path is specified and wired; `Pipeline(adapters=...)` accepts a pack and
-`Specialist.method` reports `neural+classical` when one is loaded. No pack
-exists yet, so it reports `classical`.
+**Not built — the LoRA adapters of `docs/03_Model_Specification.md` §1 and §4.**
+The neural path is specified and wired: `Pipeline(adapters=...)` accepts a pack,
+`Specialist.path` reports `neural+classical` when one is loaded, and that claim
+travels out to `Result.engine`. No pack exists yet, so it reports `classical`.
+
+The seam is exercised by four checks in `satquery/tests.py` ("adapter socket")
+that drive it with a stub pack — so the branch has been run, and a pack reaching
+the wrong specialist, or a missing pack producing a neural claim, fails the
+self-test rather than surfacing on the day the real weights arrive.
 
 ---
 
