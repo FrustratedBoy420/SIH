@@ -221,7 +221,7 @@ export default function Workstation() {
           <div className="scroll-thin min-h-[180px] flex-1 overflow-y-auto px-4 pb-3">
             <AnswerBlock result={result} running={s.running} replaying={s.replaying} remedies={remedies} preview={preview} />
             {queryError && <p role="alert" className="mt-2 border-l-2 border-nir px-2 text-[12.5px] text-nir">{queryError.message} <span className="text-ink-2">{queryError.remedy}</span></p>}
-            <div className={cn('mt-2', s.replaying && 'hidden')}>
+            <div className={cn('mt-2', (s.replaying || !result) && 'hidden')}>
               <EvidenceList items={items} threshold={result?.evidence.threshold ?? s.threshold} selected={s.selected} onSelect={s.select} runKey={result?.run_id ?? ''} />
             </div>
           </div>
