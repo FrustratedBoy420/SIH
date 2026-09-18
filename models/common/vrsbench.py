@@ -43,6 +43,15 @@ NESTED_KEYS = ("qa_pairs", "conversations", "questions", "qa", "annotations")
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 
+# The published archives were zipped on macOS, which writes a parallel
+# `__MACOSX/` tree of `._name` resource forks -- 29,608 of them here. They are
+# small binary blobs, not JSON, and they shadow every real folder name:
+# `__MACOSX/Annotations_val` matches a search for "val" exactly as well as the
+# real one does. Excluded at the scan, so nothing downstream has to know they
+# existed.
+JUNK_DIRS = {"__MACOSX", ".ipynb_checkpoints"}
+JUNK_PREFIX = "._"
+
 # Directory-name hints, in the order a split is preferred when none is asked
 # for. A baseline is measured on held-out data, so validation beats train.
 SPLIT_PREFERENCE = ("val", "test", "eval", "train")
@@ -72,13 +81,21 @@ class Scan:
         return sum(len(v) for v in self.json_groups.values())
 
 
+def is_junk(path: Path) -> bool:
+    """macOS archive residue, and notebook checkpoints."""
+    return (
+        any(part in JUNK_DIRS for part in path.parts)
+        or path.name.startswith(JUNK_PREFIX)
+    )
+
+
 def scan(root: Path) -> Scan:
     """Walk the dataset once: index images, group annotation files by folder."""
     result = Scan(root=root)
     seen: set[Path] = set()
 
     for path in root.rglob("*"):
-        if not path.is_file():
+        if not path.is_file() or is_junk(path):
             continue
         suffix = path.suffix.lower()
         if suffix in IMAGE_SUFFIXES:
@@ -245,6 +262,11 @@ def choose_group(found: Scan, split: str = "auto") -> tuple[Path, list[Path]]:
                 break
 
     folder = max(groups, key=lambda k: len(groups[k]))
+    if len(groups) > 1:
+        # Never resolve an ambiguity silently: which split was read decides
+        # whether the number means anything, so it gets said out loud.
+        others = [str(p.relative_to(found.root)) for p in groups if p != folder]
+        print(f"  note: several folders matched; reading {folder.name}/, ignoring {others}")
     return folder, groups[folder]
 
 
