@@ -151,6 +151,61 @@ likho — **jab wo naapa gaya hai tab, yaad karke baad mein nahi.**
 
 ---
 
+## Training — `train_rs_vqa.py`
+
+Baseline naap lene ke **baad** hi. Zero-shot number pehle `MANIFEST.md` mein
+hona chahiye, warna gain kis se compare karoge?
+
+### Ladder — ek saath poora mat chalao
+
+T4 par 4-bit weights aur gradient checkpointing ke saath roughly **1.0–1.5 sec
+per sample** lagta hai. Toh budget samples ka hai, epochs ka nahi:
+
+| Rung | Command | Time | Sawaal |
+|---|---|---|---|
+| 1 | `--limit 4000 --epochs 1` | ~1.5 h | gain aata bhi hai ya nahi? |
+| 2 | `--limit 12000 --epochs 2` | ~8 h | **ek Kaggle session mein fit** |
+| 3 | zyada | — | sirf tab jab curve abhi bhi upar ja rahi ho |
+
+**Rung 1 pehle chalao aur naapo.** Jo run 4,000 samples pe gain nahi deta, wo
+40,000 pe bhi nahi dega — aur ye pata karne mein 1.5 ghanta lagega, poora
+hafte ka quota nahi.
+
+```python
+!python models/train_rs_vqa.py --data /kaggle/working/VRSBench \
+    --limit 4000 --epochs 1
+```
+
+Session mar jaye toh wahi command `--resume` ke saath:
+
+```python
+!python models/train_rs_vqa.py --data /kaggle/working/VRSBench \
+    --limit 4000 --epochs 1 --resume
+```
+
+### Do safety features
+
+- **Wall-clock guard** (`--max-hours`, default 8): Kaggle 9 ghante pe session
+  kaat deta hai aur tab tak ka kaam chala jaata hai. Ye script khud ruk kar
+  **save** karti hai uske pehle.
+- **Split guard**: `--split val` dene par script **mana kar deti hai**. Jis
+  split pe baseline naapa gaya usi pe train karna gain ko bekaar kar deta hai.
+
+### Training ke baad — "after" number
+
+Bilkul wahi command jo baseline ke liye tha, bas `--adapter` add:
+
+```python
+!python models/eval_baseline.py --data /kaggle/working/VRSBench \
+    --limit 2000 --load-in-4bit \
+    --adapter /kaggle/working/adapters/qwen2vl_rs_vqa/adapter
+```
+
+`--limit`, `--split`, `--seed` **wahi rakhna** jo baseline mein the. Inme se ek
+bhi badla toh dono numbers ka farak adaptation nahi, subset ban jaata hai.
+
+Adapted results alag file mein jaate hain — baseline overwrite nahi hota.
+
 ## Flags
 
 | Flag | Kya karta hai |

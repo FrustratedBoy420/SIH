@@ -25,8 +25,13 @@ Usage
     # 3. the real run
     python models/eval_baseline.py --base qwen2vl --limit 2000 --load-in-4bit
 
-    # 4. the other candidate, same command, different base
-    python models/eval_baseline.py --base geochat --limit 2000 --load-in-4bit
+    # 4. the SAME command plus a trained pack — this is the "after" number
+    python models/eval_baseline.py --limit 2000 --load-in-4bit \
+        --adapter /kaggle/working/adapters/qwen2vl_rs_vqa/adapter
+
+The adapted run must use the same --limit, --split and --seed as the baseline.
+Change any of them and the difference between the two numbers stops being the
+adaptation and starts being the subset.
 
 Results append to a JSONL as they are produced, so a killed Kaggle session
 resumes with `--resume` instead of starting over.
@@ -71,7 +76,7 @@ def auto_model_class():
     )
 
 
-def load_model(model_id: str, dtype: str, load_in_4bit: bool):
+def load_model(model_id: str, dtype: str, load_in_4bit: bool, adapter: str | None = None):
     """Load a vision-language model for inference, nothing trainable.
 
     `device_map="auto"` lets accelerate spill layers to CPU RAM when VRAM runs
@@ -127,6 +132,16 @@ def load_model(model_id: str, dtype: str, load_in_4bit: bool):
             "environment.\n\n"
             "  See the note beside BASES in models/common/config.py.\n"
         ) from exc
+
+    if adapter:
+        # The same base weights, plus the trained pack. Measuring the adapted
+        # model through this identical path is the whole point: if the loader,
+        # the prompt or the scoring differed between the two runs, the
+        # difference between them would not be the adaptation.
+        from peft import PeftModel
+
+        print(f"applying adapter {adapter}")
+        model = PeftModel.from_pretrained(model, adapter)
 
     model.eval()
     return model, processor
@@ -212,6 +227,8 @@ def main() -> int:
     parser.add_argument("--out", default=None, help="output directory")
     parser.add_argument("--dtype", default=config.DEFAULT_DTYPE, choices=["fp16", "bf16", "fp32"])
     parser.add_argument("--load-in-4bit", action="store_true", help="QLoRA-style 4-bit weights")
+    parser.add_argument("--adapter", default=None,
+                        help="trained LoRA pack to apply — omit for the zero-shot baseline")
     parser.add_argument("--max-new-tokens", type=int, default=32)
     parser.add_argument("--resume", action="store_true", help="skip items already in the JSONL")
     parser.add_argument("--inspect", action="store_true", help="print dataset layout and exit")
@@ -228,7 +245,10 @@ def main() -> int:
     out_dir = Path(args.out) if args.out else config.default_out_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    # Adapted results never overwrite the baseline they are compared against.
     tag = args.base.replace("/", "_")
+    if args.adapter:
+        tag += "_adapted_" + Path(args.adapter).parent.name
     jsonl_path = out_dir / f"{tag}_predictions.jsonl"
     summary_path = out_dir / f"{tag}_summary.json"
 
@@ -247,7 +267,7 @@ def main() -> int:
     if done:
         print(f"resuming: {len(done):,} items already scored")
 
-    model, processor = load_model(model_id, args.dtype, args.load_in_4bit)
+    model, processor = load_model(model_id, args.dtype, args.load_in_4bit, args.adapter)
 
     score = metrics.Score()
     for row in done.values():
@@ -293,8 +313,8 @@ def main() -> int:
     summary = {
         "model": model_id,
         "base_key": args.base,
-        "adapter": None,
-        "condition": "zero-shot",
+        "adapter": args.adapter,
+        "condition": "adapted" if args.adapter else "zero-shot",
         "dataset": "VRSBench VQA",
         "dataset_root": str(root),
         "split": args.split,
