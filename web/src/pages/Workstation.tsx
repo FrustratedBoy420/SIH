@@ -12,7 +12,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { api, asApiError, type DemoKind } from '@/lib/api'
 import type { ApiError, Role } from '@/lib/contract'
 import { ROLES } from '@/lib/contract'
-import { EXAMPLES } from '@/lib/examples'
+import { EXAMPLES, type Scenario } from '@/lib/examples'
 import { lat, lon } from '@/lib/format'
 import { useEngineMode } from '@/lib/hooks'
 import { useStation } from '@/lib/store'
@@ -131,6 +131,14 @@ export default function Workstation() {
     return () => window.removeEventListener('keydown', on)
   }, [])
 
+  // A scenario is a clean slate: roles its scene does not use are cleared, so
+  // a leftover T1/T2 cannot change what the router sees.
+  const scenario = useCallback(async (sc: Scenario) => {
+    ROLES.filter((r) => !DEMO_ROLES[sc.scene].includes(r)).forEach((r) => onRemove(r))
+    await loadDemo(sc.scene)
+    run(sc.q)
+  }, [loadDemo, onRemove, run])
+
   /* ---------------------------------------------------------- remedies */
 
   const result = s.result
@@ -188,7 +196,7 @@ export default function Workstation() {
       </div>
 
       <aside className="border-rule bg-surface lg:row-start-2 lg:min-h-0 lg:border-r" aria-label="Inputs">
-        <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo}
+        <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo} onScenario={scenario}
           reading={s.replaying && result ? result.manifest.rasters.map((r) => r.role).filter((r): r is Role => !!r && (ROLES as string[]).includes(r)) : []} />
       </aside>
 

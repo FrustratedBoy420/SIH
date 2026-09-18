@@ -14,6 +14,7 @@ import type { ApiError, RasterSummary, Role } from '@/lib/contract'
 import { ROLES } from '@/lib/contract'
 import { lat, lon, ROLE_LABEL, utc } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { SCENARIOS, type Scenario } from '@/lib/examples'
 import type { DemoKind } from '@/engine/client'
 
 const MARK: Record<Role, string> = { optical: 'var(--color-optical)', sar: 'var(--color-sar)', t1: 'var(--color-nir)', t2: 'var(--color-nir)' }
@@ -123,7 +124,8 @@ function Slot({ role, r, loading, error, onFile, onRemove, reading }: {
   )
 }
 
-export default function InputsPanel({ inputs, loading, errors, onFile, onRemove, onDemo, reading = [] }: {
+export default function InputsPanel({ inputs, loading, errors, onFile, onRemove, onDemo, onScenario, reading = [] }: {
+  onScenario: (s: Scenario) => void
   /** roles the replaying run read — their slots light while the trace lands */
   reading?: Role[]
   inputs: Partial<Record<Role, LoadedRaster>>
@@ -137,18 +139,29 @@ export default function InputsPanel({ inputs, loading, errors, onFile, onRemove,
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-ink px-4 pb-3 pt-3">
-        <h2 className="label !text-ink">Inputs</h2>
-        <p className="mt-2 text-[12px] text-ink-2">Built-in scenes</p>
-        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-          {DEMOS.map((d) => (
-            <button key={d.kind} type="button" data-testid={`demo-${d.kind}`} onClick={() => onDemo(d.kind)}
-              className="border border-rule bg-surface px-2 py-1.5 text-left hover:border-ink">
-              <span className="block text-[12.5px] leading-tight">{d.label}</span>
-              <span className="mono block text-[10px] text-ink-2">{d.sub}</span>
-            </button>
+        <h2 className="label !text-ink">Try a demo scene</h2>
+        <p className="mt-1 text-[11.5px] leading-snug text-ink-2">Loads a built-in scene and asks its question.</p>
+        <ul className="mt-2 border-t border-rule" data-testid="scenarios">
+          {SCENARIOS.map((sc) => (
+            <li key={sc.id}>
+              <button type="button" data-testid={`scenario-${sc.id}`} onClick={() => onScenario(sc)}
+                className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-2 border-b border-rule py-1.5 text-left hover:bg-surface-2">
+                <span className="text-[13px] leading-tight group-hover:underline">{sc.title}</span>
+                <span className={cn('mono text-[10px] uppercase tracking-[0.06em]', sc.id === 'refuse' ? 'text-nir' : 'text-ink-3')}>{sc.capability}</span>
+                <span className="mono col-span-2 text-[10.5px] text-ink-2">{sc.needs}</span>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
+        <p className="mono mt-2 flex flex-wrap items-baseline gap-x-2 text-[10.5px] text-ink-2">
+          <span>scene only:</span>
+          {DEMOS.map((d) => (
+            <button key={d.kind} type="button" data-testid={`demo-${d.kind}`} onClick={() => onDemo(d.kind)} title={d.sub}
+              className="text-accent underline-offset-2 hover:underline">{d.label.toLowerCase()}</button>
+          ))}
+        </p>
       </div>
+      <h2 className="label border-b border-rule px-4 py-2 !text-ink">Inputs</h2>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4">
         {ROLES.map((role) => (
           <Slot key={role} role={role} r={inputs[role]} loading={loading[role]} error={errors[role]} reading={reading.includes(role)}

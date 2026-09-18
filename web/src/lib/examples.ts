@@ -1,5 +1,7 @@
 /** Example queries. RQ-1–RQ-5 are the problem statement's own, verbatim (07 §10, US-11). */
 
+import type { DemoKind } from '@/engine/client'
+
 export interface Example { id: string; q: string; group: string; needs: string; rq?: string }
 
 export const RQ_GROUP = 'Problem statement · representative queries'
@@ -19,3 +21,19 @@ export const EXAMPLES: Example[] = [
 ]
 
 export const RQ4 = EXAMPLES[3].q
+
+/**
+ * One-click demo scenarios (brief §13): a built-in scene and the question it
+ * exists to answer. A presenter should never have to hunt for data. The last
+ * one refuses on purpose — refusal is a feature to show, not an edge case.
+ */
+export interface Scenario { id: string; title: string; capability: string; scene: DemoKind; q: string; needs: string }
+
+export const SCENARIOS: Scenario[] = [
+  { id: 'vqa', title: 'Describe a scene', capability: 'VQA', scene: 'optical', q: EXAMPLES[0].q, needs: 'optical · RQ-1' },
+  { id: 'water', title: 'Find the water', capability: 'Grounding', scene: 'optical', q: EXAMPLES[1].q, needs: 'optical · RQ-2' },
+  { id: 'change', title: 'Before and after', capability: 'Change', scene: 'bitemporal', q: EXAMPLES[2].q, needs: 'T1 + T2 · RQ-3' },
+  { id: 'fusion', title: 'See under cloud', capability: 'Optical + SAR', scene: 'crossmodal', q: EXAMPLES[3].q, needs: 'optical + SAR · RQ-4' },
+  { id: 'trend', title: 'Has built-up grown?', capability: 'Change', scene: 'bitemporal', q: EXAMPLES[4].q, needs: 'T1 + T2 · RQ-5' },
+  { id: 'refuse', title: 'Watch it refuse', capability: 'Refusal', scene: 'optical', q: 'What changed between these two dates?', needs: 'one image, a change question' },
+]
