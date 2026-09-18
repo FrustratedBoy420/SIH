@@ -49,6 +49,28 @@ from common import config, metrics, vrsbench  # noqa: E402
 # Model
 # --------------------------------------------------------------------------
 
+def auto_model_class():
+    """The auto-class for image+text models, whatever this transformers calls it.
+
+    Renamed across major versions: `AutoModelForVision2Seq` through 4.x,
+    `AutoModelForImageTextToText` from 4.47 and the only one left in 5.x. Kaggle
+    upgrades its image without warning, so both names are probed rather than
+    pinned — a hard import here fails the run before a single item is scored.
+    """
+    import transformers
+
+    for name in ("AutoModelForImageTextToText", "AutoModelForVision2Seq"):
+        cls = getattr(transformers, name, None)
+        if cls is not None:
+            return cls, name
+
+    raise ImportError(
+        f"transformers {transformers.__version__} exposes neither "
+        "AutoModelForImageTextToText nor AutoModelForVision2Seq. "
+        "Install a supported release: pip install -U 'transformers>=4.47'"
+    )
+
+
 def load_model(model_id: str, dtype: str, load_in_4bit: bool):
     """Load a vision-language model for inference, nothing trainable.
 
@@ -57,11 +79,13 @@ def load_model(model_id: str, dtype: str, load_in_4bit: bool):
     not running; on a 16 GB T4 it changes nothing.
     """
     import torch
-    from transformers import AutoModelForVision2Seq, AutoProcessor
+    import transformers
+    from transformers import AutoProcessor
 
+    model_cls, cls_name = auto_model_class()
     torch_dtype = {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": torch.float32}[dtype]
 
-    kwargs: dict = {"torch_dtype": torch_dtype, "device_map": "auto"}
+    kwargs: dict = {"device_map": "auto"}
 
     if load_in_4bit:
         from transformers import BitsAndBytesConfig
@@ -73,9 +97,23 @@ def load_model(model_id: str, dtype: str, load_in_4bit: bool):
             bnb_4bit_use_double_quant=True,
         )
 
+    print(f"transformers {transformers.__version__}, using {cls_name}")
     print(f"loading {model_id}  (dtype={dtype}, 4bit={load_in_4bit})")
+
     processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
-    model = AutoModelForVision2Seq.from_pretrained(model_id, trust_remote_code=True, **kwargs)
+
+    # `torch_dtype` was renamed to `dtype` in transformers 5. Try the current
+    # spelling, fall back to the old one rather than guessing from a version
+    # string — the argument name is the fact, the version is a proxy for it.
+    try:
+        model = model_cls.from_pretrained(
+            model_id, trust_remote_code=True, dtype=torch_dtype, **kwargs
+        )
+    except TypeError:
+        model = model_cls.from_pretrained(
+            model_id, trust_remote_code=True, torch_dtype=torch_dtype, **kwargs
+        )
+
     model.eval()
     return model, processor
 
