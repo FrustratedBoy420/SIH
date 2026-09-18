@@ -72,7 +72,8 @@ try {
     await sec.scrollIntoViewIfNeeded()
     const box = await sec.boundingBox()
     const top = await page.evaluate(() => window.scrollY)
-    for (const [i, f] of [0.12, 0.32, 0.52, 0.72, 0.92].entries()) {
+    // the centre of each of the six stages
+    for (const [i, f] of [1, 3, 5, 7, 9, 11].map((x) => x / 12).entries()) {
       await page.evaluate((y) => window.scrollTo(0, y), top + box.y + f * (box.height - 850))
       await page.waitForTimeout(1500)
       await page.screenshot({ path: `${SHOTS}/03-pipeline-${i + 1}.png` })

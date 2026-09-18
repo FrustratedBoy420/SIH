@@ -18,12 +18,14 @@ import { TextEffect } from '@/components/ui/TextEffect'
 import type { LandingData } from './useLanding'
 
 const STAGES = [
-  { n: '01', title: 'Validate', req: 'R5 · input check', body: 'Count, modality, format, CRS and co-registration are checked before any model is touched. A question the imagery cannot support is refused here, in under a millisecond.' },
-  { n: '02', title: 'Route', req: 'R5 · agentic selection', body: 'The question is classified and matched against a fixed registry of four tools. Only permitted parameters are set. A plain router, not an agent framework — explainable on one slide.' },
-  { n: '03', title: 'Measure', req: 'R1 · R2 · R3 · R4', body: 'Specialists measure: spectral indices, backscatter, change vectors, connected components. Counts and hectares come from pixels, never from language.' },
-  { n: '04', title: 'Gate', req: 'R5 · confidence', body: 'Each sensor’s evidence stays separate; disagreements are recorded and cost confidence; anything below the gate is dropped. If nothing clears it, the system abstains.' },
-  { n: '05', title: 'Answer', req: 'Evidence · trace', body: 'Language phrases only what passed the gate. Every number in the sentence exists in an evidence record, and the trace shows what ran — never why it “thought” so.' },
+  { n: '01', title: 'Input', req: 'R5 · input check', body: 'Two images enter: optical and SAR of the same place. Count, modality, format, CRS and co-registration are checked before any model is touched.' },
+  { n: '02', title: 'Understand', req: 'R5 · task identification', body: 'The question becomes a structured request: a task, the imagery it requires, the parameters it may set. Rules match words; nothing is inferred that the trace cannot show.' },
+  { n: '03', title: 'Route', req: 'R5 · agentic selection', body: 'The task is matched against a fixed registry of four tools. The router picks from this table and cannot invent one. A plain router, not an agent framework — explainable on one slide.' },
+  { n: '04', title: 'Execute', req: 'R1 · R2 · R3 · R4', body: 'Specialists measure: spectral indices, backscatter, change vectors, connected components. Counts and hectares come from pixels, never from language.' },
+  { n: '05', title: 'Fuse', req: 'R4 · late fusion · gate', body: 'Each sensor keeps its own evidence; the fusion reads both and records where they disagree, at a cost to confidence. Anything below the gate is dropped. If nothing clears it, the system abstains.' },
+  { n: '06', title: 'Answer', req: 'Evidence · trace', body: 'Language phrases only what passed the gate. Every number in the sentence exists in an evidence record, and the trace shows what ran — never why it “thought” so.' },
 ]
+const LAST = STAGES.length - 1
 
 const Check = ({ ok = true, d = 0, children }: { ok?: boolean; d?: number; children: React.ReactNode }) => (
   <motion.li initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: d, duration: 0.18 }} className="flex items-baseline gap-2 border-b border-rule py-1.5">
@@ -31,6 +33,70 @@ const Check = ({ ok = true, d = 0, children }: { ok?: boolean; d?: number; child
     <span className="mono text-[12.5px]">{children}</span>
   </motion.li>
 )
+
+/** The query as the router saw it: the matched words marked, then the request it became. */
+function Understand({ r }: { r: LandingData['result'] }) {
+  const step = r.trace.find((t) => t.step === 'Task identified')
+  const detail = step?.detail ?? ''
+  const rule = detail.match(/\/(.+)\//)?.[1]
+  const compat = r.trace.find((t) => t.step === 'Compatibility check')?.detail ?? ''
+  const conf = step?.data?.confidence
+  let marked: React.ReactNode = r.query
+  if (rule) {
+    try {
+      const m = r.query.match(new RegExp(rule, 'i'))
+      if (m && m.index !== undefined) {
+        marked = <>{r.query.slice(0, m.index)}<motion.mark initial={{ backgroundColor: 'rgba(14,124,134,0)' }} animate={{ backgroundColor: 'rgba(14,124,134,0.16)' }} transition={{ delay: 0.3, duration: 0.4 }} className="text-ink underline decoration-accent decoration-2 underline-offset-4">{m[0]}</motion.mark>{r.query.slice(m.index + m[0].length)}</>
+      }
+    } catch { /* a rule that is not a JS regex is shown unmarked */ }
+  }
+  const rows: [string, string][] = [
+    ['task', `${r.task}${typeof conf === 'number' ? ` · router confidence ${conf.toFixed(2)}` : ''}`],
+    ['matched', rule ? `/${rule}/ — a rule, not a guess` : detail],
+    ['requires', compat.split(' satisfies ')[1] ?? compat],
+    ['supplied', r.manifest.rasters.map((x) => x.role ?? x.sensor).join(' + ')],
+    ['parameters', Object.entries(r.params).map(([k, v]) => `${k} = ${v}`).join(', ') || 'none'],
+  ]
+  return (
+    <div>
+      <div className="border border-ink bg-surface px-4 py-3">
+        <p className="label">Query</p>
+        <p className="mt-1 text-[19px] leading-snug">{marked}</p>
+      </div>
+      <p className="mono my-3 text-center text-[12px] text-ink-3" aria-hidden>↓ parsed into</p>
+      <dl className="grid grid-cols-[110px_minmax(0,1fr)] border-t border-ink">
+        {rows.map(([k, v], i) => (
+          <motion.div key={k} className="col-span-2 grid grid-cols-subgrid border-b border-rule py-2"
+            initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 + i * 0.12, duration: 0.2 }}>
+            <dt className="mono text-[11px] uppercase tracking-[0.06em] text-ink-3">{k}</dt>
+            <dd className="mono min-w-0 break-words text-[13px]">{v}</dd>
+          </motion.div>
+        ))}
+      </dl>
+    </div>
+  )
+}
+
+/** Optical and SAR slide together into the fused reading. */
+function Fusion({ data }: { data: LandingData }) {
+  const tile = 'aspect-square w-full border border-rule object-cover'
+  const cap = 'mono mt-1 text-[10.5px] text-ink-2'
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2">
+      <motion.figure initial={{ x: -30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.45 }}>
+        <img src={data.optical.layers.base} alt="" className={tile} /><figcaption className={cap}><span style={{ color: 'var(--color-optical)' }}>●</span> optical · cloud {data.stats.cloud_pct.toFixed(1)} %</figcaption>
+      </motion.figure>
+      <span className="mono pb-5 text-[18px] text-ink-3" aria-hidden>+</span>
+      <motion.figure initial={{ x: 30, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ duration: 0.45 }}>
+        <img src={data.sar.layers.base} alt="" className={tile} /><figcaption className={cap}><span style={{ color: 'var(--color-sar)' }}>●</span> SAR · through cloud</figcaption>
+      </motion.figure>
+      <span className="mono pb-5 text-[18px] text-ink-3" aria-hidden>=</span>
+      <motion.figure initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.55, duration: 0.4 }}>
+        <img src={data.fusion} alt="Fused reading: SAR structures over optical, recovered built-up in red" className={tile} /><figcaption className={cap}><span style={{ color: 'var(--color-fusion)' }}>●</span> fused · recovered in red</figcaption>
+      </motion.figure>
+    </div>
+  )
+}
 
 function Visual({ stage, data, registry }: { stage: number; data: LandingData; registry?: Record<string, RegistryTool> }) {
   const r = data.result
@@ -41,8 +107,15 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
       <div className="grid gap-4 sm:grid-cols-2">
         {r.manifest.rasters.map((x, k) => (
           <div key={x.role} className="border border-ink bg-surface p-4">
-            <p className="label !text-ink" style={{ borderLeft: `3px solid ${x.sensor === 'sar' ? 'var(--color-sar)' : 'var(--color-optical)'}`, paddingLeft: 8 }}>{x.role}</p>
-            <p className="mono mt-1 truncate text-[12px] text-ink-2">{x.source}</p>
+            <div className="flex gap-3">
+              <motion.img src={x.sensor === 'sar' ? data.sar.layers.base : data.optical.layers.base} alt="" aria-hidden
+                initial={{ opacity: 0, x: k ? 24 : -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: k * 0.15 }}
+                className="size-[72px] shrink-0 border border-rule object-cover" />
+              <div className="min-w-0">
+                <p className="label !text-ink" style={{ borderLeft: `3px solid ${x.sensor === 'sar' ? 'var(--color-sar)' : 'var(--color-optical)'}`, paddingLeft: 8 }}>{x.role}</p>
+                <p className="mono mt-1 truncate text-[12px] text-ink-2">{x.source}</p>
+              </div>
+            </div>
             <ul className="mt-3">
               <Check d={0.1 + k * 0.3}>CRS {x.crs}</Check>
               <Check d={0.2 + k * 0.3}>{x.bands} bands · {x.band_names.join(', ')}</Check>
@@ -60,22 +133,18 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
       </div>
     )
   }
-  if (stage === 1) {
-    const task = r.trace.find((t) => t.step === 'Task identified')?.detail ?? ''
+  if (stage === 1) return <Understand r={r} />
+  if (stage === 2) {
     return (
       <div>
-        <div className="border border-ink bg-surface px-4 py-3">
-          <p className="label">Query</p>
-          <TextEffect per="char" preset="fade" speed={2.2} className="mt-1 text-[19px] leading-snug">{r.query}</TextEffect>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }} className="mono mt-2 text-[12.5px] text-accent-2">→ {task}</motion.p>
-        </div>
+        <p className="mono border-l-2 border-ink pl-2 text-[12.5px] text-ink-2">task <span className="text-ink">{r.task}</span> → which registered tool serves it?</p>
         <table className="mt-4 w-full border-collapse text-left text-[12.5px]">
           <thead><tr className="border-b border-ink"><th className="label py-1.5 font-medium">tool</th><th className="label font-medium">task</th><th className="label font-medium">requires</th><th className="label font-medium">adapter</th></tr></thead>
           <tbody>
             {Object.entries(registry ?? {}).map(([name, t], i) => {
               const chosen = r.tools.includes(name)
               return (
-                <motion.tr key={name} initial={{ opacity: 0 }} animate={{ opacity: chosen ? 1 : 0.38 }} transition={{ delay: 1.7 + i * 0.08 }}
+                <motion.tr key={name} initial={{ opacity: 0 }} animate={{ opacity: chosen ? 1 : 0.38 }} transition={{ delay: 0.2 + i * 0.08 }}
                   className={cn('border-b border-rule', chosen && 'bg-accent-bg')}>
                   <td className="mono py-2 pl-1">{chosen ? '▸ ' : ''}{name}</td><td className="mono">{t.tasks.join(', ')}</td><td className="mono">{t.requires}</td><td className="mono text-ink-2">{t.adapter}</td>
                 </motion.tr>
@@ -87,7 +156,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
       </div>
     )
   }
-  if (stage === 2) {
+  if (stage === 3) {
     const s = data.optical.summary
     return (
       <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] gap-5">
@@ -109,11 +178,12 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
       </div>
     )
   }
-  if (stage === 3) {
+  if (stage === 4) {
     const thr = r.evidence.threshold
     return (
       <div>
-        <ul className="space-y-3">
+        <Fusion data={data} />
+        <ul className="mt-5 space-y-2.5">
           {items.map((e, i) => {
             const pass = e.confidence >= thr
             return (
@@ -127,7 +197,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
             )
           })}
         </ul>
-        <div className="mt-6 flex items-end justify-between border-t border-ink pt-3">
+        <div className="mt-4 flex items-end justify-between border-t border-ink pt-3">
           <p className="max-w-[340px] text-[12.5px] text-ink-2">Aggregate = area-weighted mean of passing records − 0.08 per recorded conflict. Red rule: the gate at <span className="mono">{thr.toFixed(2)}</span>.</p>
           <p className="text-right"><NumberTicker value={r.confidence} decimalPlaces={2} className="text-[56px] leading-none" /><span className="label block">aggregate</span></p>
         </div>
@@ -147,7 +217,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
 
 function Rail({ stage, onJump }: { stage: number; onJump: (i: number) => void }) {
   const box = useRef<HTMLDivElement>(null)
-  const nodes = [useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null)]
+  const nodes = [useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null)]
   return (
     <div ref={box} className="relative flex items-center justify-between" role="tablist" aria-label="Pipeline stages">
       {STAGES.map((s, i) => (
@@ -179,12 +249,12 @@ export default function Pipeline({ data, registry }: { data?: LandingData; regis
   const wide = useMediaQuery('(min-width: 1024px)')
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
   const [stage, setStage] = useState(0)
-  useMotionValueEvent(scrollYProgress, 'change', (v) => setStage(Math.max(0, Math.min(4, Math.floor(v * 5)))))
+  useMotionValueEvent(scrollYProgress, 'change', (v) => setStage(Math.max(0, Math.min(LAST, Math.floor(v * STAGES.length)))))
   const jump = (i: number) => {
     const el = ref.current
     if (!el) return
     const top = el.getBoundingClientRect().top + window.scrollY
-    window.scrollTo({ top: top + ((i + 0.5) / 5) * (el.offsetHeight - window.innerHeight), behavior: 'smooth' })
+    window.scrollTo({ top: top + ((i + 0.5) / STAGES.length) * (el.offsetHeight - window.innerHeight), behavior: 'smooth' })
   }
 
   if (!wide) {
@@ -199,18 +269,18 @@ export default function Pipeline({ data, registry }: { data?: LandingData; regis
   }
 
   return (
-    <section ref={ref} className="relative border-t border-ink" style={{ height: '520vh' }} data-testid="pipeline">
+    <section ref={ref} className="relative border-t border-ink" style={{ height: `${STAGES.length * 104}vh` }} data-testid="pipeline">
       <div className="sticky top-[57px] flex h-[calc(100dvh-89px)] flex-col overflow-hidden px-10 py-7">
         <div className="mb-2 flex items-baseline justify-between">
           <p className="label">The pipeline — RQ-4, run on the scene above, stage by stage</p>
-          <p className="mono text-[11px] text-ink-2">stage {stage + 1} / 5</p>
+          <p className="mono text-[11px] text-ink-2">stage {stage + 1} / {STAGES.length}</p>
         </div>
         <Rail stage={stage} onJump={jump} />
         {/* Centred on the viewport: stages differ in height, and top-aligned they
             left half the pinned frame empty. Measure fills it — its plate is the figure. */}
         <div className="mt-8 grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-center gap-14 pb-6">
           <div key={`t${stage}`}><Text i={stage} /></div>
-          <div key={`v${stage}`} className={cn('min-h-0', stage === 2 && 'self-stretch')}>{data ? <Visual stage={stage} data={data} registry={registry} /> : <p className="label">Running RQ-4…</p>}</div>
+          <div key={`v${stage}`} className={cn('min-h-0', stage === 3 && 'self-stretch')}>{data ? <Visual stage={stage} data={data} registry={registry} /> : <p className="label">Running RQ-4…</p>}</div>
         </div>
       </div>
     </section>
