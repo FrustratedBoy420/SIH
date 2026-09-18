@@ -15,6 +15,7 @@ Ships discharge oily bilge and slop residue at sea because it is cheaper than pa
 PRD.md                          the product requirements document, revision B — what and why
 TECHNICAL_SPEC.md               technical requirements and low-level design — how
 docs/PS26143_Brief.md           the original problem-statement brief
+docs/MODEL_ORCHESTRATION_PLAN.md  models on real SAR, forcing, sweeps; orchestration; free compute
 artifacts/                      the three interface studies
   dark-transit-prd.html           PRD rev A, narrative form
   dark-transit-workstation.html   the analyst workstation (mockup)
