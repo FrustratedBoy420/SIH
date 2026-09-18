@@ -33,6 +33,9 @@ function niceStep(span: number, target = 5) {
   return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * p
 }
 
+/** Size container for the plate, so `cq` units measure the frame's content box. */
+const FIT_BOX = { containerType: 'size' } as const
+
 export default function PlateViewer({
   src, geo, items, threshold, overlays, selected, onSelect, alt, className, runKey, compact = false,
 }: {
@@ -113,20 +116,23 @@ export default function PlateViewer({
   const boxes = items.flatMap((it, i) =>
     overlays[it.modality] === false ? [] : it.boxes.slice(0, 40).map((b, j) => ({ it, i, j, b, pass: it.confidence >= threshold })))
 
+  // Contain the plate in both dimensions. `h-full` + `aspect-ratio` alone lets
+  // the explicit height win in a tall, narrow region and stretches the scene.
+  const fit = { aspectRatio: `${W} / ${H}`, width: `min(100cqw, calc(100cqh * ${W / H}))` }
   const transform = `translate(${(-view.x * 100 * view.k).toFixed(3)}%, ${(-view.y * 100 * view.k).toFixed(3)}%) scale(${view.k})`
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col', className)}>
       <div className="relative min-h-0 flex-1">
         {/* frame: ticks live in the margin, outside the image */}
-        <div className={cn('absolute inset-0', compact ? 'p-0' : 'pb-6 pl-14 pr-3 pt-5')}>
+        <div className={cn('absolute inset-0 grid place-items-center', compact ? 'p-0' : 'pb-6 pl-14 pr-3 pt-5')} style={FIT_BOX}>
           <div
             ref={frame}
             data-testid="plate"
             tabIndex={0}
             aria-label={`${alt}. Scroll or use + and − to zoom, arrow keys to pan.`}
-            className="crop relative mx-auto h-full max-w-full cursor-crosshair overflow-hidden bg-surface-2 outline-offset-4"
-            style={{ aspectRatio: `${W} / ${H}` }}
+            className="crop relative cursor-crosshair overflow-hidden bg-surface-2 outline-offset-4"
+            style={fit}
             onWheel={onWheel}
             onPointerDown={(e) => { if (view.k > 1) { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y } } }}
             onPointerUp={() => { drag.current = null }}
@@ -185,8 +191,8 @@ export default function PlateViewer({
 
           {/* tick labels on the frame */}
           {!compact && geo?.georeferenced && view.k === 1 && (
-            <div className="pointer-events-none absolute inset-0 pb-6 pl-14 pr-3 pt-5" aria-hidden>
-              <div className="relative mx-auto h-full max-w-full" style={{ aspectRatio: `${W} / ${H}` }}>
+            <div className="pointer-events-none absolute inset-0 grid place-items-center pb-6 pl-14 pr-3 pt-5" style={FIT_BOX} aria-hidden>
+              <div className="relative" style={fit}>
                 {grid.xs.map((x) => (
                   <span key={x} className="mono absolute -bottom-5 -translate-x-1/2 text-[10.5px] text-ink-2" style={{ left: `${((x - minX) / (maxX - minX)) * 100}%` }}>{fLon(x, 2)}</span>
                 ))}

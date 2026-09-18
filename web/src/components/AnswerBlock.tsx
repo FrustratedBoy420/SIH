@@ -57,7 +57,7 @@ export default function AnswerBlock({ result, running, remedies = [], preview }:
             <p className={cn('label', state === 'refused' && '!text-nir', state === 'abstained' && '!text-warn')}>
               {state === 'refused' ? 'Refused · no model invoked' : state === 'abstained' ? 'Abstained · no claim made' : TASK_LABEL[result.task] ?? result.task}
             </p>
-            <p className="mono mt-0.5 truncate text-[11px] text-ink-2">
+            <p className="mono mt-0.5 break-words text-[11px] text-ink-2">
               {result.tools.length ? result.tools.join(' → ') : 'no tool'} · {result.engine}{preview ? ' · browser preview' : ''} · {ms(result.elapsed_ms)}
             </p>
           </div>

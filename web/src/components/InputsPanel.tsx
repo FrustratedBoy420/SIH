@@ -56,7 +56,7 @@ function Meta({ s }: { s: RasterSummary }) {
         {rows.map(([k, v, bad]) => (
           <div key={k} className="contents">
             <dt className="text-ink-2">{k}</dt>
-            <dd className={cn('mono truncate', bad && 'text-warn')} title={v}>{v}</dd>
+            <dd className={cn('mono min-w-0 break-words', bad && 'text-warn')} title={v}>{v}</dd>
           </div>
         ))}
       </dl>

@@ -135,7 +135,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
     )
   }
   return (
-    <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+    <div className="grid min-h-0 items-start gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="border-l-[3px] border-ink bg-surface px-4 py-3">
         <p className="label">Answer · confidence {r.confidence.toFixed(2)}</p>
         <TextEffect per="word" preset="fade-in-blur" speed={2.4} className="mt-2 text-[17px] leading-[1.5]">{r.answer}</TextEffect>
@@ -206,9 +206,11 @@ export default function Pipeline({ data, registry }: { data?: LandingData; regis
           <p className="mono text-[11px] text-ink-2">stage {stage + 1} / 5</p>
         </div>
         <Rail stage={stage} onJump={jump} />
-        <div className="mt-8 grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-14">
+        {/* Centred on the viewport: stages differ in height, and top-aligned they
+            left half the pinned frame empty. Measure fills it — its plate is the figure. */}
+        <div className="mt-8 grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-center gap-14 pb-6">
           <div key={`t${stage}`}><Text i={stage} /></div>
-          <div key={`v${stage}`} className="min-h-0">{data ? <Visual stage={stage} data={data} registry={registry} /> : <p className="label">Running RQ-4…</p>}</div>
+          <div key={`v${stage}`} className={cn('min-h-0', stage === 2 && 'self-stretch')}>{data ? <Visual stage={stage} data={data} registry={registry} /> : <p className="label">Running RQ-4…</p>}</div>
         </div>
       </div>
     </section>

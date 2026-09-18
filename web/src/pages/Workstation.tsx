@@ -194,10 +194,10 @@ export default function Workstation() {
 
       <aside className="flex min-h-0 flex-col border-rule bg-surface lg:row-start-2 lg:border-l" aria-label="Evidence and trace">
         <section className="flex min-h-0 flex-[1.25] flex-col overflow-hidden border-b border-ink" aria-labelledby="ev-h">
-          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap px-4 pb-2 pt-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-4 pb-2 pt-3">
             <h2 id="ev-h" className="label !text-ink">Evidence</h2>
-            {result && <span className="mono text-[11px] text-ink-2">{result.evidence.passing}/{result.evidence.count} pass · gate {result.evidence.threshold.toFixed(2)}</span>}
-            <span className="ml-auto flex gap-1.5">
+            {result && <span className="mono whitespace-nowrap text-[11px] text-ink-2">{result.evidence.passing}/{result.evidence.count} pass · gate {result.evidence.threshold.toFixed(2)}</span>}
+            <span className="ml-auto flex shrink-0 gap-1.5 whitespace-nowrap">
               <button type="button" disabled={!result || result.refused} onClick={exportGeojson} data-testid="export-geojson"
                 className="mono border border-rule px-2 py-0.5 text-[11px] hover:border-ink disabled:opacity-40">GeoJSON ↓</button>
               {result
