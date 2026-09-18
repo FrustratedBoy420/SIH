@@ -37,7 +37,9 @@ export default function TracePanel({ steps, runKey, compact = false }: { steps: 
               {s.ok ? '✓' : '✕'}
             </span>
             <div className="min-w-0">
-              <p className={cn('text-[13px] font-medium leading-tight', !s.ok && 'text-nir')}>{s.step}</p>
+              <p className={cn('text-[13px] font-medium leading-tight', !s.ok && 'text-nir')}>
+                <span className="mono mr-1.5 text-[10.5px] font-normal text-ink-3">{String(i + 1).padStart(2, '0')}</span>{s.step}
+              </p>
               <p className="mono mt-0.5 break-words text-[11px] leading-snug text-ink-2">{s.detail}</p>
               {!compact && dataKeys.length > 0 && (
                 <details className="mt-0.5">

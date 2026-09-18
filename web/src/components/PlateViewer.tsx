@@ -116,6 +116,28 @@ export default function PlateViewer({
   const boxes = items.flatMap((it, i) =>
     overlays[it.modality] === false ? [] : it.boxes.slice(0, 40).map((b, j) => ({ it, i, j, b, pass: it.confidence >= threshold })))
 
+  // One label per passing record, on its largest box, so the sentence in the
+  // answer and the region on the plate are visibly the same thing (brief §17).
+  // Labels that would land on top of one another stack downward.
+  const labels = useMemo(() => {
+    if (compact) return []
+    // A box right of centre hangs its label from its right edge, so long claims
+    // run inward instead of off the plate.
+    const out: { it: EvidenceItem; i: number; x: number; right: boolean; top: number }[] = []
+    items.forEach((it, i) => {
+      if (overlays[it.modality] === false || it.confidence < threshold || !it.boxes.length) return
+      const big = it.boxes.reduce((a, b) => ((b.x1 - b.x0) * (b.y1 - b.y0) > (a.x1 - a.x0) * (a.y1 - a.y0) ? b : a))
+      const [x0, y0, x1] = toPx(big)
+      const right = (x0 + x1) / 2 > W * 0.55
+      const x = right ? 100 - (x1 / W) * 100 : (x0 / W) * 100
+      let top = Math.max(0, (y0 / H) * 100 - 5.5)
+      while (out.some((o) => o.right === right && Math.abs(o.x - x) < 24 && Math.abs(o.top - top) < 5)) top += 5
+      out.push({ it, i, x: Math.max(0, x), right, top: Math.min(top, 94) })
+    })
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, overlays, threshold, compact, W, H, minX, minY, maxX, maxY])
+
   // Contain the plate in both dimensions. `h-full` + `aspect-ratio` alone lets
   // the explicit height win in a tall, narrow region and stretches the scene.
   const fit = { aspectRatio: `${W} / ${H}`, width: `min(100cqw, calc(100cqh * ${W / H}))` }
@@ -185,6 +207,20 @@ export default function PlateViewer({
                   )
                 })}
               </svg>
+              {labels.map(({ it, i, x, right, top }) => (
+                <motion.div
+                  key={`${runKey}-l${i}`}
+                  className={cn('pointer-events-none absolute whitespace-nowrap bg-ink/85 px-1.5 py-[3px] text-paper', right ? 'origin-top-right' : 'origin-top-left')}
+                  style={{ [right ? 'right' : 'left']: `${x}%`, top: `${top}%`, scale: 1 / view.k, borderLeft: `3px solid ${MODALITY_VAR[it.modality]}` }}
+                  initial={{ opacity: 0, y: 4 }} animate={{ opacity: selected !== null && selected !== i ? 0.25 : 1, y: 0 }} transition={{ delay: 0.85 + i * 0.12, duration: 0.2 }}
+                  data-testid="evidence-label"
+                >
+                  <span className="text-[11px] font-medium">{it.claim}</span>
+                  <span className="mono ml-2 text-[10.5px] text-[#cfe3e6]">
+                    {it.mask_area_ha > 0 ? `${it.mask_area_ha.toFixed(2)} ha · ` : ''}{it.confidence.toFixed(2)}
+                  </span>
+                </motion.div>
+              ))}
             </div>
             {!src && <div className="absolute inset-0 grid place-items-center text-ink-2"><span className="label">No imagery loaded</span></div>}
           </div>

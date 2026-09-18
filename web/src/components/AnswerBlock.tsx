@@ -7,6 +7,7 @@
  *   abstention  ochre rule the models ran; nothing cleared the confidence gate
  */
 
+import { Fragment } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { QueryResult } from '@/lib/contract'
 import { ms, TASK_LABEL } from '@/lib/format'
@@ -55,11 +56,13 @@ export default function AnswerBlock({ result, running, remedies = [], preview }:
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className={cn('label', state === 'refused' && '!text-nir', state === 'abstained' && '!text-warn')}>
-              {state === 'refused' ? 'Refused · no model invoked' : state === 'abstained' ? 'Abstained · no claim made' : TASK_LABEL[result.task] ?? result.task}
+              {state === 'refused' ? 'Refused · no model invoked' : state === 'abstained' ? 'Abstained · no claim made' : 'Analysis complete'}
             </p>
-            <p className="mono mt-0.5 break-words text-[11px] text-ink-2">
-              {result.tools.length ? result.tools.join(' → ') : 'no tool'} · {result.engine}{preview ? ' · browser preview' : ''} · {ms(result.elapsed_ms)}
-            </p>
+            {state !== 'answered' && (
+              <p className="mono mt-0.5 break-words text-[11px] text-ink-2">
+                {result.tools.length ? result.tools.join(' → ') : 'no tool'} · {result.engine}{preview ? ' · browser preview' : ''} · {ms(result.elapsed_ms)}
+              </p>
+            )}
           </div>
           <div className="shrink-0 text-right">
             {state === 'answered'
@@ -74,6 +77,8 @@ export default function AnswerBlock({ result, running, remedies = [], preview }:
         )}
 
         <p className="mt-2.5 text-[15px] leading-[1.5] text-ink" data-testid="answer-text">{problem}</p>
+
+        {state === 'answered' && <Readout result={result} preview={preview} />}
 
         {state === 'refused' && (
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-3 border-t border-nir/30 pt-2.5">
@@ -91,6 +96,39 @@ export default function AnswerBlock({ result, running, remedies = [], preview }:
         )}
       </motion.div>
     </AnimatePresence>
+  )
+}
+
+/**
+ * The run as an instrument readout (brief §5): every row is a field of the
+ * result, nothing is composed for effect. AREA is the single highest-confidence
+ * passing record with an area — summing records would double-count, because
+ * cross-modal records overlap by design.
+ */
+const fade = (i: number) => ({ initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { delay: 0.05 + i * 0.05 } })
+
+function Readout({ result, preview }: { result: QueryResult; preview: boolean }) {
+  const passing = result.evidence.items.filter((e) => e.confidence >= result.evidence.threshold)
+  const models = [...new Set(passing.map((e) => `${e.source_model}@${e.source_version}`))]
+  const area = passing.filter((e) => e.mask_area_ha > 0).sort((a, b) => b.confidence - a.confidence)[0]
+  const rows: [string, React.ReactNode][] = [
+    ['task', (TASK_LABEL[result.task] ?? result.task).toUpperCase()],
+    ['inputs', result.manifest.rasters.map((r) => (r.role ?? r.sensor).toUpperCase()).join(' + ') || '—'],
+    ['route', result.tools.join(' → ') || 'no tool'],
+    ['model', models.length ? models.join(', ') : '—'],
+    ['evidence', `${result.evidence.passing}/${result.evidence.count} records passed · gate ${result.evidence.threshold.toFixed(2)}`],
+  ]
+  if (area) rows.push(['area', <><b className="font-medium text-ink">{area.mask_area_ha.toFixed(2)} ha</b> · {area.claim}</>])
+  rows.push(['execution', `${ms(result.elapsed_ms)} · ${result.engine} path${preview ? ' · browser preview' : ''}`])
+  return (
+    <dl className="mt-3 grid grid-cols-[76px_minmax(0,1fr)] border-t border-rule pt-2 text-[11.5px]" data-testid="readout">
+      {rows.map(([k, v], i) => (
+        <Fragment key={k}>
+          <motion.dt {...fade(i)} className="mono py-[3px] uppercase tracking-[0.06em] text-ink-3">{k}</motion.dt>
+          <motion.dd {...fade(i)} className="mono min-w-0 break-words py-[3px] text-ink-2">{v}</motion.dd>
+        </Fragment>
+      ))}
+    </dl>
   )
 }
 
