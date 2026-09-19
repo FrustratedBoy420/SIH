@@ -273,7 +273,7 @@ def run_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
             vv = sar.named("vv")
             ndwi = cv.ndwi(opt.named("green"), opt.named("nir"))
             if "morphology" in caps:
-                vv = cv.lee_filter(vv, 7, 4)
+                vv = cv.tail_clip(cv.lee_filter(vv, 7, 4))
             if "components" in caps:
                 # the mode-aware threshold -- what the shipped system does
                 pred_b = vv >= cv.otsu_multi(vv, 3)[-1]
@@ -292,7 +292,7 @@ def run_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
         # E adds the measurement neither modality gives alone
         recovered = None
         if "evidence" in caps:
-            cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data), 1), 3)
+            cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data, opt.meta.get("display_gain", 1.0)), 1), 3)
             recovered = round(float((pred_b & cloud).sum() /
                                     max(pred_b.sum(), 1)) * 100, 2)
 
@@ -454,12 +454,12 @@ def cross_modal_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
     opt, sar = sc.optical(seed), sc.sar(seed)
     truth = sc.classes == scenes.BUILT
 
-    vv = cv.lee_filter(sar.named("vv"), 7, 4)
+    vv = cv.tail_clip(cv.lee_filter(sar.named("vv"), 7, 4))
     sar_pred = cv.closing(cv.opening(vv >= cv.otsu_multi(vv, 3)[-1], 1), 1)
 
     g = opt.rgb().mean(axis=2)
     ndwi = cv.ndwi(opt.named("green"), opt.named("nir"))
-    cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data), 1), 3)
+    cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data, opt.meta.get("display_gain", 1.0)), 1), 3)
     # Optical built-up: bright, and not water. Cloud is left in, because an
     # optical-only system has no way to know it is looking at cloud rather
     # than at a bright roof — that error is the point of the comparison.

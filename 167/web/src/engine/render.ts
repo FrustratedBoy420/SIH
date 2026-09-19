@@ -11,9 +11,18 @@ export interface Pixels { width: number; height: number; buffer: ArrayBuffer }
 
 const px = (w: number, h: number) => new Uint8ClampedArray(w * h * 4)
 
-function stretchOf(band: Float32Array, synthetic: boolean): (v: number) => number {
+/**
+ * Display stretch: each band 2nd–98th percentile. For surface reflectance from
+ * Sentinel-style digital numbers the top is capped at a physical value (0.3
+ * visible, 0.5 NIR), as the missions' own true-colour products do — otherwise
+ * a cloudy scene spends the whole range on white cloud and the ground goes
+ * black. Mirrored in satquery/raster.py `Raster.rgb`.
+ */
+const REFLECTANCE_TOP: Record<string, number> = { nir: 0.5 }
+function stretchOf(band: Float32Array, synthetic: boolean, reflectance = false, name = ''): (v: number) => number {
   if (synthetic) return (v) => v
-  const [a, b] = cv.percentile(band, [2, 98])
+  let [a, b] = cv.percentile(band, [2, 98])
+  if (reflectance) b = Math.min(b, REFLECTANCE_TOP[name] ?? 0.3)
   const d = b - a < 1e-9 ? 1 : b - a
   return (v) => (v - a) / d
 }
@@ -22,7 +31,8 @@ function composite(r: Raster, names: string[]): Pixels {
   const out = px(r.width, r.height)
   const bands = names.map((n) => (has(r, n) ? named(r, n) : r.data[0]))
   const syn = !!r.meta.synthetic
-  const st = bands.map((b) => stretchOf(b, syn))
+  const refl = r.meta.normalisation === 'digital numbers divided by 10000'
+  const st = bands.map((b, k) => stretchOf(b, syn, refl, names[k]))
   for (let i = 0; i < r.width * r.height; i++) {
     for (let c = 0; c < 3; c++) out[i * 4 + c] = Math.max(0, Math.min(1, st[c](bands[c][i]))) * 255
     out[i * 4 + 3] = 255

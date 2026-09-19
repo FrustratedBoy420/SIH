@@ -65,8 +65,8 @@ class GeoBox:
         area = area_px or ((x1 - x0 + 1) * (y1 - y0 + 1))
         if not georeferenced:
             return cls(x0, y0, x1, y1, area_px=int(area), area_ha=0.0)
-        lon0, lat0 = transform.pixel_to_world(x0, y0)
-        lon1, lat1 = transform.pixel_to_world(x1 + 1, y1 + 1)
+        lon0, lat0 = transform.pixel_to_lonlat(x0, y0)
+        lon1, lat1 = transform.pixel_to_lonlat(x1 + 1, y1 + 1)
         gsd = transform.ground_sample_distance
         return cls(x0, y0, x1, y1,
                    round(lon0, 6), round(lat0, 6), round(lon1, 6), round(lat1, 6),

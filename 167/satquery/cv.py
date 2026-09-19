@@ -355,45 +355,59 @@ def ndwi(green: np.ndarray, nir: np.ndarray) -> np.ndarray:
     return ((green - nir) / np.maximum(green + nir, 1e-6)).astype(np.float32)
 
 
-def cloud_mask(rgb_nir: np.ndarray, thresh: float = 0.85,
-               spread_max: float = 0.08, ndvi_max: float = 0.12) -> np.ndarray:
-    """Cloud: bright, spectrally flat, and carrying no vegetation signal.
+def tail_clip(x: np.ndarray, q: float = 95.0) -> np.ndarray:
+    """Clip the bright tail of linear backscatter before an Otsu split.
 
-    Three conditions, because brightness alone is not enough — bright bare soil
-    passes it and gets falsely called cloud, which then inflates every claim
-    resting on "how much of the optical scene is unusable". Since the headline
-    cross-modal claim is *structures recovered beneath cloud*, a false cloud
-    pixel directly inflates the thing we most want to be trustworthy.
-
-    So the thresholds are tuned for **precision over recall**. Measured against
-    the generator's own opacity field:
-
-        brightness   precision   recall   F1
-           0.62        0.622      0.978   0.760
-           0.78        0.888      0.978   0.931
-           0.85        1.000      0.923   0.960    <- chosen
-           0.90        1.000      0.793   0.884
-
-    At 0.85 every pixel called cloud really is cloud. The 7.7% of thin cloud
-    missed is the correct thing to give up: it costs a little recovery credit,
-    where the alternative would be claiming recovery that did not happen.
-
-    The NDVI condition is what separates cloud from soil. Soil retains a real
-    red/NIR difference (|NDVI| ~ 0.19 in the transition band); cloud reflects
-    almost equally across every band and its NDVI collapses toward zero
-    (~0.02 where opacity exceeds 0.25).
+    Urban SAR is extremely skewed: a few corner reflectors return hundreds of
+    times the median, and a 3-class Otsu on the raw values spends its top
+    class on those spikes alone. Clipping at the 95th percentile moves only
+    *where* the threshold lands — any threshold chosen on the clipped data is
+    at most the clip value, so `clipped >= t` selects exactly the pixels
+    `x >= t` does. Measured 19 Sep 2026: real Sentinel-1 built-up over west
+    Hyderabad 15 ha → 222 ha (an independent dB-domain Otsu gives 218 ha);
+    synthetic built-up F1 0.973 → 0.975.
     """
-    r, g, b = rgb_nir[0], rgb_nir[1], rgb_nir[2]
-    brightness = (r + g + b) / 3.0
-    spread = np.max(rgb_nir[:3], axis=0) - np.min(rgb_nir[:3], axis=0)
-    flat = spread < spread_max
+    return np.minimum(x, np.float32(np.percentile(x, q)))
 
-    if rgb_nir.shape[0] >= 4:
-        veg = np.abs(ndvi(rgb_nir[3], r)) < ndvi_max
+
+def cloud_mask(rgb_nir: np.ndarray, gain: float = 1.0, thresh: float = 0.26,
+               rel_spread_max: float = 0.35, ndvi_max: float = 0.30,
+               blue_red_min: float = 0.90) -> np.ndarray:
+    """Opaque cloud: bright, near-white, bluish, and carrying no vegetation.
+
+    Thresholds are in **surface reflectance** (0–1). `gain` is what the data
+    was multiplied by on the way in — the synthetic generator stores
+    reflectance × 2.2 and says so in `meta["display_gain"]` — and is divided
+    out first, so one rule serves real Sentinel-2 and the generator alike.
+
+    Tuned for **precision over recall**, because the headline cross-modal
+    claim is *structures recovered beneath cloud*: a false cloud pixel
+    inflates exactly the claim that most needs to be trustworthy. Brightness
+    alone calls bright soil cloud; relative flatness (spread ÷ brightness)
+    and blue ≥ 0.9 × red are what separate cloud from reddish bare ground.
+
+    Measured 19 Sep 2026 against two references:
+
+        reference                                   precision  recall
+        Sentinel-2 SCL classes 8–9, S2B 2024-08-10     0.972    0.463
+          (built-in optical scene; SCL 44.9 % opaque; 3.3 % of SCL bare soil
+           misfires)
+        synthetic scene, opacity > 0.3                 0.618    1.000
+          (every "false" pixel lies inside the cloud field at opacity > 0.05,
+           98.6 % above 0.15 — thin fringe the 0.3 cut-off does not count;
+           outside the cloud there are none)
+    """
+    x = rgb_nir / gain if gain != 1.0 else rgb_nir
+    r, g, b = x[0], x[1], x[2]
+    brightness = (r + g + b) / 3.0
+    spread = np.max(x[:3], axis=0) - np.min(x[:3], axis=0)
+    flat = spread / (brightness + 1e-6) < rel_spread_max
+    bluish = b >= blue_red_min * r
+    if x.shape[0] >= 4:
+        veg = ndvi(x[3], r) < ndvi_max
     else:
         veg = np.ones_like(brightness, bool)
-
-    return (brightness > thresh) & flat & veg
+    return (brightness > thresh) & flat & bluish & veg
 
 
 # --------------------------------------------------------------------------- #
