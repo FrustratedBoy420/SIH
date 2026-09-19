@@ -18,6 +18,7 @@ arguing it again from scratch.
 | Compute | rented / free-tier cloud GPU. The development laptop has 4 GB VRAM against a 16 GB floor and cannot train |
 | Scope for submission | **M1 only.** The PS requires *"at least one"* adapted component. One is the target; M2–M4 are post-submission |
 | Training corpus | **VRSBench**, not the full BigEarthNet imagery — see §4 |
+| Web design | **Field Atlas** (19 Sep 2026), modelled on Earth Genome / Earth Index and Picterra; supersedes the "editorial instrument" direction. Spec in `06_Design_System.md` §1–§5 |
 
 ---
 

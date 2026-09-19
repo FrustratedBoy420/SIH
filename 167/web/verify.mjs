@@ -52,7 +52,8 @@ try {
   await check('engine badge', async () => (await page.locator(tid('engine-badge')).innerText()).replace(/\s+/g, ' '))
   await check('hero telemetry measured', async () => {
     await page.locator(tid('telemetry')).waitFor({ timeout: 30000 })
-    await page.waitForTimeout(2600)
+    // measured, not placeholder: every readout filled from the scene's pixels
+    await page.waitForFunction(() => !document.querySelector('[data-testid="telemetry"]')?.textContent?.includes('…'), null, { timeout: 30000 })
     return (await page.locator(tid('telemetry')).innerText()).replace(/\s+/g, ' ').slice(0, 90)
   })
   await page.screenshot({ path: `${SHOTS}/01-hero.png` })
