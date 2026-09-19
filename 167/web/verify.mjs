@@ -57,26 +57,25 @@ try {
   })
   await page.screenshot({ path: `${SHOTS}/01-hero.png` })
 
-  await check('hero scroll cuts to the radar headline', async () => {
-    const h = await page.locator(tid('hero')).boundingBox()
-    await page.mouse.wheel(0, h.height * 0.66)
-    await page.waitForTimeout(1400)
-    const t = await page.locator('h1').first().innerText()
-    if (!/Radar/.test(t)) throw new Error(t)
-    return t.replace(/\s+/g, ' ')
+  await check('hero globe renders', async () => {
+    await page.locator(`${tid('globe')} canvas, ${tid('globe-fallback')} canvas`).first().waitFor({ timeout: 15000 })
+    return (await page.locator('h1').first().innerText()).replace(/\s+/g, ' ')
   })
-  await page.screenshot({ path: `${SHOTS}/02-hero-radar.png` })
 
-  await check('pipeline pins and steps', async () => {
+  await check('ask cards deep-link into the workstation', async () => {
+    const hrefs = await page.locator(`${tid('ask-cards')} a`).evaluateAll((as) => as.map((a) => a.getAttribute('href')))
+    if (hrefs.length !== 4 || !hrefs.every((h) => /^\/workstation\?scene=\w+&q=/.test(h))) throw new Error(hrefs.join(' '))
+    return `${hrefs.length} cards`
+  })
+
+  await check('pipeline steps', async () => {
     const sec = page.locator(tid('pipeline'))
     await sec.scrollIntoViewIfNeeded()
-    const box = await sec.boundingBox()
-    const top = await page.evaluate(() => window.scrollY)
-    // the centre of each of the six stages
-    for (const [i, f] of [1, 3, 5, 7, 9, 11].map((x) => x / 12).entries()) {
-      await page.evaluate((y) => window.scrollTo(0, y), top + box.y + f * (box.height - 850))
-      await page.waitForTimeout(1500)
-      await page.screenshot({ path: `${SHOTS}/03-pipeline-${i + 1}.png` })
+    const tabs = sec.getByRole('tab')
+    for (let i = 0; i < 6; i++) {
+      await tabs.nth(i).click()
+      await page.waitForTimeout(900)
+      await sec.screenshot({ path: `${SHOTS}/03-pipeline-${i + 1}.png` })
     }
     return (await sec.locator('[role=tab][aria-selected=true]').innerText()).replace(/\s+/g, ' ')
   })

@@ -23,8 +23,9 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       output: {
-        // three.js never changes between builds and only the workstation's
-        // stack needs it, so it gets its own lazily loaded chunk. Everything
+        // three.js never changes between builds and only the landing globe
+        // and the workstation's stack need it, so it gets its own lazily
+        // loaded chunk. Everything
         // else splits naturally — grouping all of node_modules into one
         // "vendor" chunk would pull the lazy libraries into the first load.
         manualChunks(id: string) {

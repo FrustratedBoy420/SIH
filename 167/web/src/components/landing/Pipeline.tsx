@@ -1,18 +1,17 @@
 /**
  * The five mandatory capabilities as the pipeline they actually are — not
- * five identical cards (PRD §3.1). Each stage pins, shows its own evidence
- * from the RQ-4 run the hero made, and releases. Stage changes are hard cuts.
+ * five identical cards (PRD §3.1). Six numbered steps; each shows its own
+ * evidence from the RQ-4 run the hero made. Steps advance on their own until
+ * the reader picks one, and never under reduced motion.
  */
 
-import { useRef, useState, type RefObject } from 'react'
-import { motion, useMotionValueEvent, useScroll } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { motion, useInView, useReducedMotion } from 'motion/react'
 import type { RegistryTool } from '@/lib/contract'
-import { useMediaQuery } from '@/lib/hooks'
 import { MODALITY_VAR } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import PlateViewer from '@/components/PlateViewer'
 import TracePanel from '@/components/TracePanel'
-import { AnimatedBeam } from '@/components/ui/AnimatedBeam'
 import { NumberTicker } from '@/components/ui/NumberTicker'
 import { TextEffect } from '@/components/ui/TextEffect'
 import type { LandingData } from './useLanding'
@@ -25,7 +24,6 @@ const STAGES = [
   { n: '05', title: 'Fuse', req: 'R4 · late fusion · gate', body: 'Each sensor keeps its own evidence; the fusion reads both and records where they disagree, at a cost to confidence. Anything below the gate is dropped. If nothing clears it, the system abstains.' },
   { n: '06', title: 'Answer', req: 'Evidence · trace', body: 'Language phrases only what passed the gate. Every number in the sentence exists in an evidence record, and the trace shows what ran — never why it “thought” so.' },
 ]
-const LAST = STAGES.length - 1
 
 const Check = ({ ok = true, d = 0, children }: { ok?: boolean; d?: number; children: React.ReactNode }) => (
   <motion.li initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: d, duration: 0.18 }} className="flex items-baseline gap-2 border-b border-rule py-1.5">
@@ -46,7 +44,7 @@ function Understand({ r }: { r: LandingData['result'] }) {
     try {
       const m = r.query.match(new RegExp(rule, 'i'))
       if (m && m.index !== undefined) {
-        marked = <>{r.query.slice(0, m.index)}<motion.mark initial={{ backgroundColor: 'rgba(14,124,134,0)' }} animate={{ backgroundColor: 'rgba(14,124,134,0.16)' }} transition={{ delay: 0.3, duration: 0.4 }} className="text-ink underline decoration-accent decoration-2 underline-offset-4">{m[0]}</motion.mark>{r.query.slice(m.index + m[0].length)}</>
+        marked = <>{r.query.slice(0, m.index)}<motion.mark initial={{ backgroundColor: 'rgba(255,192,0,0)' }} animate={{ backgroundColor: 'rgba(255,192,0,0.55)' }} transition={{ delay: 0.3, duration: 0.4 }} className="text-ink">{m[0]}</motion.mark>{r.query.slice(m.index + m[0].length)}</>
       }
     } catch { /* a rule that is not a JS regex is shown unmarked */ }
   }
@@ -59,7 +57,7 @@ function Understand({ r }: { r: LandingData['result'] }) {
   ]
   return (
     <div>
-      <div className="border border-ink bg-surface px-4 py-3">
+      <div className="frame bg-paper px-4 py-3">
         <p className="label">Query</p>
         <p className="mt-1 text-[19px] leading-snug">{marked}</p>
       </div>
@@ -79,7 +77,7 @@ function Understand({ r }: { r: LandingData['result'] }) {
 
 /** Optical and SAR slide together into the fused reading. */
 function Fusion({ data }: { data: LandingData }) {
-  const tile = 'aspect-square w-full border border-rule object-cover'
+  const tile = 'aspect-square w-full border border-ink object-cover'
   const cap = 'mono mt-1 text-[10.5px] text-ink-2'
   return (
     <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2">
@@ -106,11 +104,11 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
     return (
       <div className="grid gap-4 sm:grid-cols-2">
         {r.manifest.rasters.map((x, k) => (
-          <div key={x.role} className="border border-ink bg-surface p-4">
+          <div key={x.role} className="frame bg-paper p-4">
             <div className="flex gap-3">
               <motion.img src={x.sensor === 'sar' ? data.sar.layers.base : data.optical.layers.base} alt="" aria-hidden
                 initial={{ opacity: 0, x: k ? 24 : -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: k * 0.15 }}
-                className="size-[72px] shrink-0 border border-rule object-cover" />
+                className="size-[72px] shrink-0 border border-ink object-cover" />
               <div className="min-w-0">
                 <p className="label !text-ink" style={{ borderLeft: `3px solid ${x.sensor === 'sar' ? 'var(--color-sar)' : 'var(--color-optical)'}`, paddingLeft: 8 }}>{x.role}</p>
                 <p className="mono mt-1 truncate text-[12px] text-ink-2">{x.source}</p>
@@ -124,7 +122,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
             </ul>
           </div>
         ))}
-        <div className="border border-rule bg-surface p-4 sm:col-span-2">
+        <div className="border border-rule bg-paper p-4 sm:col-span-2">
           <ul>
             <Check d={0.9}>{r.trace.find((t) => t.step === 'Compatibility check')?.detail}</Check>
             {coreg && <Check d={1.05} ok={coreg.confidence > 0.5}>{coreg.claim} · offset {String(coreg.value)} px · {coreg.supporting[1]}</Check>}
@@ -145,7 +143,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
               const chosen = r.tools.includes(name)
               return (
                 <motion.tr key={name} initial={{ opacity: 0 }} animate={{ opacity: chosen ? 1 : 0.38 }} transition={{ delay: 0.2 + i * 0.08 }}
-                  className={cn('border-b border-rule', chosen && 'bg-accent-bg')}>
+                  className={cn('border-b border-rule', chosen && 'bg-sun/45')}>
                   <td className="mono py-2 pl-1">{chosen ? '▸ ' : ''}{name}</td><td className="mono">{t.tasks.join(', ')}</td><td className="mono">{t.requires}</td><td className="mono text-ink-2">{t.adapter}</td>
                 </motion.tr>
               )
@@ -168,7 +166,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
           <ul>
             {items.map((e, i) => (
               <motion.li key={e.claim} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 + i * 0.12 }} className="border-b border-rule py-2">
-                <p className="flex items-baseline gap-2 text-[13px]"><span className="inline-block size-1.5 rounded-full" style={{ background: MODALITY_VAR[e.modality] }} />{e.claim}</p>
+                <p className="flex items-baseline gap-2 text-[13px]"><span className="inline-block size-2 shrink-0" style={{ background: MODALITY_VAR[e.modality] }} />{e.claim}</p>
                 <p className="mono pl-3.5 text-[12px] text-ink-2">{String(e.value)} {e.unit} · {e.source_model}{e.mask_area_ha ? ` · ${e.mask_area_ha.toFixed(0)} ha` : ''}</p>
               </motion.li>
             ))}
@@ -189,8 +187,8 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
             return (
               <li key={e.claim}>
                 <div className="flex justify-between text-[12.5px]"><span>{e.claim}</span><span className="mono">{e.confidence.toFixed(2)} <b className={pass ? 'text-good' : 'text-ink-2'}>{pass ? 'PASS' : 'GATED'}</b></span></div>
-                <div className="relative mt-1 h-3 bg-surface-2">
-                  <motion.div className="absolute inset-y-0 left-0 rounded-r bg-ink" initial={{ width: 0 }} animate={{ width: `${e.confidence * 100}%` }} transition={{ delay: 0.15 + i * 0.1, duration: 0.6, ease: [0.2, 0.7, 0.3, 1] }} />
+                <div className="relative mt-1 h-3 bg-paper">
+                  <motion.div className="absolute inset-y-0 left-0 bg-accent" initial={{ width: 0 }} animate={{ width: `${e.confidence * 100}%` }} transition={{ delay: 0.15 + i * 0.1, duration: 0.6, ease: [0.2, 0.7, 0.3, 1] }} />
                   <div className="absolute -inset-y-1 w-[2px] bg-nir" style={{ left: `${thr * 100}%` }} />
                 </div>
               </li>
@@ -206,7 +204,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
   }
   return (
     <div className="grid min-h-0 items-start gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <div className="border-l-[3px] border-ink bg-surface px-4 py-3">
+      <div className="frame bg-paper px-4 py-3">
         <p className="label">Answer · confidence {r.confidence.toFixed(2)}</p>
         <TextEffect per="word" preset="fade-in-blur" speed={2.4} className="mt-2 text-[17px] leading-[1.5]">{r.answer}</TextEffect>
       </div>
@@ -215,20 +213,19 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
   )
 }
 
-function Rail({ stage, onJump }: { stage: number; onJump: (i: number) => void }) {
-  const box = useRef<HTMLDivElement>(null)
-  const nodes = [useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null)]
+function Steps({ stage, onPick }: { stage: number; onPick: (i: number) => void }) {
   return (
-    <div ref={box} className="relative flex items-center justify-between" role="tablist" aria-label="Pipeline stages">
-      {STAGES.map((s, i) => (
-        <button key={s.n} ref={nodes[i]} role="tab" aria-selected={stage === i} type="button" onClick={() => onJump(i)}
-          className={cn('relative z-[1] flex items-center gap-2 border bg-paper px-3 py-1.5', stage === i ? 'border-ink bg-ink text-paper' : i < stage ? 'border-ink text-ink' : 'border-rule text-ink-2')}>
-          <span className="mono text-[11px]">{s.n}</span><span className="text-[13px]">{s.title}</span>
-        </button>
-      ))}
-      {STAGES.slice(1).map((_, i) => i < stage && (
-        <AnimatedBeam key={i} containerRef={box} fromRef={nodes[i] as RefObject<HTMLElement>} toRef={nodes[i + 1] as RefObject<HTMLElement>} duration={2.2} />
-      ))}
+    <div className="scroll-thin -mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+      <div className="grid min-w-[760px] grid-cols-6 border border-ink" role="tablist" aria-label="Pipeline stages">
+        {STAGES.map((s, i) => (
+          <button key={s.n} role="tab" aria-selected={stage === i} aria-controls="pipeline-panel" type="button" onClick={() => onPick(i)}
+            className={cn('flex items-baseline gap-2 border-ink px-4 py-3 text-left transition-colors [&:not(:first-child)]:border-l',
+              stage === i ? 'bg-ink text-paper' : 'hover:bg-surface-2')}>
+            <span className={cn('mono text-[12px]', stage === i ? 'text-sun' : 'text-ink-3')}>{s.n}</span>
+            <span className="text-[15px] font-medium">{s.title}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -236,51 +233,39 @@ function Rail({ stage, onJump }: { stage: number; onJump: (i: number) => void })
 function Text({ i }: { i: number }) {
   return (
     <div>
-      <p className="t-telemetry text-[clamp(72px,11vw,176px)] text-ink">{STAGES[i].n}</p>
-      <h3 className="t-section mt-2">{STAGES[i].title}.</h3>
-      <p className="mono mt-4 inline-block border border-ink px-2 py-0.5 text-[12px]">{STAGES[i].req}</p>
-      <p className="mt-4 max-w-[440px] text-[16px] leading-[1.55] text-ink-2">{STAGES[i].body}</p>
+      <p className="mono text-[13px] text-ink-2">Step {STAGES[i].n} · {STAGES[i].req}</p>
+      <h3 className="t-display mt-3 text-[clamp(28px,3vw,40px)]">{STAGES[i].title}</h3>
+      <p className="mt-4 max-w-[420px] text-[17px] leading-[1.55] text-ink-2">{STAGES[i].body}</p>
     </div>
   )
 }
 
 export default function Pipeline({ data, registry }: { data?: LandingData; registry?: Record<string, RegistryTool> }) {
   const ref = useRef<HTMLElement>(null)
-  const wide = useMediaQuery('(min-width: 1024px)')
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
+  const inView = useInView(ref, { amount: 0.35 })
+  const reduce = useReducedMotion()
   const [stage, setStage] = useState(0)
-  useMotionValueEvent(scrollYProgress, 'change', (v) => setStage(Math.max(0, Math.min(LAST, Math.floor(v * STAGES.length)))))
-  const jump = (i: number) => {
-    const el = ref.current
-    if (!el) return
-    const top = el.getBoundingClientRect().top + window.scrollY
-    window.scrollTo({ top: top + ((i + 0.5) / STAGES.length) * (el.offsetHeight - window.innerHeight), behavior: 'smooth' })
-  }
+  const [picked, setPicked] = useState(false)
 
-  if (!wide) {
-    return (
-      <section className="border-t border-ink px-5 py-16" data-testid="pipeline">
-        <p className="label mb-6">The pipeline · RQ-4, run on the scene above</p>
-        {STAGES.map((_, i) => (
-          <div key={i} className="mb-16"><Text i={i} />{data && <div className="mt-6"><Visual stage={i} data={data} registry={registry} /></div>}</div>
-        ))}
-      </section>
-    )
-  }
+  // advance on its own while on screen, until the reader takes over
+  useEffect(() => {
+    if (picked || reduce || !inView || !data) return
+    const t = window.setTimeout(() => setStage((s) => (s + 1) % STAGES.length), 7000)
+    return () => window.clearTimeout(t)
+  }, [stage, picked, reduce, inView, data])
 
   return (
-    <section ref={ref} className="relative border-t border-ink" style={{ height: `${STAGES.length * 104}vh` }} data-testid="pipeline">
-      <div className="sticky top-[57px] flex h-[calc(100dvh-89px)] flex-col overflow-hidden px-10 py-7">
-        <div className="mb-2 flex items-baseline justify-between">
-          <p className="label">The pipeline — RQ-4, run on the scene above, stage by stage</p>
-          <p className="mono text-[11px] text-ink-2">stage {stage + 1} / {STAGES.length}</p>
-        </div>
-        <Rail stage={stage} onJump={jump} />
-        {/* Centred on the viewport: stages differ in height, and top-aligned they
-            left half the pinned frame empty. Measure fills it — its plate is the figure. */}
-        <div className="mt-8 grid min-h-0 flex-1 grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-center gap-14 pb-6">
-          <div key={`t${stage}`}><Text i={stage} /></div>
-          <div key={`v${stage}`} className={cn('min-h-0', stage === 3 && 'self-stretch')}>{data ? <Visual stage={stage} data={data} registry={registry} /> : <p className="label">Running RQ-4…</p>}</div>
+    <section ref={ref} className="px-5 py-24 sm:px-8" data-testid="pipeline" aria-labelledby="pipeline-h">
+      <p className="label mb-4">How it works</p>
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+        <h2 id="pipeline-h" className="t-section max-w-[760px]">Six steps from a question to an answer with evidence</h2>
+        <p className="max-w-[380px] text-[15px] text-ink-2">Each step below is the real RQ-4 run on the demo scene, not an illustration.</p>
+      </div>
+      <Steps stage={stage} onPick={(i) => { setPicked(true); setStage(i) }} />
+      <div id="pipeline-panel" role="tabpanel" className="grid min-h-[560px] items-start gap-10 border-x border-b border-ink bg-surface p-6 sm:p-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-14">
+        <div key={`t${stage}`}><Text i={stage} /></div>
+        <div key={`v${stage}`} className={cn('min-w-0', stage === 3 && 'lg:h-[520px]')}>
+          {data ? <Visual stage={stage} data={data} registry={registry} /> : <p className="text-ink-2">Running RQ-4…</p>}
         </div>
       </div>
     </section>
