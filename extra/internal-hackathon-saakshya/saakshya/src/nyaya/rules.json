@@ -1,0 +1,46 @@
+{
+  "_note": "NYAYA rule base. Rejection-reason -> evidence-that-answers-it, and which SAAKSHYA band produces it. Declarative so FRA amendments are config, not code (PRD 7.1 / D5).",
+  "reason_taxonomy": {
+    "no_pre_2005_proof": {
+      "label": "No proof of occupation before 13-Dec-2005",
+      "answered_by_evidence": "Dated land-use conversion before 2005 + decade image strip",
+      "producing_band": "KAAL",
+      "kaal_can_help": true,
+      "notes_by_category": {
+        "ST": "KAAL can PROVE occupation before the 2005 cutoff (inside the 1972 Landsat archive).",
+        "OTFD": "KAAL STRENGTHENS continuity but CANNOT prove the ~75-year (pre-1930) bar (beyond any satellite). Disclose."
+      }
+    },
+    "boundary_dispute": {
+      "label": "Boundary / overlap dispute",
+      "answered_by_evidence": "Segmented parcel + PostGIS topology conflict map",
+      "producing_band": "SEEMA",
+      "kaal_can_help": true
+    },
+    "gram_sabha_procedure": {
+      "label": "Gram Sabha procedural defect",
+      "answered_by_evidence": "Corrected resolution / re-filing checklist (workflow, not imagery)",
+      "producing_band": "VAANI_NYAYA_WORKFLOW",
+      "kaal_can_help": false
+    },
+    "non_st_otfd": {
+      "label": "Eligibility (not ST/OTFD)",
+      "answered_by_evidence": "Community / caste records (out of scope for imagery)",
+      "producing_band": "EXTERNAL",
+      "kaal_can_help": false
+    },
+    "incomplete_form": {
+      "label": "Incomplete / defective form",
+      "answered_by_evidence": "Field-completeness check + re-submission",
+      "producing_band": "VAANI",
+      "kaal_can_help": false
+    }
+  },
+  "appeal_routing": {
+    "GS":   {"forum": "SDLC", "statute": "FRA Sec 6(2)", "deadline_days": 60},
+    "SDLC": {"forum": "DLC",  "statute": "FRA Sec 6(4)", "deadline_days": 60},
+    "DLC":  {"forum": "High Court (writ) / State review", "statute": "beyond DLC", "deadline_days": null}
+  },
+  "fra_cutoff_date": "2005-12-13",
+  "legal_basis": "Rule 13, Forest Rights Rules (amended 06-09-2012): satellite imagery is admissible as ONE of the listed evidences, may SUPPLEMENT not REPLACE; any two evidences. Rule 12A(11): SDLC/DLC cannot insist on a particular evidence. (Gujarat HC 2013, Van Kanun Bachau Samiti.)"
+}

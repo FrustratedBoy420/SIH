@@ -1,0 +1,1161 @@
+<title>Forty Hours Back</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Big+Shoulders+Display:wght@400;600;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --void:#05070f; --deep:#0a1020; --slab:#0e1626;
+  --ivory:#e8e4d8; --ash:#8d94a8; --dim:#525d75;
+  --amber:#ff8b2e; --steel:#7fa8d4; --mag:#e03c8b;
+  --disp:"Big Shoulders Display","Arial Narrow",sans-serif;
+  --body:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:auto}
+body{
+  margin:0;background:var(--void);color:var(--ivory);
+  font-family:var(--body);font-size:15px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+canvas#gl{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0;background:var(--void)}
+/* The grain used to run mix-blend-mode:overlay across the whole viewport, which forces the
+   compositor to read back the WebGL surface every single frame. Plain low-opacity dots. */
+.grain{
+  position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.09;
+  background-image:radial-gradient(circle at 50% 50%,rgba(232,228,216,.9) .5px,transparent .6px);
+  background-size:3px 3px;
+}
+.vig{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse 120% 80% at 50% 50%,transparent 40%,rgba(5,7,15,.82) 100%)}
+
+main{position:relative;z-index:2}
+.st{min-height:118vh;display:flex;align-items:center;padding:8vh clamp(20px,6vw,90px)}
+.st.tall{min-height:180vh}
+.inner{max-width:1180px;width:100%;margin:0 auto}
+.wide{max-width:1320px}
+
+/* ── type ── */
+.eyebrow{
+  font-family:var(--mono);font-size:10px;letter-spacing:.42em;text-transform:uppercase;
+  color:var(--amber);margin:0 0 22px;display:flex;align-items:center;gap:14px;
+}
+.eyebrow::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--amber),transparent);max-width:190px}
+h1.mega{
+  font-family:var(--disp);font-weight:900;
+  font-size:clamp(64px,15.5vw,230px);line-height:.80;letter-spacing:-.012em;
+  margin:0;text-transform:uppercase;
+}
+h2.big{
+  font-family:var(--disp);font-weight:800;
+  font-size:clamp(42px,8.6vw,132px);line-height:.84;letter-spacing:-.008em;
+  margin:0 0 26px;text-transform:uppercase;text-wrap:balance;
+}
+h2.big .lo{font-weight:400;color:var(--ash)}
+h2.big .amb{color:var(--amber)}
+h2.big .mg{color:var(--mag)}
+.say{font-size:clamp(16px,1.6vw,21px);line-height:1.62;color:var(--ash);max-width:50ch}
+.say b{color:var(--ivory);font-weight:600}
+.say + .say{margin-top:15px}
+.tiny{font-family:var(--mono);font-size:11.5px;color:var(--dim);letter-spacing:.05em;line-height:1.9}
+.tiny b{color:var(--steel);font-weight:400}
+
+/* ── hero ── */
+.hero{position:relative}
+.hero canvas.pt{display:block;width:100%;height:auto;max-width:1060px;margin:0 0 4px}
+.hero .meta{
+  display:flex;gap:clamp(18px,4vw,54px);flex-wrap:wrap;margin-top:38px;
+  border-top:1px solid rgba(232,228,216,.14);padding-top:18px;
+}
+.hero .meta div .k{font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);display:block}
+.hero .meta div .v{font-family:var(--mono);font-size:13px;color:var(--ivory);margin-top:3px;display:block;font-variant-numeric:tabular-nums}
+
+/* ── split flap clock ── */
+.flap{display:flex;gap:3px;margin:0}
+.flap .c{
+  position:relative;width:clamp(22px,2.7vw,38px);height:clamp(34px,4.1vw,56px);
+  background:linear-gradient(180deg,#141c2e 0%,#0c1322 49%,#0a1020 51%,#111829 100%);
+  border:1px solid rgba(232,228,216,.10);border-radius:2px;
+  font-family:var(--mono);font-size:clamp(17px,2.1vw,28px);font-weight:500;
+  display:flex;align-items:center;justify-content:center;color:var(--ivory);
+  transform-origin:center;backface-visibility:hidden;
+}
+.flap .c::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(5,7,15,.85)}
+.flap .c.sep{width:clamp(10px,1.2vw,17px);background:none;border:0;color:var(--dim)}
+.flap .c.flip{animation:flap .30s cubic-bezier(.4,0,.2,1)}
+@keyframes flap{0%{transform:rotateX(0)}49%{transform:rotateX(-88deg)}50%{transform:rotateX(88deg)}100%{transform:rotateX(0)}}
+
+/* ── the cut ── */
+.cut{text-align:center;justify-content:center}
+.cut .glyphline{
+  font-family:var(--mono);font-size:clamp(11px,1.5vw,17px);color:var(--mag);
+  letter-spacing:.22em;margin:0 0 34px;min-height:1.4em;word-break:break-all;
+}
+.silence{
+  font-family:var(--disp);font-weight:400;font-style:normal;
+  font-size:clamp(30px,6.2vw,86px);line-height:1;color:var(--ash);margin:0;
+  text-transform:uppercase;letter-spacing:.02em;
+}
+.silence em{font-weight:900;color:var(--mag);font-style:normal}
+
+/* ── stat strip ── */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:1px;
+  background:rgba(232,228,216,.10);margin-top:34px;border:1px solid rgba(232,228,216,.10)}
+.strip div{background:var(--void);padding:14px 14px 15px}
+.strip .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);display:block}
+.strip .v{font-family:var(--disp);font-weight:800;font-size:clamp(28px,3.4vw,44px);line-height:1;margin-top:7px;display:block;letter-spacing:-.01em}
+.strip .v.a{color:var(--amber)} .strip .v.s{color:var(--steel)} .strip .v.m{color:var(--mag)}
+.strip .u{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:4px;font-weight:400}
+
+/* ── file / ranked ── */
+.file{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.62fr);gap:clamp(24px,4vw,64px);align-items:start}
+@media (max-width:900px){.file{grid-template-columns:1fr}}
+.vrow{
+  display:grid;grid-template-columns:34px 1fr auto;gap:16px;align-items:center;
+  padding:15px 4px;border-bottom:1px solid rgba(232,228,216,.10);
+  position:relative;cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;
+  width:100%;text-align:left;font:inherit;color:inherit;
+  transition:padding-left .3s cubic-bezier(.22,.61,.36,1),background .3s;
+}
+.vrow:hover{padding-left:14px;background:rgba(232,228,216,.035)}
+.vrow[aria-pressed="true"]{padding-left:14px;background:rgba(255,139,46,.07)}
+.vrow:focus-visible{outline:1px solid var(--amber);outline-offset:2px}
+.vrow .rk{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.vrow .nm{font-family:var(--disp);font-weight:800;font-size:clamp(19px,2.3vw,29px);line-height:1;text-transform:uppercase;letter-spacing:-.005em}
+.vrow .sb{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:5px}
+.vrow .sc{font-family:var(--disp);font-weight:800;font-size:clamp(26px,3vw,40px);line-height:1;font-variant-numeric:tabular-nums}
+.vrow[data-lead="1"]{border-bottom-color:rgba(255,139,46,.4)}
+.vrow[data-lead="1"] .nm,.vrow[data-lead="1"] .sc{color:var(--amber)}
+.vrow[data-rad="1"] .nm,.vrow[data-rad="1"] .sc{color:var(--steel)}
+
+.facs{border-left:1px solid rgba(232,228,216,.14);padding-left:22px}
+.fac{margin-bottom:16px}
+.fac-r{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.fac-n{font-size:13px;color:var(--ivory)}
+.fac-v{font-family:var(--mono);font-size:12px;color:var(--amber);font-variant-numeric:tabular-nums}
+.fac-b{height:2px;background:rgba(232,228,216,.12);margin:7px 0 6px;overflow:hidden}
+.fac-b i{display:block;height:100%;background:var(--amber);transition:width .55s cubic-bezier(.22,.61,.36,1)}
+.fac-w{font-size:12px;color:var(--ash);line-height:1.55}
+
+/* ── limits ── */
+.lims{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:26px 34px;margin-top:34px}
+.lim h4{font-family:var(--disp);font-weight:800;font-size:22px;text-transform:uppercase;margin:0 0 7px;letter-spacing:-.005em;color:var(--ivory)}
+.lim p{margin:0;font-size:13px;color:var(--ash);line-height:1.6}
+.lim .n{font-family:var(--mono);font-size:10px;color:var(--mag);letter-spacing:.2em;display:block;margin-bottom:8px}
+
+/* ── gooey depth nav ── */
+.nav{position:fixed;right:clamp(10px,2vw,30px);top:50%;transform:translateY(-50%);z-index:6;
+  filter:url(#goo);display:flex;flex-direction:column;align-items:center;gap:9px}
+@media (max-width:720px){.nav{display:none}}
+.nav b{
+  width:9px;height:9px;border-radius:50%;background:var(--dim);display:block;
+  transition:height .45s cubic-bezier(.34,1.56,.64,1),background .35s,width .35s;
+}
+.nav b.on{background:var(--amber);height:34px;width:9px}
+.nav b.near{height:16px;background:var(--ash)}
+.navlbl{
+  position:fixed;right:clamp(30px,4.4vw,62px);top:50%;transform:translateY(-50%);z-index:6;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--amber);writing-mode:vertical-rl;text-orientation:mixed;pointer-events:none;
+  transition:opacity .3s;
+}
+@media (max-width:720px){.navlbl{display:none}}
+
+/* ── scroll cue ── */
+.cue{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:6;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);
+  display:flex;flex-direction:column;align-items:center;gap:7px;transition:opacity .5s}
+.cue i{display:block;width:1px;height:26px;background:linear-gradient(180deg,var(--dim),transparent);animation:drop 2.1s ease-in-out infinite}
+@keyframes drop{0%,100%{opacity:.25;transform:translateY(-4px)}50%{opacity:1;transform:translateY(4px)}}
+
+/* ── reveal ── */
+.rv{opacity:1;transform:none}
+.js .rv{opacity:0;transform:translateY(26px)}
+.js .rv.in{opacity:1;transform:none;transition:opacity .9s cubic-bezier(.22,.61,.36,1),transform .9s cubic-bezier(.22,.61,.36,1)}
+.js .rv.d1.in{transition-delay:.10s} .js .rv.d2.in{transition-delay:.20s} .js .rv.d3.in{transition-delay:.30s}
+
+/* proximity type */
+.prox span{display:inline-block;transition:transform .28s cubic-bezier(.22,.61,.36,1),color .28s}
+
+footer{position:relative;z-index:2;padding:60px clamp(20px,6vw,90px) 90px;border-top:1px solid rgba(232,228,216,.12)}
+footer .tiny{max-width:78ch}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms!important;transition-duration:.001ms!important}
+  .js .rv{opacity:1;transform:none}
+}
+</style>
+
+<canvas id="gl"></canvas>
+<div class="grain"></div>
+<div class="vig"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="goo">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+    <feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10"/>
+  </filter>
+</defs></svg>
+
+
+<style>
+/* ── additions for the live view: provenance, weights, gates, run log ── */
+.prov{
+  position:fixed;left:clamp(10px,2vw,22px);top:clamp(10px,2vw,18px);z-index:7;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);border:1px solid rgba(232,228,216,.14);border-radius:2px;
+  padding:5px 9px;background:rgba(5,7,15,.72);backdrop-filter:blur(3px);line-height:1.6;
+}
+.prov b{color:var(--mag);font-weight:400}
+.wslink{
+  position:fixed;right:clamp(10px,2vw,22px);top:clamp(10px,2vw,18px);z-index:7;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--amber);text-decoration:none;border:1px solid rgba(255,139,46,.35);
+  border-radius:2px;padding:5px 9px;background:rgba(5,7,15,.72);backdrop-filter:blur(3px);
+}
+.wslink:hover{border-color:var(--amber)}
+@media (max-width:720px){.wslink{display:none}}
+.prov .ok{color:var(--steel)}
+@media (max-width:720px){.prov{font-size:8.5px;padding:4px 6px}}
+
+.halt{
+  position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:8;
+  background:var(--mag);color:var(--void);font-family:var(--mono);font-size:11px;
+  letter-spacing:.1em;text-transform:uppercase;padding:7px 16px;max-width:92vw;
+}
+
+.wpack{margin-top:30px;padding-top:22px;border-top:1px solid rgba(232,228,216,.14)}
+.wpack h5{font-family:var(--mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--dim);margin:0 0 14px;font-weight:400}
+.wrow{display:grid;grid-template-columns:132px 1fr 40px;gap:12px;align-items:center;margin-bottom:9px}
+.wrow label{font-size:12.5px;color:var(--ash)}
+.wrow output{font-family:var(--mono);font-size:11.5px;color:var(--amber);text-align:right;
+  font-variant-numeric:tabular-nums}
+.wrow input[type=range]{-webkit-appearance:none;appearance:none;height:2px;background:rgba(232,228,216,.18);outline:none}
+.wrow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+  border-radius:50%;background:var(--amber);cursor:pointer}
+.wrow input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;
+  background:var(--amber);cursor:pointer}
+.wmeta{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:14px;line-height:1.8}
+.wmeta b{color:var(--amber);font-weight:400}
+
+.gates{display:grid;gap:1px;background:rgba(232,228,216,.10);border:1px solid rgba(232,228,216,.10);margin-top:30px}
+.gaterow{background:var(--void);padding:13px 15px;display:grid;grid-template-columns:26px 168px 1fr;gap:14px;align-items:baseline}
+.gaterow .gid{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.gaterow .gn{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.gaterow .gd{font-size:12.5px;color:var(--ash);line-height:1.55}
+.gaterow.on .gn{color:var(--mag)} .gaterow.off .gn{color:var(--steel)}
+@media (max-width:700px){.gaterow{grid-template-columns:22px 1fr}.gaterow .gd{grid-column:1/-1}}
+
+.runlog{font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.85;
+  margin-top:22px;padding:16px;border:1px solid rgba(232,228,216,.10);overflow-x:auto;
+  max-height:280px;overflow-y:auto;white-space:pre;background:rgba(232,228,216,.02)}
+
+#r95curve b{color:var(--amber);font-weight:400}
+#drivers b{color:var(--steel);font-weight:400}
+</style>
+
+<div class="prov" id="prov">loading run…</div>
+<a class="wslink" href="workstation.html">Workstation &rarr;</a>
+<nav class="nav" id="nav" aria-label="Depth"></nav>
+<span class="navlbl" id="navlbl">Surface</span>
+<div class="cue" id="cue"><span>Descend</span><i></i></div>
+
+<main>
+
+  <!-- ══ 1 · SURFACE ══ -->
+  <section class="st hero" data-st="Surface" data-p="0">
+    <div class="inner">
+      <p class="eyebrow rv" data-b="eyebrow">—</p>
+      <canvas class="pt" id="ptext" width="1120" height="536" aria-label="Forty Hours Back"></canvas>
+      <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end;margin-top:26px">
+        <div class="flap" id="clock" aria-label="Reconstruction clock"></div>
+        <p class="say rv d1" style="max-width:40ch;margin:0">A ship dumped oil here and switched off its
+          transponder to do it. <b>We are going to rewind the water until it tells us which one.</b></p>
+      </div>
+      <div class="meta rv d2">
+        <div><span class="k">Sensor</span><span class="v" data-b="sensor">—</span></div>
+        <div><span class="k">Extent</span><span class="v" data-b="extent">—</span></div>
+        <div><span class="k">Axis</span><span class="v" data-b="axis">—</span></div>
+        <div><span class="k">Broadcasting</span><span class="v" data-b="broadcasting">—</span></div>
+        <div><span class="k">Not broadcasting</span><span class="v" style="color:var(--mag)" data-b="dark_count">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 2 · THE HOLE ══ -->
+  <section class="st" data-st="The hole" data-p="1">
+    <div class="inner">
+      <h2 class="big rv">Radar sees oil<br><span class="lo">as</span> <span class="amb">absence</span>.</h2>
+      <p class="say rv d1">Wind roughens the sea, and a rough sea throws energy back at the satellite. Oil
+        flattens the surface, so the energy scatters away and never returns.</p>
+      <p class="say rv d2"><b>The slick arrives as a hole in the image.</b> That is the whole detection
+        principle — and the whole difficulty, because calm water is a hole too, and so is an algal bloom,
+        and so is the wind shadow behind a headland.</p>
+      <p class="tiny rv d2" id="drivers" style="margin:18px 0 0"></p>
+      <div class="strip rv d3">
+        <div><span class="k">Sea return</span><span class="v s"><span data-b="sea_db">—</span><span class="u">dB</span></span></div>
+        <div><span class="k">Slick return</span><span class="v a"><span data-b="slick_db">—</span><span class="u">dB</span></span></div>
+        <div><span class="k">Candidates</span><span class="v" data-b="candidates">—</span></div>
+        <div><span class="k">Survived</span><span class="v a" data-b="retained">—</span></div>
+        <div><span class="k">Confidence</span><span class="v" data-b="confidence">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 3 · DESCENT ══ -->
+  <section class="st tall" data-st="Rewind" data-p="2">
+    <div class="inner">
+      <h2 class="big rv"><span data-b="horizon_words">Forty</span> hours,<br><span class="lo">run</span> backward.</h2>
+      <p class="say rv d1">Oil moves with the current plus roughly three percent of the wind. Seed the slick
+        with particles and step them back an hour at a time. The patch walks west-southwest toward wherever
+        it was poured.</p>
+      <p class="say rv d2"><b>It does not converge on a point. It spreads.</b> Every hour of rewind compounds
+        the error in the current and wind fields, so the honest output is a region and a window — growing
+        as you go, and reported that way.</p>
+      <div class="strip rv d3">
+        <div><span class="k">Particles</span><span class="v" data-b="particles">—</span></div>
+        <div><span class="k">Integrator</span><span class="v" style="font-size:clamp(19px,2.1vw,26px)" data-b="integrator">—</span></div>
+        <div><span class="k">Leeway</span><span class="v"><span data-b="leeway">—</span><span class="u">%</span></span></div>
+        <div><span class="k" data-b="r95_label">Radius</span><span class="v a"><span data-b="r95">—</span><span class="u">km</span></span></div>
+        <div><span class="k">Window</span><span class="v" style="font-size:clamp(17px,1.9vw,23px)" data-b="window">—</span></div>
+      </div>
+      <p class="tiny rv d3" style="margin-top:24px">Past <b>36 km</b> the region stops constraining traffic.
+        The pipeline drops the spatial filter there rather than shrinking it to look decisive.<br>
+        <span data-b="gate2">—</span></p>
+      <p class="tiny rv d3" id="r95curve" style="margin-top:16px"></p>
+    </div>
+  </section>
+
+  <!-- ══ 4 · TRAFFIC ══ -->
+  <section class="st" data-st="Traffic" data-p="3">
+    <div class="inner">
+      <h2 class="big rv"><span data-b="in_window_words">Nine</span> hulls<br>crossed <span class="lo">that water</span>.</h2>
+      <p class="say rv d1">Every large ship broadcasts position, course and speed, continuously, to anyone
+        listening. Replay the window and the region fills with tracks.</p>
+      <p class="say rv d2">Heading does most of the clearing. A discharge made under way lays the film
+        <b>along the track</b> — so the slick's long axis is a bearing, and a vessel whose course disagrees
+        with it by forty degrees did not make it.</p>
+      <p class="tiny rv d3" id="cleared" style="margin-top:22px"></p>
+    </div>
+  </section>
+
+  <!-- ══ 5 · THE CUT ══ -->
+  <section class="st cut" data-st="The cut" data-p="4">
+    <div class="inner" style="max-width:960px;text-align:center">
+      <p class="glyphline" id="glitchline">—</p>
+      <p class="silence" id="silence">And then <em>nothing</em>.</p>
+      <p class="say rv d1" style="max-width:46ch;margin:34px auto 0;text-align:left">
+        At <span data-b="gap_start">—</span> the transponder goes quiet. At <span data-b="gap_end">—</span>
+        it resumes, well past the region, as though nothing had happened in between.</p>
+      <p class="say rv d2" style="max-width:46ch;margin:15px auto 0;text-align:left">
+        <b>This is not missing data. It is the finding.</b> Equipment fails and coverage thins offshore —
+        but it rarely fails on approach and recovers on departure.</p>
+    </div>
+  </section>
+
+  <!-- ══ 6 · THE RETURN ══ -->
+  <section class="st" data-st="The return" data-p="5">
+    <div class="inner">
+      <h2 class="big rv">A hull is <span class="amb">bright</span><br><span class="lo">whether it speaks or not.</span></h2>
+      <p class="say rv d1">Metal returns radar hard. Ships appear as points of light on dark water — no
+        transponder required, no cooperation required.</p>
+      <p class="say rv d2" id="darkline">—</p>
+      <div class="strip rv d3">
+        <div><span class="k">Radar targets</span><span class="v" data-b="targets">—</span></div>
+        <div><span class="k">Matched</span><span class="v" data-b="matched">—</span></div>
+        <div><span class="k">Unmatched</span><span class="v m" data-b="unmatched">—</span></div>
+        <div><span class="k">Est. length</span><span class="v s"><span data-b="est_length">—</span><span class="u">m</span></span></div>
+        <div><span class="k">Envelope overlap</span><span class="v a"><span data-b="overlap">—</span><span class="u">%</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 7 · THE FILE ══ -->
+  <section class="st tall" data-st="The file" data-p="6">
+    <div class="inner wide">
+      <p class="eyebrow rv">Ranked shortlist · not a finding</p>
+      <h2 class="big rv" style="margin-bottom:38px">The file.</h2>
+      <div class="file">
+        <div>
+          <div id="roster"></div>
+          <div class="wpack" id="wpack"></div>
+        </div>
+        <div class="facs" id="facs"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 8 · LIMITS ══ -->
+  <section class="st" data-st="Limits" data-p="7">
+    <div class="inner wide">
+      <h2 class="big rv"><span class="mg">What this<br>cannot</span> establish.</h2>
+      <p class="say rv d1">A system that hides its own limits is not evidence, it is decoration. These sit at
+        the front of the report.</p>
+      <div class="lims rv d2" id="lims"></div>
+    </div>
+  </section>
+  <!-- ══ 9 · THE RUN ══ -->
+  <section class="st" data-st="The run" data-p="8">
+    <div class="inner wide">
+      <p class="eyebrow rv">Gates · run log · manifest</p>
+      <h2 class="big rv" style="margin-bottom:30px">It says <span class="lo">when it</span> <span class="mg">refuses</span>.</h2>
+      <p class="say rv d1">A system that only ever produces an answer has no way of telling you the one
+        time it should not have. Five gates can halt or degrade this run, and each one reports itself
+        whether it fired or not.</p>
+      <div class="gates rv d2" id="gatelist"></div>
+      <p class="tiny rv d3" id="manifest" style="margin-top:26px"></p>
+      <pre class="runlog rv d3" id="runlog"></pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p class="tiny">
+    <b>SIH 2026 · SIH26143 · National Technical Research Organisation.</b> Leveraging satellite imagery to
+    determine oil spills at sea along with AIS data correlations to identify the vessel responsible.<br><br>
+    Live view. Every number on this page is read from <b>run.json</b>, the output of the pipeline in
+    <b>mvp/darktransit</b> — nothing here is typed in by hand.<br>
+    The incident is synthetic: the radar scene, the traffic and the forcing fields are generated, and every
+    MMSI is minted under the prefix 999, which is not an assigned Maritime Identification Digit, so no
+    identity on this page can collide with a real vessel. This is a ranking for investigation, not a
+    finding of responsibility.
+  </p>
+</footer>
+
+<script>
+"use strict";
+document.documentElement.classList.add("js");
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+const sg=(p,a,b)=>cl((p-a)/(b-a),0,1);
+const pad=n=>String(n).padStart(2,"0");
+
+/* ════════════════ THE WORLD — one fragment shader ════════════════ */
+const FS=`precision highp float;
+uniform vec2  uRes;
+uniform float uTime, uPhase, uGlitch;
+uniform vec2  uMouse;
+
+float sg(float p,float a,float b){return clamp((p-a)/(b-a),0.0,1.0);}
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
+float vnoise(vec2 p){
+  vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
+             mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+}
+/* Three octaves, not five. Octaves four and five land below one screen pixel at any
+   sane resolution, so they cost four hashes each and contribute nothing visible. */
+float fbm(vec2 p){float v=0.0,a=0.5;for(int i=0;i<3;i++){v+=a*vnoise(p);p*=2.03;a*=0.5;}return v;}
+float segd(vec2 p,vec2 a,vec2 b){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);return length(pa-ba*h);}
+
+/* metaball oil: seven blobs that walk from the slick back to the origin as the descent runs */
+float oilField(vec2 q,float t){
+  vec2 A=vec2( 0.44, 0.09);          // where the satellite found it
+  vec2 B=vec2(-0.40,-0.05);          // where it was poured
+  vec2 dir=normalize(vec2(0.76,0.65));   // discharge ran along 041 true
+  vec2 ctr=mix(A,B,t);
+  float s=0.0;
+  for(int i=0;i<7;i++){
+    float fi=float(i);
+    float u=fi/6.0-0.5;                                  // position along the streak
+    vec2 c=ctr+dir*u*(0.30+t*0.34)
+             +vec2(-dir.y,dir.x)*sin(fi*2.3+t*1.6)*(0.014+t*0.055);
+    vec2 d=q-c;
+    s+=0.0026/(dot(d,d)+0.00085);
+  }
+  return s;
+}
+/* four AIS tracks; the suspect's middle leg is deliberately absent */
+float ln(vec2 q,vec2 a,vec2 b){
+  float d=segd(q,a,b);
+  return (1.0-smoothstep(0.0,0.0032,d)) + (1.0-smoothstep(0.0,0.026,d))*0.22;
+}
+float tracks(vec2 q,float rev){
+  float g=max(ln(q,vec2(-0.92,-0.34),vec2(-0.40,-0.06)),
+              ln(q,vec2( 0.06, 0.16),vec2( 0.86, 0.46)));
+  float o=ln(q,vec2(-0.95, 0.30),vec2( 0.95, 0.02));
+  float p=ln(q,vec2(-0.88,-0.42),vec2( 0.92,-0.16));
+  return g*rev + (o+p)*rev*0.34;
+}
+
+void main(){
+  vec2 q=(gl_FragCoord.xy-0.5*uRes)/uRes.y;
+  float ph=uPhase;
+
+  /* the cut: tear the field apart in horizontal bands */
+  if(uGlitch>0.001){
+    float band=step(0.42,fract(q.y*17.0+uTime*2.3));
+    float j=hash(vec2(floor(q.y*46.0),floor(uTime*22.0)))-0.5;
+    q.x+=j*uGlitch*0.42*band;
+    q.y+=(hash(vec2(floor(uTime*30.0),3.0))-0.5)*uGlitch*0.05;
+  }
+
+  vec2 flow=q+vec2(uTime*0.012,-uTime*0.006);
+  float sea=fbm(flow*3.1)*0.62+fbm(flow*9.0+13.0)*0.26;
+  float speck=hash(gl_FragCoord.xy+floor(uTime*24.0))*0.5+0.5;
+
+  vec3 VOID=vec3(0.020,0.028,0.062);
+  vec3 DEEP=vec3(0.043,0.070,0.140);
+  vec3 col=mix(VOID,DEEP,sea);
+  col*=0.82+0.18*speck;                                   /* σ⁰ grain */
+  col+=DEEP*0.55*pow(sea,3.0);
+
+  /* descent darkens the column */
+  col*=mix(1.0,0.62,sg(ph,0.16,0.52));
+
+  /* oil */
+  float drift=sg(ph,0.20,0.50);
+  float f=oilField(q,drift);
+  /* The edge was modulated by a third fbm call. Reusing the sea field costs nothing and
+     breaks the outline just as effectively — it is texture, not measurement. */
+  f*=0.87+0.30*sea;                                       /* organic edge, not a bubble */
+  float oil=smoothstep(0.92,1.50,f);
+  float rim=smoothstep(0.86,1.03,f)-smoothstep(1.03,1.21,f);
+  float oilVis=smoothstep(0.02,0.14,ph)*(1.0-sg(ph,0.58,0.72)*0.84);
+  col=mix(col,VOID*0.30,oil*oilVis);                      /* it is a hole, not a stain */
+  col+=vec3(1.000,0.545,0.180)*rim*oilVis*(0.42+0.42*drift);
+
+  /* signal tracks */
+  float rev=sg(ph,0.46,0.60)*(1.0-sg(ph,0.60,0.66)*0.55)+sg(ph,0.72,0.80)*0.5;
+  col+=vec3(0.498,0.659,0.831)*tracks(q,rev)*0.72;
+
+  /* the gap marker */
+  float gapOn=sg(ph,0.60,0.65)*(1.0-sg(ph,0.70,0.78));
+  float gd=length(q-vec2(-0.18,0.04));
+  col+=vec3(0.878,0.235,0.545)*gapOn*(1.0-smoothstep(0.0,0.05,abs(gd-0.10)))*0.7;
+
+  /* phosphor sweep — finds the unmatched hull */
+  float sweepOn=sg(ph,0.70,0.78);
+  float ang=atan(q.y,q.x);
+  float sa=mod(ang-uTime*1.5,6.28318);
+  float wedge=exp(-sa*3.5)*exp(-length(q)*0.75);
+  col+=vec3(0.910,0.894,0.847)*wedge*sweepOn*0.115;
+
+  /* the unmatched return blooms under the sweep */
+  float hd=length(q-vec2(-0.24,-0.02));
+  float pulse=0.5+0.5*sin(uTime*3.4);
+  col+=vec3(1.000,0.545,0.180)*sweepOn*exp(-hd*44.0)*(1.2+pulse*1.6);
+  col+=vec3(1.000,0.545,0.180)*sweepOn*(1.0-smoothstep(0.0,0.004,abs(hd-0.055)))*0.55*pulse;
+
+  /* cursor disturbance */
+  float md=length(q-uMouse);
+  col+=vec3(0.498,0.659,0.831)*exp(-md*9.0)*0.05;
+
+  /* the cut washes to noise */
+  col=mix(col,vec3(speck)*vec3(0.9,0.85,0.95)*0.5,uGlitch*0.55);
+
+  /* settle */
+  col*=1.0-sg(ph,0.86,1.0)*0.34;
+  gl_FragColor=vec4(col,1.0);
+}`;
+
+let uni=null, PH=0, GLI=0, target=0, STOP=false;
+let drawWorld=null;                      // the world no longer drives its own rAF loop
+(function world(){
+  const cv=$("#gl"), gl=cv.getContext("webgl",{antialias:false,alpha:false});
+  if(!gl){ cv.style.background="linear-gradient(180deg,#05070f,#0a1020)"; return; }
+  const diag=m=>{let d=document.getElementById("diag");
+    if(!d){d=document.createElement("pre");d.id="diag";d.style.cssText="position:fixed;left:0;top:0;z-index:99;color:#f66;font:11px monospace;max-width:90vw;white-space:pre-wrap";document.body.appendChild(d);}
+    d.textContent+=m+"\n";console.warn(m);};
+  const mk=(t,s,nm)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+    if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))diag("SHADER "+nm+": "+gl.getShaderInfoLog(o));return o;};
+  const pr=gl.createProgram();
+  gl.attachShader(pr,mk(gl.VERTEX_SHADER,"attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}","vs"));
+  gl.attachShader(pr,mk(gl.FRAGMENT_SHADER,FS,"fs"));
+  gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){diag("LINK: "+gl.getProgramInfoLog(pr));return;}
+
+  gl.useProgram(pr);
+  const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const a=gl.getAttribLocation(pr,"p");gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,2,gl.FLOAT,false,0,0);
+  uni={
+    res:gl.getUniformLocation(pr,"uRes"), t:gl.getUniformLocation(pr,"uTime"),
+    ph:gl.getUniformLocation(pr,"uPhase"), gl:gl.getUniformLocation(pr,"uGlitch"),
+    ms:gl.getUniformLocation(pr,"uMouse"), ctx:gl
+  };
+  /* Every fragment runs the noise field, so resolution is the single biggest lever.
+     Roughly one device pixel per CSS pixel, capped, instead of 1.3×. */
+  const DPR=()=>Math.min(1.35,devicePixelRatio||1)*0.76;
+  let lastW=0,lastH=0;
+  function size(){
+    const d=DPR(), w=innerWidth*d|0, h=innerHeight*d|0;
+    if(w===lastW&&h===lastH) return;
+    lastW=w;lastH=h;cv.width=w;cv.height=h;
+    gl.viewport(0,0,w,h);gl.uniform2f(uni.res,w,h);
+  }
+  size();addEventListener("resize",size);
+  let t0=performance.now(), mx=0, my=0, tmx=0, tmy=0;
+  addEventListener("pointermove",e=>{tmx=(e.clientX/innerWidth-.5)*(innerWidth/innerHeight);tmy=-(e.clientY/innerHeight-.5);},{passive:true});
+  drawWorld=now=>{
+    mx+=(tmx-mx)*.07; my+=(tmy-my)*.07;
+    gl.uniform1f(uni.t,RM?7.0:(now-t0)/1000);
+    gl.uniform1f(uni.ph,PH);
+    gl.uniform1f(uni.gl,GLI);
+    gl.uniform2f(uni.ms,mx,my);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+  };
+})();
+
+/* ════════════════ scroll → phase ════════════════ */
+const sections=$$(".st");
+let maxScroll=0;
+function measure(){ maxScroll=Math.max(0,document.documentElement.scrollHeight-innerHeight); }
+function onScroll(){ target=maxScroll>0?cl(scrollY/maxScroll,0,1):0; }
+addEventListener("scroll",onScroll,{passive:true});
+addEventListener("resize",()=>{measure();onScroll();});
+measure(); onScroll();
+
+/* ════════════════ particle headline ════════════════ */
+(function particleText(){
+  const cv=$("#ptext"), g=cv.getContext("2d");
+  const W=cv.width,H=cv.height;
+  const off=document.createElement("canvas");off.width=W;off.height=H;
+  const og=off.getContext("2d");
+  /* each line is fitted to the full canvas width, so the stack reads as a poster
+     rather than a caption floating in dead space */
+  function fit(word,weight,target){
+    let fs=100;
+    og.font=`${weight} ${fs}px "Big Shoulders Display", Arial Narrow, sans-serif`;
+    const w=og.measureText(word).width || 1;
+    return fs*(target/w);
+  }
+  function layout(){
+    og.clearRect(0,0,W,H);
+    og.fillStyle="#fff";og.textBaseline="top";
+    const f1=fit("FORTY HOURS",600,W*0.98), f2=fit("BACK",900,W*0.615);
+    og.font=`600 ${f1}px "Big Shoulders Display", Arial Narrow, sans-serif`;
+    og.fillText("FORTY HOURS",0,4);
+    og.font=`900 ${f2}px "Big Shoulders Display", Arial Narrow, sans-serif`;
+    og.fillText("BACK",0,4+f1*0.76);
+  }
+  layout();
+  let pts=[];
+  function sample(){
+    pts=[];
+    const d=og.getImageData(0,0,W,H).data, step=6;
+    for(let y=0;y<H;y+=step)for(let x=0;x<W;x+=step){
+      if(d[(y*W+x)*4+3]>128){
+        const ang=Math.random()*6.2832, r=260+Math.random()*520;
+        pts.push({x,y,sx:x+Math.cos(ang)*r,sy:y+Math.sin(ang)*r,d:Math.random()});
+      }
+    }
+  }
+  sample();
+  const IVORY="rgba(232,228,216,.96)";
+  /* Colour strings were rebuilt per particle per frame — thousands of allocations a frame.
+     Twelve fixed steps read identically. */
+  const AMB=[];for(let i=0;i<12;i++)AMB.push(`rgba(255,139,46,${(0.34+0.66*(i/11)).toFixed(2)})`);
+  /* resting state is the finished word — the animation only ever plays over it,
+     so the headline is legible even if the frame loop never runs */
+  function rest(a){
+    g.clearRect(0,0,W,H);
+    g.fillStyle=`rgba(232,228,216,${a})`;
+    for(const p of pts) g.fillRect(p.x,p.y,2.6,2.6);
+  }
+  rest(0.96);
+  if(RM) return;
+  /* The latent layer is identical every frame, so bake it once and blit it instead of
+     re-filling several thousand rectangles for it on top of the moving ones. */
+  const latent=document.createElement("canvas");latent.width=W;latent.height=H;
+  const lg=latent.getContext("2d");
+  function bakeLatent(){
+    lg.clearRect(0,0,W,H);
+    lg.fillStyle="rgba(232,228,216,0.20)";
+    for(const p of pts) lg.fillRect(p.x,p.y,2.6,2.6);
+  }
+  bakeLatent();
+  let t0=null, done=false;
+  function frame(now){
+    if(!t0)t0=now;
+    const el=(now-t0)/1600;
+    g.clearRect(0,0,W,H);
+    g.drawImage(latent,0,0);
+    for(const p of pts){
+      const k=cl((el-p.d*0.45)/0.72,0,1), e=1-Math.pow(1-k,4);
+      const x=p.sx+(p.x-p.sx)*e, y=p.sy+(p.y-p.sy)*e;
+      g.fillStyle=k<1?AMB[(k*11)|0]:IVORY;
+      g.fillRect(x,y,2.6,2.6);
+    }
+    if(el<2.0) requestAnimationFrame(frame);
+    else if(!done){done=true;rest(0.96);}
+  }
+  const start=()=>{layout();sample();bakeLatent();rest(0.96);requestAnimationFrame(frame);};
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(start);
+  else start();
+  setTimeout(()=>{if(!t0)start();},1200);
+})();
+
+/* ════════════════ split-flap clock ════════════════ */
+const clock=$("#clock");
+let BASE=Date.UTC(2026,2,14,6,12);
+window.__setBase=v=>{BASE=v;flapPrev="";flapRender(clockFor(0));};
+let flapPrev="";
+function flapRender(str){
+  if(str===flapPrev) return;                 // was walking every cell every frame
+  if(clock.children.length!==str.length){
+    clock.innerHTML=[...str].map(ch=>`<span class="c${/[:· ]/.test(ch)?" sep":""}">${ch}</span>`).join("");
+    flapPrev=str; return;
+  }
+  [...str].forEach((ch,i)=>{
+    const el=clock.children[i];
+    if(el.textContent!==ch){
+      el.textContent=ch;
+      if(!RM){el.classList.remove("flip");void el.offsetWidth;el.classList.add("flip");}
+    }
+  });
+  flapPrev=str;
+}
+function clockFor(hoursBack){
+  const d=new Date(BASE-hoursBack*36e5);
+  return `${pad(d.getUTCDate())}·${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+flapRender(clockFor(0));
+
+/* ════════════════ glitch line + silence ════════════════ */
+let GL_SRC="";
+window.__setGlitch=v=>{GL_SRC=v;gline.textContent=v;};
+const NOISE="▓▒░█▚▞╳┼┤├━│·⌁⏦∅";
+const gline=$("#glitchline");
+function glitchLine(k){
+  gline.style.opacity=String(1-k*0.45);
+  gline.textContent=[...GL_SRC].map(c=>
+    Math.random()<k*1.15 ? (Math.random()<0.5?" ":NOISE[(Math.random()*NOISE.length)|0]) : c).join("");
+}
+
+/* ════════════════ vessels — rendered from run.json ════════════════ */
+const FK=[["containment","Containment in origin region"],["timing","Timing"],
+          ["heading","Heading against slick axis"],["broadcast","Broadcast behaviour"],
+          ["class_prior","Class prior"]];
+let RANKED=[], WEIGHTS={}, sel=null;
+const mask=m=>m?m.slice(0,3)+"•••"+m.slice(-3):"—";
+
+function scoreOf(v,w){
+  let num=0,den=0;
+  for(const [k] of FK){
+    if((v.suppressed||[]).includes(k)) continue;
+    const f=v.factors[k]; if(f===undefined) continue;
+    num+=(w[k]||0)*f; den+=(w[k]||0);
+  }
+  return den>0?num/den:0;
+}
+
+function renderRoster(){
+  const rows=[...RANKED].sort((a,b)=>scoreOf(b,WEIGHTS)-scoreOf(a,WEIGHTS));
+  if(sel===null && rows.length) sel=rows[0].mmsi;
+  $("#roster").innerHTML=rows.map((v,i)=>`
+    <button class="vrow" data-id="${v.mmsi}" data-lead="${i===0?1:0}" data-rad="${v.corroboration?1:0}"
+            aria-pressed="${v.mmsi===sel}">
+      <span class="rk">${pad(i+1)}</span>
+      <span><span class="nm">${v.name}</span><span class="sb">${v.ship_type.replace(/_/g," ")} · ${Math.round(v.length_m)} m · ${mask(v.mmsi)}</span></span>
+      <span class="sc">${scoreOf(v,WEIGHTS).toFixed(2)}</span>
+    </button>`).join("");
+  const m=rows.length>1?(scoreOf(rows[0],WEIGHTS)-scoreOf(rows[1],WEIGHTS)):NaN;
+  const el=$("#margin"); if(el){
+    el.textContent=isNaN(m)?"—":m.toFixed(3);
+    el.style.color=(!isNaN(m)&&m<0.10)?"var(--mag)":"var(--amber)";
+  }
+  const g=$("#margingate"); if(g)
+    g.textContent=isNaN(m)?"":(m<0.10?"below 0.10 — gate 4 fires, neither vessel is named":"above the 0.10 gate");
+  facs();
+}
+
+function facs(){
+  const v=RANKED.find(x=>x.mmsi===sel); if(!v){$("#facs").innerHTML="";return;}
+  $("#facs").innerHTML=FK.map(([k,l])=>{
+    const sup=(v.suppressed||[]).includes(k);
+    const f=sup?0:(v.factors[k]||0);
+    return `<div class="fac"><div class="fac-r"><span class="fac-n">${l}</span>
+      <span class="fac-v">${sup?"suppressed":f.toFixed(2)} · ${WEIGHTS[k]||0}</span></div>
+      <div class="fac-b"><i style="width:${(sup?0:f)*100}%"></i></div>
+      <div class="fac-w">${(v.justifications||{})[k]||""}</div></div>`;
+  }).join("")+
+   (v.corroboration?`<p class="tiny" style="margin-top:16px;color:var(--steel)">Second channel: ${v.corroboration.text}.</p>`:"")+
+   `<p class="tiny" style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(232,228,216,.14);color:var(--ash);font-family:var(--body);font-size:13px;line-height:1.6">
+      Composite ${scoreOf(v,WEIGHTS).toFixed(3)} under weight pack <b>${WPACK||"—"}</b>.
+      A ranking for investigation. Not a finding of responsibility.</p>`;
+}
+
+let WPACK="";
+document.addEventListener("click",e=>{
+  const b=e.target.closest(".vrow"); if(!b) return;
+  sel=b.dataset.id;
+  $$(".vrow").forEach(x=>x.setAttribute("aria-pressed",x.dataset.id===sel));
+  facs();
+});
+
+/* ════════════════ gooey depth nav ════════════════ */
+const NAMES=sections.map(s=>s.dataset.st);
+$("#nav").innerHTML=NAMES.map(()=>"<b></b>").join("");
+const dots=$$("#nav b"), navlbl=$("#navlbl");
+$("#nav").addEventListener("click",e=>{
+  const i=dots.indexOf(e.target); if(i<0)return;
+  sections[i].scrollIntoView({behavior:RM?"auto":"smooth"});
+});
+
+/* ════════════════ reveal ════════════════ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add("in");}),
+  {threshold:.18,rootMargin:"0px 0px -8% 0px"});
+$$(".rv").forEach(el=>io.observe(el));
+
+/* proximity type on the big headings */
+$$("h2.big").forEach(h=>{
+  h.classList.add("prox");
+  h.innerHTML=h.innerHTML.replace(/([^\s<>]+)(?![^<]*>)/g,m=>m.trim()?`<span>${m}</span>`:m);
+});
+/* This handler used to re-query the DOM and call getBoundingClientRect on every word on
+   every pointermove — a forced synchronous layout per word, hundreds of times a second.
+   Positions are measured once into document space and refreshed only when they can change. */
+if(!RM){
+  const PROX=$$(".prox span");
+  let geo=[], dirty=true, queued=0, px=0, py=0, touched=new Set();
+  const remeasure=()=>{
+    dirty=false;
+    geo=PROX.map(el=>{const r=el.getBoundingClientRect();
+      return {el,cx:r.left+scrollX+r.width/2,cy:r.top+scrollY+r.height/2};});
+  };
+  const apply=()=>{
+    queued=0;
+    if(dirty) remeasure();
+    const next=new Set();
+    for(const p of geo){
+      const vy=p.cy-scrollY;
+      if(vy<-140||vy>innerHeight+140) continue;
+      const dx=px-p.cx, dy=py-p.cy, d=Math.hypot(dx,dy);
+      if(d<230&&d>0.5){
+        const k=(1-d/230)**2*13;
+        p.el.style.transform=`translate(${(-dx/d*k).toFixed(2)}px,${(-dy/d*k).toFixed(2)}px)`;
+        next.add(p.el);
+      }
+    }
+    for(const el of touched) if(!next.has(el)) el.style.transform="";
+    touched=next;
+  };
+  addEventListener("pointermove",e=>{
+    px=e.clientX+scrollX; py=e.clientY+scrollY;
+    if(!queued) queued=requestAnimationFrame(apply);
+  },{passive:true});
+  // the reveal transition moves words, so re-measure once the scroll settles
+  let sT=0;
+  addEventListener("scroll",()=>{clearTimeout(sT);sT=setTimeout(()=>dirty=true,180)},{passive:true});
+  addEventListener("resize",()=>dirty=true);
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>dirty=true);
+  remeasure();
+}
+
+/* screenshot harness: ?flat=1 collapses the descent and caps the render at 40 frames */
+{const fl=/[?&]flat=1/.test(location.search);
+ if(fl){
+   const st=document.createElement("style");
+   st.textContent=".st{min-height:auto!important;padding:46px clamp(20px,6vw,90px)!important}"+
+                  ".st.tall{min-height:auto!important}";
+   document.head.appendChild(st);
+   document.querySelectorAll(".rv").forEach(e=>e.classList.add("in"));
+   let n=0;(function cap(){ if(n++>40){STOP=true;return;} requestAnimationFrame(cap); })();
+ }}
+
+{const m=/[?&]st=(\d+)/.exec(location.search);
+ if(m){const i=+m[1];
+   document.querySelectorAll(".rv").forEach(e=>e.classList.add("in"));
+   let n=0;(function hold(){
+     const s=document.querySelectorAll(".st")[i];
+     if(s){const r=s.getBoundingClientRect();
+       scrollTo(0,scrollY+r.top+r.height/2-innerHeight/2);}
+     if(n++<90)requestAnimationFrame(hold);
+   })();}}
+
+/* ════════════════ one frame loop ════════════════ */
+/* There were three permanent rAF loops here, and the world's loop registered itself twice
+   per frame — so pending callbacks doubled every frame until the tab died. One loop now,
+   one registration, paused when the tab is hidden. */
+const cue=$("#cue");
+let lastHb=-1, lastGk=-1, lastS0=-1, lastAct=-1, lastCue=-1;
+const sil=$("#silence");
+function ui(now){
+  /* clock rewinds through the descent */
+  const hb=Math.round(sg(PH,0.20,0.50)*40);
+  if(hb!==lastHb){lastHb=hb;flapRender(clockFor(hb));}
+
+  /* the cut */
+  const gk=sg(PH,0.575,0.625);
+  if(gk<=0.01){ if(lastGk>0.01){gline.textContent=GL_SRC;gline.style.opacity=".85";} }
+  else if(gk>=0.99){ if(lastGk<0.99){gline.textContent="";} }
+  else glitchLine(gk);                     // mid-cut it must re-randomise every frame
+  lastGk=gk;
+
+  const s0=sg(PH,0.615,0.655);
+  if(Math.abs(s0-lastS0)>0.002){
+    lastS0=s0;
+    sil.style.opacity=String(0.14+0.86*s0);
+    sil.style.transform=`translateY(${(26-26*s0).toFixed(1)}px) scale(${(0.97+0.03*s0).toFixed(3)})`;
+    sil.style.letterSpacing=`${(0.34-0.32*s0).toFixed(3)}em`;
+  }
+
+  /* depth nav — from cached geometry, so reading it never forces a layout */
+  const y=scrollY+innerHeight*0.42;
+  let act=0;
+  for(let i=0;i<sections.length;i++) if(sections[i].offsetTop<=y) act=i;
+  if(act!==lastAct){
+    lastAct=act;
+    dots.forEach((d,i)=>{d.className=i===act?"on":(Math.abs(i-act)===1?"near":"");});
+    navlbl.textContent=NAMES[act];
+  }
+
+  const c=PH<0.035?1:0;
+  if(c!==lastCue){lastCue=c;cue.style.opacity=String(c);}
+}
+
+let hidden=false;
+document.addEventListener("visibilitychange",()=>{hidden=document.hidden;});
+(function frame(now){
+  if(!hidden){
+    PH+=(target-PH)*0.075;
+    const cut=sg(PH,0.575,0.615)*(1-sg(PH,0.635,0.685));
+    GLI=RM?0:cut*(0.55+0.45*Math.abs(Math.sin(now*0.011)));
+    if(drawWorld) drawWorld(now);
+    ui(now);
+  }
+  if(!STOP) requestAnimationFrame(frame);
+})(performance.now());
+</script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   Hydration. Every number on this page comes from run.json — the output of
+   the pipeline in mvp/darktransit. Nothing below invents a value; where the
+   run did not produce one, the field stays em-dashed and says so.
+   ══════════════════════════════════════════════════════════════════════════ */
+(async function () {
+  "use strict";
+  const q = s => document.querySelector(s);
+  const qa = s => [...document.querySelectorAll(s)];
+  const p2 = n => String(n).padStart(2, "0");
+  const p3 = n => String(Math.round(n)).padStart(3, "0");
+  const hhmm = iso => iso ? iso.slice(11, 16) : "—";
+  const set = (k, v) => qa(`[data-b="${k}"]`).forEach(el => { el.textContent = v; });
+
+  let doc = null, err = null;
+  try {
+    const r = await fetch("run.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    doc = await r.json();
+  } catch (e) { err = e; }
+
+  if (!doc) {
+    q("#prov").innerHTML = "no run loaded — <b>python3 -m darktransit.cli run</b> then <b>serve</b>";
+    q("#prov").title = err ? String(err) : "";
+    return;
+  }
+
+  /* ── provenance badge, always visible (NFR-7) ── */
+  const pv = doc.provenance || {};
+  q("#prov").innerHTML =
+    `run <span class="ok">${doc.run_id}</span><br>` +
+    `ais <b>${pv.ais}</b> · imagery <b>${pv.scene}</b> · forcing <b>${pv.forcing}</b>`;
+
+  /* ── halt banner ── */
+  if (doc.halted) {
+    const d = document.createElement("div");
+    d.className = "halt";
+    d.textContent = `halted at gate ${doc.halted.gate} — ${doc.halted.name}`;
+    document.body.appendChild(d);
+    ["[data-p='6']", "[data-p='4']", "[data-p='5']"].forEach(s => {
+      const el = q(s); if (el) el.style.display = "none";
+    });
+  }
+
+  /* ── surface ── */
+  const det = doc.detection || {}, geom = doc.geometry || {}, dr = doc.drift || {},
+        tr = doc.traffic || {}, dk = doc.dark || {}, att = doc.attribution || {},
+        par = doc.parameters || {}, sc = (doc.intake || {}).scene || {};
+  const t0 = doc.detection_utc;
+  const MON = ["January","February","March","April","May","June","July","August",
+               "September","October","November","December"];
+  if (t0) {
+    const d0 = new Date(t0);
+    set("eyebrow", `${d0.getUTCDate()} ${MON[d0.getUTCMonth()]} ${d0.getUTCFullYear()} · ` +
+                   `${p2(d0.getUTCHours())}:${p2(d0.getUTCMinutes())} UTC · ${doc.scenario_label}`);
+    if (window.__setBase) window.__setBase(Date.parse(t0));
+  }
+  set("sensor", `${sc.sensor || "—"} · ${sc.mode || ""} · ${sc.polarisation || ""}`);
+  set("extent", geom.area_km2 != null ? `${geom.area_km2} km²` : "—");
+  set("axis", geom.principal_axis_deg != null
+      ? `${p3(geom.principal_axis_deg)}° ${geom.axis_usable ? "true" : "(unusable)"}` : "—");
+  set("broadcasting", tr.in_window != null ? `${tr.in_window} vessels` : "—");
+  const darkHulls = (tr.vessels || []).filter(v => (v.gaps || []).length).length;
+  set("dark_count", String(darkHulls));
+
+  /* ── the hole ── */
+  set("sea_db", det.sea_db ?? "—");
+  set("slick_db", det.slick_db ?? "—");
+  set("candidates", det.candidates ?? "—");
+  set("retained", det.retained ?? "—");
+  set("confidence", det.confidence != null ? det.confidence.toFixed(2) : "—");
+  if (det.drivers && det.drivers.length) {
+    q("#drivers").innerHTML = "Confidence is never a bare number. It decomposes as " +
+      det.drivers.slice(0, 4).map(d =>
+        `<b>${d.name.replace(/_/g, " ")}</b> ${d.contribution > 0 ? "+" : ""}${d.contribution.toFixed(2)}`
+      ).join(" · ") + `. ${det.candidates} dark candidates, ${det.retained} retained.`;
+  } else if (det.candidates != null) {
+    q("#drivers").innerHTML = `${det.candidates} dark candidates, none retained. ` +
+      `The system reports a look-alike rather than an origin region.`;
+  }
+
+  /* ── rewind ── */
+  set("horizon_words", par.horizon_h != null ? String(Math.round(par.horizon_h)) : "Forty");
+  set("particles", par.n_particles != null ? String(par.n_particles).replace(/\B(?=(\d{3})+(?!\d))/g, " ") : "—");
+  set("integrator", par.integrator || "—");
+  set("leeway", par.leeway_alpha != null ? (par.leeway_alpha * 100).toFixed(1) : "—");
+  set("r95_label", "Origin region r₉₅");
+  set("r95", dr.r95_union_km ?? "—");
+  set("window", dr.origin_window ? `${hhmm(dr.origin_window[0])}–${hhmm(dr.origin_window[1])}` : "—");
+  const g2 = (doc.gates || []).find(g => g.id === 2);
+  if (g2) set("gate2", (g2.fired ? "Gate 2 fired: " : "Gate 2 held: ") + g2.detail);
+  if (dr.r95_series && dr.r95_series.length) {
+    const s = dr.r95_series.filter((_, i) => i % 8 === 0 || i === dr.r95_series.length - 1);
+    q("#r95curve").innerHTML = "Growth of the 95 % containment radius, hour by hour rewound: " +
+      s.map(r => `−${Math.round(r.hour_back)} h <b>${r.r95_km.toFixed(1)} km</b>`).join(" · ") + ".";
+  }
+
+  /* ── traffic ── */
+  set("in_window_words", tr.in_window != null ? String(tr.in_window) : "Nine");
+  const mask = m => m ? m.slice(0, 3) + "•••" + m.slice(-3) : "—";
+  const lines = [];
+  (att.ranked || []).slice(1).forEach(v => {
+    const why = v.delta_axis != null
+      ? `course ${Math.round(v.cog)}° against axis ${p3(geom.principal_axis_deg)}°, ${Math.round(v.delta_axis)}° apart`
+      : "no usable course through the region";
+    lines.push(`${mask(v.mmsi)} &nbsp;<b>ranked ${v.rank}</b> · ${why}`);
+  });
+  (tr.dropped_vessels || []).forEach(v =>
+    lines.push(`${mask(v.mmsi)} &nbsp;<b>dropped</b> · ${v.basis}`));
+  if (att.ranked && att.ranked.length) {
+    lines.unshift(`${mask(att.ranked[0].mmsi)} &nbsp;<span style="color:var(--mag)">holding</span>`);
+  }
+  q("#cleared").innerHTML = lines.join("<br>");
+
+  /* ── the cut ── */
+  const lead = (att.ranked || [])[0];
+  const leadRec = lead ? (tr.vessels || []).find(v => v.mmsi === lead.mmsi) : null;
+  const gap = leadRec && leadRec.gaps && leadRec.gaps.length ? leadRec.gaps[0] : null;
+  if (leadRec && gap) {
+    const trk = leadRec.track || [];
+    const gs = Date.parse(gap.start_utc), t0ms = Date.parse(t0);
+    let best = null, bd = Infinity;
+    trk.forEach(pt => {
+      const d = Math.abs((t0ms + pt[2] * 3.6e6) - gs);
+      if (d < bd) { bd = d; best = pt; }
+    });
+    const pos = best
+      ? `${Math.abs(best[1]).toFixed(2)}${best[1] >= 0 ? "N" : "S"} ${Math.abs(best[0]).toFixed(2)}${best[0] >= 0 ? "E" : "W"}`
+      : "position unavailable";
+    if (window.__setGlitch)
+      window.__setGlitch(`${mask(leadRec.mmsi)} · ${pos} · COG ${leadRec.cog != null ? Math.round(leadRec.cog) : "—"}`);
+    set("gap_start", hhmm(gap.start_utc));
+    set("gap_end", hhmm(gap.end_utc));
+  } else {
+    if (window.__setGlitch) window.__setGlitch("no broadcast gap in the origin window");
+    set("gap_start", "—"); set("gap_end", "—");
+  }
+
+  /* ── the return ── */
+  if (dk.available) {
+    const u = (dk.unmatched_targets || [])[0];
+    q("#darkline").innerHTML =
+      `${dk.targets} targets in the archive scene. ${dk.matched} match a broadcast. ` +
+      (dk.unmatched
+        ? `<b>${dk.unmatched === 1 ? "One does not," : dk.unmatched + " do not,"}</b> ` +
+          (u && u.in_origin_region ? "and it sits inside the origin region. " : "") +
+          "Two channels, independent — and an unmatched return is corroboration, never a suspect of its own."
+        : "None are unmatched, so the second channel adds nothing here and says so.");
+    set("targets", dk.targets); set("matched", dk.matched); set("unmatched", dk.unmatched);
+    set("est_length", u ? Math.round(u.est_length_m) : "—");
+  } else {
+    q("#darkline").innerHTML = `<b>The dark channel is unavailable.</b> ${dk.reason || ""} ` +
+      `The result is reported as single-channel rather than quietly omitting it.`;
+    ["targets", "matched", "unmatched", "est_length"].forEach(k => set(k, "—"));
+  }
+  set("overlap", gap ? Math.round(gap.overlap * 100) : "—");
+
+  /* ── the file: roster + live weight pack ── */
+  if (att.ranked) {
+    RANKED = att.ranked;
+    WEIGHTS = Object.assign({}, att.weights);
+    WPACK = att.weight_pack || "";
+    const rows = Object.keys(WEIGHTS).map(k =>
+      `<div class="wrow">
+         <label for="w_${k}">${k.replace(/_/g, " ")}</label>
+         <input type="range" id="w_${k}" data-k="${k}" min="0" max="40" step="1" value="${WEIGHTS[k]}">
+         <output id="o_${k}">${WEIGHTS[k]}</output>
+       </div>`).join("");
+    q("#wpack").innerHTML =
+      `<h5>Weight pack · ${WPACK} · live</h5>${rows}
+       <p class="wmeta">Leader margin <b id="margin">—</b> <span id="margingate"></span><br>
+       Any weighting is an assumption. Drop <b>heading</b> to zero and watch the margin collapse —
+       that is an honest measure of how much the conclusion rests on one geometric argument.
+       <span id="apistate"></span></p>`;
+    renderRoster();
+
+    let timer = null;
+    q("#wpack").addEventListener("input", e => {
+      const k = e.target.dataset.k; if (!k) return;
+      WEIGHTS[k] = Number(e.target.value);
+      q("#o_" + k).textContent = e.target.value;
+      renderRoster();
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        /* The page recomputes locally for immediacy, then asks the service for
+           the authoritative ranking. /rescore is a pure function of stored
+           artefacts, so nothing upstream of stage 7 is re-run. */
+        try {
+          const r = await fetch(`runs/${doc.run_id}/rescore`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ weights: WEIGHTS })
+          });
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          const out = await r.json();
+          RANKED = out.ranked; renderRoster();
+          q("#apistate").innerHTML = `<br>Confirmed by <b>POST /runs/${doc.run_id}/rescore</b>.`;
+        } catch (_) {
+          q("#apistate").innerHTML = "<br>Scored in the page; the rescore service did not answer.";
+        }
+      }, 260);
+    });
+  }
+
+  /* ── limits, from the run ── */
+  q("#lims").innerHTML = (doc.limitations || []).map((l, i) =>
+    `<div class="lim"><span class="n">${p2(i + 1)}</span><h4>${l.title}</h4><p>${l.text}</p></div>`
+  ).join("");
+
+  /* ── gates, manifest, run log ── */
+  q("#gatelist").innerHTML = (doc.gates || []).map(g =>
+    `<div class="gaterow ${g.fired ? "on" : "off"}">
+       <span class="gid">${g.id}</span>
+       <span class="gn">${g.fired ? "fired" : "held"} · ${g.name.replace(/_/g, " ")}</span>
+       <span class="gd">${g.detail}</span>
+     </div>`).join("");
+
+  q("#manifest").innerHTML =
+    `Manifest <b>${(doc.manifest_hash || "").slice(0, 16)}</b> · seed and parameters recorded · ` +
+    `forcing ${doc.forcing.current}, ${doc.forcing.wind} · ` +
+    `weight pack ${att.weight_pack || "—"} (${att.weight_pack_version || "—"}) · ` +
+    `Dark Transit ${doc.version}. Two runs with this manifest produce the same scores.`;
+
+  try {
+    const lg = await fetch(`runs/${doc.run_id}/log`, { cache: "no-store" });
+    if (lg.ok) {
+      const txt = await lg.text();
+      q("#runlog").textContent = txt.trim().split("\n").map(l => {
+        const o = JSON.parse(l);
+        return `${String(o.t).padStart(7)}s  ${o.stage.padEnd(16)} ${o.event}` +
+               Object.entries(o).filter(([k]) => !["t", "stage", "event"].includes(k))
+                 .map(([k, v]) => `  ${k}=${JSON.stringify(v)}`).join("");
+      }).join("\n");
+    }
+  } catch (_) { q("#runlog").textContent = "run log not served (open the page through `cli serve`)"; }
+})();
+</script>

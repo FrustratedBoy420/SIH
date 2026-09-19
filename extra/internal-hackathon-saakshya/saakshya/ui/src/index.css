@@ -1,0 +1,210 @@
+@import "tailwindcss";
+
+/* ============================================================
+   SAAKSHYA design tokens
+   Two surfaces, always: the DECK (cold graphite — the satellite)
+   and the PAPER (warm archival buff — the legal record).
+   Imagery colours are real Landsat false-colour IR:
+   vegetation reads crimson, cultivated/bare ground reads cyan.
+   Status colours follow Survey of India toposheet convention.
+   ============================================================ */
+@theme {
+  --color-void:      #07090C;
+  --color-deck:      #0E1419;
+  --color-deckr:     #151D24;
+  --color-deckh:     #1C262E;
+  --color-line:      #22303A;
+  --color-line2:     #2E3F4B;
+
+  --color-paper:     #E9E1D1;
+  --color-paper2:    #DFD5C1;
+  --color-ink:       #191510;
+  --color-ink2:      #4A423A;
+
+  --color-halide:    #F5EFE2;
+  --color-dim:       #8B9AA3;
+  --color-dim2:      #5D6D77;
+
+  /* Carmine means exactly two things and nothing else: a claim was refused,
+     and the 13 December 2005 cutoff. It is never chrome. */
+  --color-carmine:   #E8446B;
+  --color-carmine2:  #B32B4D;
+
+  /* Brass is the interactive accent — the colour of a survey benchmark plate,
+     and of the worked ground the archive is looking at. */
+  --color-brass:     #D9A441;
+  --color-brass2:    #8A6520;
+
+  --color-survey:    #4FA86B;   /* recognised */
+  --color-slate:     #6E8BA8;   /* pending — a waiting state, not an alarm */
+  --color-sienna:    #D0873E;
+
+  --color-canopy:    #3E5A28;
+  --color-tilled:    #B0A070;
+  --color-soil:      #7FD4D9;
+
+  --font-display: "Archivo", "Helvetica Neue", sans-serif;
+  --font-sans:    "Archivo", "Helvetica Neue", sans-serif;
+  --font-serif:   "Newsreader", Georgia, serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, monospace;
+  --font-deva:    "Noto Sans Devanagari", sans-serif;
+
+  --ease-deck: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-slam: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-void);
+  color: var(--color-halide);
+  font-family: var(--font-sans);
+  font-variation-settings: "wdth" 100;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+::selection { background: var(--color-brass); color: #14100a; }
+
+:focus-visible {
+  outline: 2px solid var(--color-brass);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+/* thin, deck-coloured scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--color-line2) transparent; }
+*::-webkit-scrollbar { width: 7px; height: 7px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--color-line2); border-radius: 99px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--color-dim2); }
+
+/* ---------- type roles ----------
+   .console  — Archivo at expanded width, the ground-station voice
+   .record   — Newsreader, anything that lives on paper
+   .readout  — IBM Plex Mono, every number the system produces      */
+@utility console {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 118;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+}
+@utility record {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  letter-spacing: -0.005em;
+}
+@utility readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+@utility deva { font-family: var(--font-deva); }
+
+/* display sizes carry the width axis down as they grow */
+@utility display-xl {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 78;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.86;
+}
+
+/* ---------- textures ----------
+   Film grain over everything dark; scanlines only inside imagery. */
+@utility grain {
+  position: relative;
+}
+@utility grain-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  mix-blend-mode: overlay;
+  background-image: var(--grain-url);
+  background-size: 180px 180px;
+}
+@utility scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.22) 0px,
+    rgba(0,0,0,0.22) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+@utility hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    currentColor 0 1px,
+    transparent 1px 6px
+  );
+}
+
+/* ---------- the paper sheet ----------
+   A real sheet: warm ground, printed hairline grid, deckled top edge. */
+@utility sheet {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.5), transparent 220px),
+    var(--color-paper);
+  color: var(--color-ink);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.5) inset,
+    0 30px 70px -20px rgba(0,0,0,0.85),
+    0 0 0 1px rgba(25,21,16,0.14);
+}
+
+/* hairline rules that read as ruled paper, not as borders */
+@utility rule-t { border-top: 1px solid var(--color-line); }
+@utility rule-b { border-bottom: 1px solid var(--color-line); }
+
+/* ---------- motion ---------- */
+@keyframes sweep { from { transform: translateX(-110%); } to { transform: translateX(210%); } }
+@keyframes pulse-ring {
+  0%   { transform: scale(0.62); opacity: 0.9; }
+  70%  { transform: scale(2.1);  opacity: 0; }
+  100% { transform: scale(2.1);  opacity: 0; }
+}
+@keyframes flicker {
+  0%,100% { opacity: 1; }
+  92% { opacity: 1; }
+  94% { opacity: 0.72; }
+  96% { opacity: 1; }
+}
+@keyframes drift { from { background-position: 0 0; } to { background-position: 180px 180px; } }
+@keyframes blink { 0%,49% { opacity: 1 } 50%,100% { opacity: 0.12 } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- maplibre overrides: make it live on the deck ---------- */
+.maplibregl-ctrl-attrib {
+  background: rgba(7,9,12,0.72) !important;
+  color: var(--color-dim2) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 9px !important;
+  border-radius: 0 !important;
+}
+.maplibregl-ctrl-attrib a { color: var(--color-dim2) !important; }
+.maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { z-index: 5 !important; }
+.maplibregl-canvas:focus { outline: none; }
+
+/* ---------- print: the dossier is a real filing ---------- */
+@media print {
+  @page { size: A4; margin: 12mm; }
+  html, body, #root { height: auto; overflow: visible; background: #fff; }
+  header, nav, aside, .print\:hidden { display: none !important; }
+  main { overflow: visible !important; }
+  .sheet { box-shadow: none !important; background: #fff !important; }
+}

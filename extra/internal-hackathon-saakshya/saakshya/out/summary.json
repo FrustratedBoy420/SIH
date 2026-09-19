@@ -1,0 +1,44 @@
+[
+  {
+    "claim": "FRA-DND-0007",
+    "verdict": "ANSWERED",
+    "pdf": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0007.pdf",
+    "png": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0007.png"
+  },
+  {
+    "claim": "FRA-DND-0012",
+    "verdict": "ROUTE_TO_SEEMA",
+    "pdf": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0012.pdf",
+    "png": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0012.png"
+  },
+  {
+    "claim": "FRA-DND-0021",
+    "verdict": "ANSWERED",
+    "pdf": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0021.pdf",
+    "png": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0021.png"
+  },
+  {
+    "claim": "FRA-DND-0034",
+    "verdict": "STRENGTHENED_NOT_PROVEN",
+    "pdf": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0034.pdf",
+    "png": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0034.png"
+  },
+  {
+    "claim": "FRA-DND-0041",
+    "verdict": "OUT_OF_IMAGERY_SCOPE",
+    "pdf": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0041.pdf",
+    "png": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0041.png"
+  },
+  {
+    "claim": "FRA-DND-0063",
+    "verdict": "OUT_OF_IMAGERY_SCOPE",
+    "pdf": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0063.pdf",
+    "png": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0063.png"
+  },
+  {
+    "claim": "FRA-DND-0070",
+    "verdict": "ANSWERED",
+    "pdf": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0070.pdf",
+    "png": "/home/shreyashneeraj/Work/SIH/saakshya/out/dossier_FRA-DND-0070.png"
+  }
+]

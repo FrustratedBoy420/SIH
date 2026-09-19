@@ -1,0 +1,490 @@
+# SAAKSHYA — PPT Master Content Pack (build-ready)
+
+**For:** the teammate(s) building the deck, even if you do not understand the project yet.
+**Output required:** exactly **6 slides**, exported as **PDF**, uploaded to the Google Form by **21 Aug**.
+**Template:** use the provided `SIH2026-IDEA-Presentation Internal Hackathon-Format.pptx`. Do not change the given heading pointers.
+
+---
+
+## 0. HOW TO USE THIS DOCUMENT
+
+1. Read **§2 (the project in 200 words)** once. That is enough to understand what you are making slides about.
+2. For each slide, this doc gives you four things:
+   - **PURPOSE** — what the slide must achieve
+   - **LAYOUT** — an ASCII sketch of where things go
+   - **EXACT COPY** — text you can paste, verbatim (already short, already bullet-form)
+   - **VISUAL SPEC** — what to draw, described so a non-expert can draw it
+   - **WHY IT MATTERS** — plain meaning, so you can answer questions
+3. Do not invent new numbers or claims. Every number allowed on the deck is in **§7**. If it is not in §7, it does not go on the slide.
+4. Read **§8 (words to never use)** before writing anything of your own. This is the most dangerous part of the project — wrong wording makes us look like we are claiming something illegal.
+
+---
+
+## 1. HARD RULES (from the official guide + rubric)
+
+| Rule | Detail |
+|---|---|
+| Slide count | **Max 6, including title.** Delete the template's instructions slide (slide 7). |
+| Format | **PDF only.** No PPT/DOCX accepted. |
+| Style | **No paragraphs.** Points, diagrams, infographics, pictures. |
+| Blind assessment | Assessors review the PDF without meeting us. **Do not add college name, member names, photos, or roll numbers.** The template does have `Team ID` / `Team Name` fields — fill only what the SPOC confirms is allowed under blind mode; if unsure, put **Team ID only** and email sih@vitbhopal.ac.in to confirm. |
+| Metadata | Before upload, scrub PDF metadata (`exiftool -all= deck.pdf`) so author name does not leak. |
+| Scored on | 8 criteria, each 1–5: (1) Problem understanding & relevance, (2) Innovativeness & uniqueness, (3) Technical feasibility & implementation, (4) Social/business impact, (5) Scalability & sustainability, (6) Tech-stack justification, (7) Clarity of presentation, (8) Evidence/validation & expected outcomes. |
+
+**Form fields (already decided):**
+- Problem Statement ID: **25108**
+- Title: *Development of AI-powered FRA Atlas and WebGIS-based Decision Support System (DSS) for Integrated Monitoring of Forest Rights Act (FRA) Implementation.* (States: Madhya Pradesh, Tripura, Odisha, Telangana)
+- Theme / Domain: **Miscellaneous**
+- Category: **Software**
+- Organisation: **Ministry of Tribal Affairs (MoTA)**
+
+---
+
+## 2. THE PROJECT IN 200 WORDS (read this first)
+
+India's **Forest Rights Act, 2006 (FRA)** lets tribal and forest-dwelling families legally own the forest land they have lived on — **if** they can prove they occupied it **before 13 December 2005**. Most families have no documents going back that far, so their claims get **rejected**. Around **47,901 community claims** have been rejected nationally.
+
+**SAAKSHYA** is a software platform that does four things:
+
+1. **Digitizes** old FRA paperwork (claims, rejection orders) into searchable records.
+2. **Reconstructs historical evidence** — reads free satellite archives going back to **1972** (Landsat) and **1967** (declassified Corona photos) to detect the *year* a patch of forest became farmland or a settlement. If that year is before 2005, it is **corroborating evidence** supporting the family's claim.
+3. **Maps everything on an FRA Atlas** (a WebGIS map): granted / pending / rejected claims, plus today's forest, farms, water, homesteads, roads.
+4. **Supports decisions** — explains why a claim was rejected and what evidence answers it, plus which government schemes a recognised village should get first.
+
+Critically: **SAAKSHYA never decides anything legally.** It produces dated, confidence-scored, auditable evidence for a **human** officer or Gram Sabha to review.
+
+**The one-line story:** *"SAAKSHYA connects what happened, what exists today, and what should happen next."*
+
+---
+
+## 3. RUBRIC → SLIDE MAP (so no criterion is orphaned)
+
+| Criterion | Where it is earned |
+|---|---|
+| 1 Problem understanding & relevance | Slide 2 (whole slide), Slide 1 subtitle |
+| 2 Innovativeness & uniqueness | Slide 3 (2×2 matrix), Slide 4 (evidence engine) |
+| 3 Technical feasibility & approach | Slide 3 architecture, Slide 4 method, Slide 6 stack |
+| 4 Social / business impact | Slide 5 (impact block), Slide 2 (human cost) |
+| 5 Scalability & sustainability | Slide 6 (scale path + free data) |
+| 6 Tech-stack justification | Slide 6 (stack table with *reasons*) |
+| 7 Clarity of presentation | Every slide — 1 graphic each, no paragraphs, one visual language |
+| 8 Evidence, validation & outcomes | Slide 4 (real dossier artifact), Slide 6 (validation + targets) |
+
+---
+
+## 4. DESIGN SYSTEM (keep all 6 slides identical in style)
+
+- **Background:** near-black `#05070A`. Panels/cards `#0E1A15`.
+- **Text:** off-white `#E8F3EC`. Muted labels `#5F7A6C`.
+- **Accents — use consistently, they carry meaning:**
+  - Lime `#7DFFB0` = evidence found / positive / granted
+  - Amber `#F0A839` = the 2005 cutoff / caution / pending
+  - Coral `#FF6A4D` = rejected / problem
+- **Fonts:** headings **Chivo** (or Montserrat), data/labels **JetBrains Mono** (or Consolas). Two fonts only.
+- **Rules:** one original graphic per slide · no paragraph longer than 2 lines · no clip-art · no emoji as icons (draw simple line icons) · big numbers get big type.
+
+---
+
+# SLIDE 1 — TITLE
+
+**PURPOSE:** Say what problem statement this is and make the idea's promise land in one line.
+
+**TEMPLATE HEADING:** Title page (keep the template's fields).
+
+**LAYOUT**
+```
++--------------------------------------------------------------+
+|  [small globe icon]  SAAKSHYA                                |
+|                                                              |
+|            S A A K S H Y A          <- large wordmark        |
+|   FRA Evidence-to-Action Intelligence Platform               |
+|                                                              |
+|   PS 25108 · Ministry of Tribal Affairs                      |
+|   Theme: Miscellaneous · Category: Software                  |
+|   Team ID: ______                                            |
+|                                                              |
+|  [background: India-at-night satellite image, darkened]      |
++--------------------------------------------------------------+
+```
+
+**EXACT COPY**
+- Wordmark: `SAAKSHYA`
+- Subtitle: `AI-powered FRA Evidence-to-Action Intelligence Platform`
+- Tagline: `Connecting what happened, what exists today, and what should happen next.`
+- `Problem Statement ID: 25108`
+- `Problem Statement Title: Development of AI-powered FRA Atlas and WebGIS-based Decision Support System (DSS) for Integrated Monitoring of Forest Rights Act (FRA) Implementation`
+- `Organisation: Ministry of Tribal Affairs (MoTA)`
+- `Theme: Miscellaneous   |   Category: Software`
+
+**VISUAL SPEC:** Full-bleed dark satellite image of India at night (city lights on black). Darken it ~45% so text reads. Wordmark centred, wide letter-spacing, white.
+
+**WHY IT MATTERS:** "Saakshya" is Sanskrit for **evidence** — that is the whole project in one word. Say it if asked.
+
+**MISTAKES TO AVOID:** No college logo. No member names. Do not shorten the official PS title.
+
+---
+
+# SLIDE 2 — THE PROBLEM
+
+**PURPOSE:** Make the assessor feel the problem is real, large, and human — in under 15 seconds.
+
+**TEMPLATE HEADING:** part of *Proposed Solution → How it addresses the problem* (put the problem framing here).
+
+**LAYOUT**
+```
++--------------------------------------------------------------+
+| THE PROBLEM                                                  |
+|                                                              |
+|   [ FUNNEL GRAPHIC ]              [ 4 ROOT-CAUSE CHIPS ]     |
+|   Claims filed        ██████████   • Records scattered,      |
+|   Titles granted      ██████         not digitized           |
+|   REJECTED            ███  47,901  • No unified FRA Atlas    |
+|   (community claims)               • Satellite data not      |
+|                                      linked to FRA records   |
+|   big number: 47,901               • No DSS for scheme       |
+|                                      convergence             |
+|                                                              |
+|  PUNCHLINE: "The land is theirs. The proof is missing."      |
++--------------------------------------------------------------+
+```
+
+**EXACT COPY**
+- Heading: `THE PROBLEM — FRA rights exist on paper, not in practice`
+- Bullet: `FRA 2006 recognises forest-dwellers' rights to land occupied before 13 Dec 2005`
+- Bullet: `Proof of pre-2005 occupation is the deciding evidence — and most families have no documents`
+- Big number block: `47,901` with caption `community forest-rights claims (CFR/CFRR) rejected nationally — MoTA Monthly Progress Report, Mar 2026`
+- Gap chips (4, from the problem statement itself):
+  - `Legacy IFR/CR/CFR records scattered & non-digitized`
+  - `No centralised FRA Atlas`
+  - `Satellite asset mapping not integrated with FRA data`
+  - `No DSS to layer central schemes onto FRA holders`
+- Punchline (large, bottom): `The land is theirs. The proof is missing.`
+
+**VISUAL SPEC:** A 3-step funnel (wide → narrow), coral for the rejected band. `47,901` in the biggest type on the slide, coral. Root-cause chips as 4 small outlined boxes with simple line icons.
+
+**WHY IT MATTERS:** Two problems stacked: (a) an **information** problem — FRA data is fragmented (that is literally what the problem statement asks to fix), and (b) a **human** problem — families lose rightful land because evidence is hard to reconstruct.
+
+**MISTAKES TO AVOID:**
+- Label the number **community claims (CFR/CFRR)** — it is *not* total FRA rejections (those run into millions). Getting this wrong is a factual error an assessor can catch.
+- Do not write "most common reason" for the pre-2005 gap — we have not verified that ranking. Say "the deciding evidence".
+
+---
+
+# SLIDE 3 — THE IDEA & WHY IT IS DIFFERENT
+
+**PURPOSE:** Show the solution's shape **and** prove it is not a re-skin of an existing dashboard. This slide wins Criterion 2 (uniqueness).
+
+**TEMPLATE HEADING:** *Proposed Solution — detailed explanation + innovation and uniqueness*
+
+**LAYOUT**
+```
++--------------------------------------------------------------+
+| THE IDEA                                                     |
+|                                                              |
+|  [ 2x2 MATRIX ]                    [ ARCHITECTURE ]          |
+|            Gram-Sabha facing                                 |
+|                  ^                    EVIDENCE   ATLAS       |
+|   (empty)        |   * SAAKSHYA        ENGINE   /SPATIAL     |
+|  ----------------+----------------        \      |      /     |
+|   existing FRA   |   (empty)              DECISION ENGINE     |
+|   dashboards     |                              |            |
+|                  v                        ACTION / DOSSIER    |
+|         Officer facing                                        |
+|   x-axis: forward delivery <-> backward evidence recovery     |
+|                                                              |
+|  PS COMPLIANCE RIBBON:                                       |
+|  (a) Digitize  (b) Satellite assets  (c) FRA Atlas  (d) DSS  |
+|                                                              |
+|  TRUST BADGE: "AI produces evidence. Humans decide."         |
++--------------------------------------------------------------+
+```
+
+**EXACT COPY**
+- Heading: `THE IDEA — an Evidence-to-Action platform, not another dashboard`
+- Three-pillar labels (use **only these three names** on the slide):
+  - `EVIDENCE ENGINE — reconstructs history from documents + satellite archives`
+  - `FRA ATLAS / SPATIAL INTELLIGENCE — one map for claims, land, water, forest, infrastructure`
+  - `DECISION ENGINE — explainable claim review + scheme convergence`
+- Flow line under the pillars: `PAST → PRESENT → ACTION`
+- Uniqueness caption under the matrix: `Existing systems move forward: granted title → scheme delivery. SAAKSHYA also moves backward: rejected/disputed claim → historical evidence → human review. That quadrant is empty.`
+- PS-compliance ribbon (along one edge): `(a) Digitization ✓   (b) Satellite asset mapping ✓   (c) WebGIS FRA Atlas ✓   (d) DSS / scheme convergence ✓`
+- Trust badge: `AI produces confidence-scored evidence. Humans make every decision.`
+
+**VISUAL SPEC:**
+- **2×2 matrix:** x-axis "forward scheme delivery ←→ backward evidence recovery", y-axis "officer-facing ←→ Gram-Sabha-facing". Put small grey dots labelled *existing FRA portals / dashboards* in the bottom-left. Put one glowing lime star labelled **SAAKSHYA** in the top-right. Leave the other quadrants visibly empty.
+- **Architecture:** three boxes feeding into one "ACTION / DOSSIER" box. Keep it to 3 boxes — do not draw five modules.
+
+**WHY IT MATTERS:** The matrix is the single most persuasive object in the deck: it shows the gap geometrically instead of claiming it in words. The ribbon is our anti-disqualification shield — it proves at a glance that we cover all four things the problem statement demands.
+
+**MISTAKES TO AVOID:**
+- Do **not** print all five internal module names (KAAL, SEEMA, VAANI, NYAYA, SETU). Three external names only. (Internal names may appear once, small, inside the architecture box if you like.)
+- Do **not** write "nobody has ever done this". Write **"no shipped FRA tool does this"** — that is what we can defend.
+
+---
+
+# SLIDE 4 — THE MONEY SHOT: HOW THE EVIDENCE ENGINE WORKS
+
+**PURPOSE:** Prove the hardest part is real and technically sound. This slide carries Criterion 3 + 8.
+
+**TEMPLATE HEADING:** *Technical Approach — methodology / working prototype*
+
+**LAYOUT**
+```
++--------------------------------------------------------------+
+| HOW THE EVIDENCE ENGINE WORKS                                |
+|                                                              |
+| [ DECADE STRIP: 1967 1975 1985 1995 |2005| 2015 now ]        |
+|   green green green green  ^amber   tan   tan                |
+|                                                              |
+| [ TIME-SERIES CHART ]              [ CONFIDENCE DIAL 0.91 ]  |
+|   greenness high ---\                                        |
+|                      \____ low      + real dossier thumbnail |
+|        breakpoint 1996 :  2005                               |
+|                                                              |
+| METHOD: archive pull -> yearly greenness -> breakpoint        |
+|         detection -> classify -> dated evidence + confidence  |
+|                                                              |
+| HONEST LIMITS: [30-80 m, patches not huts] [ST vs OTFD]      |
+|                [supplementary evidence, Rule 13]             |
++--------------------------------------------------------------+
+```
+
+**EXACT COPY**
+- Heading: `THE EVIDENCE ENGINE — dating occupation from 50 years of satellite archives`
+- Method ribbon (5 steps, left→right):
+  `1 Pull annual cloud-free archive (Landsat 1972→, Corona 1967→)` → `2 Compute yearly greenness (NDVI/NBR)` → `3 Detect the year of change (LandTrendr / CCDC temporal segmentation)` → `4 Classify: forest → cultivation / settlement` → `5 Output: dated finding + confidence + image strip`
+- Finding callout: `Example output: land converted ~1996 — before the 13-Dec-2005 cutoff. Confidence 0.91.`
+- Honest-limit chips (**three, keep them — they earn marks**):
+  - `Resolution: 30–80 m — detects cultivation patches and settlement clusters, not single huts`
+  - `ST: pre-2005 bar lies inside the satellite record. OTFD: ~75-year bar is beyond any satellite — evidence strengthens continuity, it does not prove the requirement`
+  - `Legal status: supplementary evidence under Rule 13 (FRA Rules, amd. 2012) — never a standalone determination of rights`
+- Bottom line: `Output is an auditable, confidence-scored evidence bundle for human review.`
+
+**VISUAL SPEC:**
+- **Decade strip:** 7 small squares in a row labelled 1967 / 1975 / 1985 / 1995 / **2005** / 2015 / now. First one grey (Corona is black-and-white), next ones green (forest), last ones tan (farmland). Outline the 2005 square in amber and label it `legal cutoff`. This single graphic explains the whole method.
+- **Chart:** a line high on the left, dropping sharply, then flat and low on the right. Vertical dashed **coral** line at the drop labelled `breakpoint 1996`. Vertical dotted **amber** line labelled `2005`. Point out that the breakpoint is *left of* 2005.
+- **Dial:** a half-circle gauge filled ~91%, big number `0.91`, caption `confidence`.
+- **Dossier thumbnail:** screenshot the generated evidence-dossier PDF from the prototype and place it small, captioned `real generated output`.
+
+**WHY IT MATTERS (explain in your own words if asked):** Satellites photograph the same land every year. Forest is very "green"; farmland is less green and changes with seasons. Plot greenness per year and the year it drops is the year the forest became a farm. If that year is before 2005, it supports the family's claim. **LandTrendr** and **CCDC** are established, peer-reviewed algorithms that find that year — we are not inventing a new method, we are applying a proven one to a new problem.
+
+**MISTAKES TO AVOID:**
+- Never write "proves". Write **corroborates / supports / reconstructs evidence**.
+- Do not hide the limits — the three chips are what make an expert trust the rest.
+
+---
+
+# SLIDE 5 — THE PLATFORM: ATLAS + DSS + IMPACT
+
+**PURPOSE:** Show the actual product (so it is not just an algorithm) and state who benefits.
+
+**TEMPLATE HEADING:** *Impact and Benefits* (plus the platform walkthrough).
+
+**LAYOUT**
+```
++--------------------------------------------------------------+
+| THE PLATFORM                                                 |
+|                                                              |
+| [ ATLAS SCREENSHOT ~55% ]        [ DSS PANEL ~45% ]          |
+|  layers: IFR/CR/CFR, granted,     DSS-A CLAIM REVIEW         |
+|  pending, REJECTED, forest,        reason -> evidence ->      |
+|  water, farms, roads,              next action + 60-day       |
+|  conflict, evidence-strength       appeal window              |
+|                                                              |
+|                                    DSS-B DEVELOPMENT PLAN    |
+|                                     village gaps -> priority  |
+|                                     -> scheme convergence     |
+|                                                              |
+| IMPACT ROW:                                                  |
+|  [ tribal families ] [ district officers ] [ MoTA/state ]    |
+|  DAJGUA: 22 lakh FRA patta holders targeted                  |
++--------------------------------------------------------------+
+```
+
+**EXACT COPY**
+- Heading: `THE PLATFORM — one Atlas, two decision modes`
+- Atlas caption: `FRA Atlas (WebGIS): IFR / CR / CFR claims · granted / pending / rejected · forest, agriculture, water bodies, homesteads, roads, irrigation · boundary-conflict zones · evidence-strength · development gaps`
+- `DSS-A — Claim Review: rejection reason → evidence that answers it → recommended next action + correct appeal forum and 60-day window (FRA Sec 6)`
+- `DSS-B — Development Planning: village asset gaps → transparent priority score → scheme convergence (PM-KISAN, Jal Jeevan Mission, MGNREGA, DAJGUA)`
+- Explainability line: `Every recommendation shows its reasons, its evidence, its confidence, and an officer override with a recorded justification.`
+- Beneficiary chips:
+  - `Tribal & forest-dwelling families — a documented evidence bundle to support their claim`
+  - `District Tribal-Welfare / DAJGUA officers — one screen instead of four departments`
+  - `Forest & Revenue departments — boundary conflicts made visible`
+  - `MoTA / State — district-level view of FRA implementation gaps`
+- Impact number: `DAJGUA targets 22 lakh FRA patta holders across 17 ministries (₹79,156 crore) — better targeting has direct scheme value`
+- Dual-user line: `Officer dashboard and Gram Sabha view are peers — the same evidence, in the official's language and in the villager's language.`
+
+**VISUAL SPEC:** Take real screenshots from the running prototype (`localhost:8080`) — the **Atlas** page and the **NYAYA appeal** page. Put the Atlas larger on the left, the DSS panel on the right. Label sample data as **"illustrative demo data"**. Beneficiary chips as 3–4 small rounded boxes with line icons.
+
+**WHY IT MATTERS:** Slide 4 proves the science; this slide proves there is a *usable product*. The two DSS modes matter because the problem statement asks for scheme convergence (DSS-B) while our differentiator is claim recovery (DSS-A) — showing both means we are innovative *and* on-brief.
+
+**MISTAKES TO AVOID:** Do not show a screenshot without the "demo data" label. Do not describe the officer as secondary — the problem statement names officials as the users.
+
+---
+
+# SLIDE 6 — FEASIBILITY, TECH, SCALE, VALIDATION
+
+**PURPOSE:** Convince the assessor a 6-person team can actually build this, with justified technology and measurable outcomes. Carries Criteria 3, 5, 6, 8.
+
+**TEMPLATE HEADING:** *Feasibility and Viability* (+ technologies).
+
+**LAYOUT**
+```
++--------------------------------------------------------------+
+| FEASIBILITY & VIABILITY                                      |
+|                                                              |
+| [ STACK TABLE ]                    [ DATA = FREE ]           |
+|  choice | why this one              Landsat, Corona,         |
+|                                     Sentinel-2, Bhuvan,      |
+|                                     Census/LGD -> Rs 0 data  |
+|                                                              |
+| [ RISKS -> MITIGATIONS ]           [ SCALE PATH ]            |
+|  3 rows                            1 district -> 4 states    |
+|                                                              |
+| [ VALIDATION / EXPECTED OUTCOMES — labelled "targets" ]      |
++--------------------------------------------------------------+
+```
+
+**EXACT COPY — stack table (keep the "why", that is what is graded)**
+
+| Layer | Technology | Why this choice |
+|---|---|---|
+| Historical archive & compute | Google Earth Engine (+ STAC, rasterio, xarray) | 50-year petabyte archive with zero local storage cost; cannot be self-hosted |
+| Change detection | LandTrendr / CCDC | Peer-reviewed, standard temporal-segmentation algorithms — not hand-rolled |
+| Present-day asset mapping | PyTorch segmentation (U-Net / DeepLab) on Sentinel-2 (10 m) | 10 m is the resolution at which farms/water/homesteads are actually separable |
+| Spatial database | PostgreSQL + PostGIS | Native geometry operations for overlap and boundary-conflict detection |
+| Map / WebGIS | MapLibre GL + COG tiles + PMTiles | Open-source, no licence lock-in, supports offline packs for low-connectivity blocks |
+| Document AI | PaddleOCR / Tesseract + IndicNER | Handles Devanagari / Odia / Telugu forms and rejection orders |
+| Decision rules | Declarative JSON rule base | FRA amendments become configuration, not code changes |
+| Backend / frontend | FastAPI + React | Python-native (shares the ML stack); component UI for dual-user views |
+
+- Rejected alternatives (one line, shows judgement): `Not ArcGIS — licence cost, cannot be deployed to a Gram Sabha. Not object detection (e.g. YOLO) on Landsat — the task is change over time, not object recognition.`
+
+**EXACT COPY — data**
+- `All primary data is free and public: Landsat (1972→), Corona declassified imagery (1967–72), Sentinel-2, ISRO Bhuvan, SRTM/CartoDEM, Census village directory + LGD codes, MoTA progress reports.`
+- `Data cost: ₹0. Recurring cost is compute only.`
+
+**EXACT COPY — risks → mitigations (use exactly these three)**
+
+| Risk | Mitigation |
+|---|---|
+| Cloud cover / missing years in the archive | Dry-season (Nov–Mar) composites; publish valid-observation count per year; never silently interpolate a gap |
+| Coarse resolution in the oldest imagery (~79 m in the 1970s) | Claim only patch-scale cultivation and settlement clusters; use Corona (~1.8 m) for the earliest period; state the limit on-screen |
+| Per-claim records and rejection orders are not openly available | Start with one district using curated/synthetic data, clearly labelled; document-digitization module is the on-ramp for real records |
+
+- Add a fourth if space allows: `Sensitive geodata → public tier shows village-level aggregates only; parcel-level geometry is role-gated and consent-gated.`
+
+**EXACT COPY — scale path**
+- `Phase 1: one district end-to-end (Dindori, MP)`
+- `Phase 2: four PS-named states (MP, Tripura, Odisha, Telangana)`
+- `Same architecture scales — Earth Engine handles archive compute; tiled COG/PMTiles handles map delivery. No re-architecture required.`
+
+**EXACT COPY — validation & expected outcomes (label them as targets)**
+> Header must read: **`Expected outcomes — validation targets, to be measured in the pilot`**
+- `Year-of-change accuracy: within ±3 years of hand-labelled reference on ≥70% of a labelled sample`
+- `Rejection-reason extraction: ≥80% correct category on a held-out set of orders`
+- `Asset segmentation: per-class IoU reported (not a single aggregate accuracy)`
+- `Negative control: on continuous dense forest the engine must return "no change detected" — it must never fabricate a change`
+- `End-to-end: one claim boundary in → one complete evidence dossier out`
+
+**WHY IT MATTERS:** Assessors punish two things hardest — unjustified technology and invented results. This slide fixes both: every tool has a reason, and every number is openly labelled a *target*, not an achievement.
+
+**MISTAKES TO AVOID:** Do **not** present the accuracy figures as results already achieved. The word **"target"** must be visible.
+
+---
+
+## 7. VERIFIED FACTS & CITATIONS (the only numbers allowed on the deck)
+
+| # | Fact to use | Source | Caution |
+|---|---|---|---|
+| 1 | FRA 2006 recognises rights of forest-dwellers occupying land **before 13 Dec 2005** | FRA 2006, Sec 4(3); MoTA FAQ | — |
+| 2 | Appeals: Gram Sabha → SDLC → DLC, each within **60 days** | FRA 2006, Sec 6(2), 6(4) | — |
+| 3 | **47,901** CFR/CFRR claims rejected nationally | MoTA Monthly Progress Report, Mar 2026 (reported by Down To Earth) | Say **community claims**, not total FRA rejections |
+| 4 | Rule 13 (FRA Rules, amended 6 Sep 2012): satellite imagery is **one of several** admissible evidences; **supplementary, may not replace** other evidence; any **two** evidences required | MoTA FAQ / FRA Rules | Never call it decisive |
+| 5 | SDLC/DLC **cannot insist** on a particular form of evidence — Rule 12A(11) | FRA Rules | — |
+| 6 | Landsat has imaged Earth since **1972** | NASA / USGS | Note ~79 m in the earliest MSS era; 30 m from 1982 |
+| 7 | Corona **KH-4B**, ~**1.8 m**, flew **1967–1972** | USGS EROS declassified archive | Not 1960–72 at 1.8 m — earlier Corona cameras were coarser |
+| 8 | **LandTrendr / CCDC** detect the *year* of land-cover change on Google Earth Engine | MDPI Remote Sensing 2018; GEE catalog | — |
+| 9 | **DAJGUA** — launched 2 Oct 2024, ₹79,156 crore, 17 ministries, special focus on **22 lakh FRA patta holders** | PIB (PRID 2061196) | The PS text says "3 ministries"; the mission spans 17 — quote the PIB figure |
+
+**Do NOT put on the deck (unverified):**
+- Any claim that a court reversed an FRA rejection *because of* satellite evidence.
+- Any claim that "pre-2005 proof is the most common rejection reason".
+- Any absolute "nobody has done this" / "first in India".
+- Any accuracy figure presented as already achieved.
+
+> If a teammate wants to use the Gujarat High Court material, they must first produce the **case name, year, and the exact paragraph**. Until then it stays off the deck.
+
+---
+
+## 8. WORDS — NEVER USE / ALWAYS USE
+
+**NEVER (these make us look like we claim legal authority):**
+- ❌ "SAAKSHYA proves the claim / proves ownership / proves occupation"
+- ❌ "AI decides whether the claim is valid"
+- ❌ "automatically approves / rejects claims"
+- ❌ "100% accurate", "guaranteed"
+
+**ALWAYS:**
+- ✅ "reconstructs historical spatial evidence"
+- ✅ "corroborating / supplementary evidence"
+- ✅ "supports human, administrative and legal review"
+- ✅ "confidence indicates evidence strength, not legal validity"
+- ✅ "the officer or Gram Sabha makes the decision"
+
+**The single sentence to memorise:**
+> **SAAKSHYA does not adjudicate forest rights. It produces an auditable, confidence-scored evidence bundle for human review.**
+
+---
+
+## 9. GLOSSARY (for whoever is writing the slides)
+
+| Term | Plain meaning |
+|---|---|
+| **FRA** | Forest Rights Act, 2006 — the law giving forest-dwellers land rights |
+| **IFR / CR / CFR** | Individual / Community / Community-Forest-Resource right — the three claim types |
+| **Patta** | The land-title document you receive if a claim is approved |
+| **Patta holder** | A family whose claim was granted |
+| **Gram Sabha** | Village assembly — verifies claims first |
+| **SDLC / DLC** | Sub-Divisional / District Level Committee — approval and appeal levels |
+| **2005 cutoff** | 13 Dec 2005; occupation must predate this |
+| **ST / OTFD** | Scheduled Tribe / Other Traditional Forest Dweller — OTFD must show a much longer (~75 yr) occupation |
+| **WebGIS / Atlas** | An interactive map in the browser with switchable data layers |
+| **NDVI** | A greenness number computed from satellite images; high = dense vegetation |
+| **Breakpoint** | The year the satellite record shows the land changed |
+| **LandTrendr / CCDC** | Standard algorithms that find that year in a satellite time-series |
+| **Landsat / Sentinel-2 / Corona** | Satellite image archives (1972→ / 2015→ / 1967–72 declassified) |
+| **Rule 13** | The FRA rule listing acceptable evidence; satellite imagery is supplementary |
+| **DAJGUA** | Dharti Aaba Janjatiya Gram Utkarsh Abhiyan — tribal village development mission |
+| **DSS** | Decision Support System — software that recommends, with reasons, for a human to approve |
+| **Provenance** | The record of where a piece of evidence came from and how it was processed |
+
+---
+
+## 10. FINAL CHECKLIST BEFORE UPLOAD
+
+**Content**
+- [ ] Exactly 6 slides; template's instructions slide deleted
+- [ ] Every number on the deck appears in §7
+- [ ] No paragraph longer than 2 lines
+- [ ] ≥1 original graphic per slide
+- [ ] Slide 3 has the 2×2 matrix **and** the PS-compliance ribbon
+- [ ] Slide 4 has the decade strip, the breakpoint chart, the confidence dial, and the three honest-limit chips
+- [ ] Slide 5 screenshots are labelled "illustrative demo data"
+- [ ] Slide 6 accuracy figures are labelled **targets**
+- [ ] The word "proves" appears **nowhere**
+
+**Compliance**
+- [ ] No college name, member names, photos, or roll numbers anywhere
+- [ ] Team ID field handled per SPOC confirmation
+- [ ] Exported as **PDF**
+- [ ] PDF metadata scrubbed (`exiftool -all= deck.pdf`)
+- [ ] Uploaded to the Google Form before **21 Aug**
+
+**Comprehension test (do this — it is the best predictor of the score)**
+- [ ] Hand the PDF to two people outside the team. Give them **90 seconds**. Ask each to state, in one sentence, (a) what the project does and (b) what makes it different. If either cannot, simplify Slide 3 and Slide 4 — do not add more text.
+
+---
+
+*Companion documents: `SAAKSHYA_Explained.md` (plain-language project explainer + demo script), `SAAKSHYA_2.0_Changes.md` (strategy revision), `SAAKSHYA_Concept_Review.md` (facts ledger). Running prototype: `saakshya/app` → `http://localhost:8080`.*

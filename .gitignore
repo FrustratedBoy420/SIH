@@ -23,21 +23,21 @@ secrets.json
 
 # --- the model weights themselves ----------------------------------------
 # Adapters are large and are rebuilt by the training scripts. What is tracked is
-# models/MANIFEST.md, which records where each pack came from and what it
+# 167/models/MANIFEST.md, which records where each pack came from and what it
 # scored -- so a missing .safetensors is recoverable, not lost.
 #
 # The scripts that PRODUCE the weights are source and ARE tracked. The
 # deliverable is "codes and models including test and demonstration"; an
 # untracked training script means the result cannot be reproduced.
-models/*
-!models/MANIFEST.md
-!models/README.md
-!models/requirements.txt
-!models/*.py
-!models/common/
-!models/adapters/
-!models/eval/
-!models/.gitkeep
+167/models/*
+!167/models/MANIFEST.md
+!167/models/README.md
+!167/models/requirements.txt
+!167/models/*.py
+!167/models/common/
+!167/models/adapters/
+!167/models/eval/
+!167/models/.gitkeep
 
 *.safetensors
 *.bin
@@ -70,9 +70,9 @@ datasets/
 *.lmdb/
 
 # --- front end ------------------------------------------------------------
-web/node_modules/
-web/dist/
-web/shots/
+167/web/node_modules/
+167/web/dist/
+167/web/shots/
 
 # --- editors and operating systems ----------------------------------------
 .DS_Store
@@ -83,17 +83,10 @@ desktop.ini
 *.swo
 *~
 
-# --- not part of this repository ------------------------------------------
-# Mridul/ is an older copy of the root project (PS26167/mvp/{satquery,web});
-# dark-transit/ is a different project that happens to live in this directory.
-# Both are ignored rather than deleted -- that call is the author's, not the
-# tooling's -- but neither should reach GitHub. Together they are ~500 MB and
-# 17,000 files, almost all of it node_modules and generated run output.
-Mridul/
-dark-transit/
-
 # --- backend runtime state -----------------------------------------------
 # Uploaded rasters and stored runs. Reproducible from inputs + seed (OPS-02).
 /var/
+/167/var/
 /runs/
+/167/runs/
 *.egg-info/

@@ -1,0 +1,8 @@
+mvp/runs/
+__pycache__/
+*.pyc
+mvp/.venv/
+mvp/data/
+mvp/models/
+mvp/web-app/node_modules/
+mvp/web-app/dist/

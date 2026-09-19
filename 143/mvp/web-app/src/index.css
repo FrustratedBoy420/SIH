@@ -1,0 +1,823 @@
+/*
+  Dark Transit workstation.
+
+  The palette is the IHO S-52 night colour table that ECDIS displays switch to
+  after dark — the instrument these users already sit in front of. Two things
+  come from it directly and are not decoration:
+
+  · magenta is the chart overprint colour. On a paper Admiralty chart every
+    *regulated or reported* feature is magenta: traffic separation schemes,
+    restricted areas, reporting lines. Here it marks the origin region and the
+    ranked suspects, which is the same idea — the part of the picture that
+    carries an obligation.
+  · buff is land, dimmed. It is the only warm value on the page, so a coastline
+    reads instantly against a cold sea without needing a label.
+
+  The interface is night-only, deliberately. A duty desk running SAR imagery is
+  a darkened room, and S-52 exists because a bright display destroys dark
+  adaptation. The header says so rather than leaving it an unexplained mood.
+*/
+
+:root {
+  /* S-52 night, tuned for a screen rather than a bridge display */
+  --deep: #05090f;
+  --sea: #0a121c;
+  --sea-lift: #0e1926;
+  --panel: #0c1622;
+  --line: #1c2b3b;
+  --line-bright: #2b405a;
+  --land: #2a2418;
+  --land-edge: #4a3f28;
+
+  --ink: #ccd8e4;
+  --ink-strong: #eef4fa;
+  --dim: #6b7d91;
+  --dimmer: #47586a;
+
+  /* the overprint */
+  --magenta: #e0409a;
+  --magenta-soft: #a52d72;
+  --magenta-wash: rgba(224, 64, 154, 0.14);
+
+  --amber: #e8a33d;
+  --cyan: #4fd5d0;
+  --cyan-soft: #2c8b88;
+
+  --display: 'Archivo Narrow', 'Roboto Condensed', 'Liberation Sans Narrow',
+    'Helvetica Neue Condensed', ui-sans-serif, system-ui, sans-serif;
+  --body: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --mono: 'IBM Plex Mono', 'DejaVu Sans Mono', ui-monospace, 'SF Mono', monospace;
+
+  --rail: 340px;
+  --strip: 46px;
+  --transport: 96px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--deep);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--magenta);
+  outline-offset: 2px;
+}
+
+.eyebrow {
+  font-family: var(--display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.shell {
+  display: grid;
+  height: 100%;
+  grid-template-rows: var(--strip) 1fr var(--transport);
+  grid-template-columns: var(--rail) 1fr;
+  grid-template-areas:
+    'strip strip'
+    'rail chart'
+    'transport transport';
+}
+
+/* ------------------------------------------------------------------ strip */
+
+.strip {
+  grid-area: strip;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.mark {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+  white-space: nowrap;
+}
+
+.mark span {
+  color: var(--magenta);
+}
+
+.strip-meta {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.strip-meta b {
+  color: var(--ink-strong);
+  font-weight: 500;
+}
+
+.strip-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.night-note {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dimmer);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 2px 6px;
+  cursor: help;
+}
+
+.gates {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.lamp {
+  width: 22px;
+  height: 8px;
+  border-radius: 1px;
+  border: 1px solid var(--line-bright);
+  background: transparent;
+  padding: 0;
+  cursor: help;
+}
+
+.lamp.ok {
+  background: var(--cyan-soft);
+  border-color: var(--cyan);
+}
+
+.lamp.halt {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.link {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-bright);
+  padding-bottom: 1px;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.link:hover {
+  color: var(--magenta);
+  border-color: var(--magenta);
+}
+
+select {
+  max-width: 220px;
+  background: var(--sea);
+  color: var(--ink);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+/* ------------------------------------------------------------------- rail */
+
+.rail {
+  grid-area: rail;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.rail::-webkit-scrollbar,
+.chart-overlay::-webkit-scrollbar,
+.log::-webkit-scrollbar {
+  width: 8px;
+}
+
+.rail::-webkit-scrollbar-thumb,
+.chart-overlay::-webkit-scrollbar-thumb,
+.log::-webkit-scrollbar-thumb {
+  background: var(--line);
+}
+
+.block {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 16px 16px;
+}
+
+.block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* --------------------------------------------------------------- suspects */
+
+.suspect {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 10px;
+  margin: 0 -10px;
+  border-radius: 2px;
+  transition: background 120ms ease;
+}
+
+.suspect + .suspect {
+  border-top: 1px solid var(--line);
+}
+
+.suspect:hover {
+  background: var(--sea-lift);
+}
+
+.suspect[aria-current='true'] {
+  background: var(--magenta-wash);
+}
+
+.suspect-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.rank {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dimmer);
+  width: 18px;
+  flex: none;
+}
+
+.suspect[aria-current='true'] .rank {
+  color: var(--magenta);
+}
+
+.vessel-name {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.score {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-strong);
+  flex: none;
+}
+
+.suspect-sub {
+  display: flex;
+  gap: 8px;
+  margin: 3px 0 6px 26px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* where a score comes from, not just what it is */
+.stack {
+  display: flex;
+  height: 7px;
+  margin-left: 26px;
+  gap: 1px;
+  background: var(--sea);
+}
+
+.stack i {
+  display: block;
+  height: 100%;
+  transition: flex-basis 260ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.f-containment {
+  background: var(--magenta);
+}
+.f-timing {
+  background: #b8579f;
+}
+.f-heading {
+  background: #8a6bb0;
+}
+.f-broadcast {
+  background: #5b7fb8;
+}
+.f-class_prior {
+  background: #3f93ac;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 12px;
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--dim);
+  font-family: var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  flex: none;
+}
+
+/* ---------------------------------------------------------------- weights */
+
+.weight {
+  display: grid;
+  grid-template-columns: 1fr 42px;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 3px 0;
+}
+
+.weight label {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.weight output {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  text-align: right;
+}
+
+input[type='range'] {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  margin: 0;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--line-bright);
+}
+
+input[type='range']::-moz-range-track {
+  height: 2px;
+  background: var(--line-bright);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 1px;
+  background: var(--magenta);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 10px;
+  height: 14px;
+  border: none;
+  border-radius: 1px;
+  background: var(--magenta);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--dim);
+  margin: 10px 0 0;
+  line-height: 1.45;
+}
+
+.ghost {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  padding: 4px 8px;
+}
+
+.ghost:hover {
+  color: var(--magenta);
+  border-color: var(--magenta);
+}
+
+/* ------------------------------------------------------------------ chart */
+
+.chart {
+  grid-area: chart;
+  position: relative;
+  background: var(--sea);
+  min-height: 0;
+}
+
+/*
+  MapLibre's own stylesheet sets `.maplibregl-map { position: relative }` and is
+  imported after this file, so a single-class rule here loses to it and the
+  container collapses to zero height — the canvas then sizes itself to a 300 px
+  fallback and the map appears blank with no error anywhere. Two classes win
+  the cascade without an `!important`.
+*/
+.chart .map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-logo {
+  display: none !important;
+}
+
+.chart-overlay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 306px;
+  /* stops short of the bottom so the scale bar stays readable beneath it */
+  max-height: calc(100% - 64px);
+  overflow-y: auto;
+  background: rgba(8, 17, 27, 0.94);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+}
+
+.chart-overlay .block:last-child {
+  border-bottom: none;
+}
+
+.layers {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  background: rgba(8, 17, 27, 0.94);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  padding: 10px 12px;
+}
+
+.layer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 11px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.layer input {
+  accent-color: var(--magenta);
+  margin: 0;
+}
+
+.swatch {
+  width: 14px;
+  height: 3px;
+  flex: none;
+}
+
+/* -------------------------------------------------------------- transport */
+
+/*
+  The signature control. The track is not a groove — it is a plot of r95, the
+  95 % containment radius of the particle cloud, against time. Scrubbing back
+  widens the envelope under the handle, so the control renders the growing
+  uncertainty of its own answer.
+*/
+
+.transport {
+  grid-area: transport;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  padding: 7px 16px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 0;
+}
+
+.transport-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.clock {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--ink-strong);
+}
+
+.transport-scale {
+  position: relative;
+  flex: 1;
+  min-height: 40px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.transport-scale svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.transport-keys {
+  display: flex;
+  gap: 16px;
+  font-size: 10px;
+  color: var(--dim);
+  font-family: var(--display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.transport-keys b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.play {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border: 1px solid var(--line-bright);
+  border-radius: 2px;
+  padding: 3px 10px;
+}
+
+.play:hover {
+  border-color: var(--magenta);
+  color: var(--magenta);
+}
+
+/* ------------------------------------------------------------- data lists */
+
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 12px;
+  font-size: 12px;
+  margin: 0;
+}
+
+.kv dt {
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.kv dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-strong);
+  text-align: right;
+}
+
+.factor-row {
+  display: grid;
+  grid-template-columns: 88px 1fr 32px;
+  gap: 8px;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.factor-row > span:first-child {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.factor-row > span:last-child {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-strong);
+  text-align: right;
+}
+
+.meter {
+  height: 5px;
+  background: var(--sea);
+}
+
+.meter i {
+  display: block;
+  height: 100%;
+  background: var(--magenta);
+}
+
+.meter.suppressed i {
+  background: repeating-linear-gradient(90deg, var(--dimmer) 0 2px, transparent 2px 4px);
+}
+
+.just {
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.45;
+  margin: 2px 0 8px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line-bright);
+}
+
+.note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--dim);
+  margin: 0 0 8px;
+}
+
+.warn {
+  border-left: 2px solid var(--amber);
+  padding-left: 10px;
+  color: var(--ink);
+}
+
+.log {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--dim);
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.log b {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.centre {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  text-align: center;
+  padding: 40px;
+  gap: 10px;
+}
+
+.centre code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--magenta);
+}
+
+/* ---------------------------------------------------------------- motion */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* -------------------------------------------------------------- narrower */
+
+@media (max-width: 1180px) {
+  :root {
+    --rail: 292px;
+  }
+  .chart-overlay {
+    width: 250px;
+  }
+}
+
+@media (max-width: 860px) {
+  body {
+    overflow: auto;
+  }
+
+  /*
+    The strip is one non-shrinking row of controls on a desk. On a phone it
+    wraps instead, and the grid row that holds it stops being a fixed height --
+    otherwise the row clips the wrapped line and the page scrolls sideways.
+  */
+  .strip {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 8px 12px;
+    height: auto;
+  }
+
+  .strip-meta,
+  .strip-right {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .strip-right {
+    margin-left: 0;
+  }
+
+  select {
+    max-width: 150px;
+  }
+
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 58vh auto var(--transport);
+    grid-template-areas:
+      'strip'
+      'chart'
+      'rail'
+      'transport';
+    height: auto;
+    min-height: 100%;
+  }
+  .rail {
+    border-right: none;
+    border-top: 1px solid var(--line);
+  }
+  .chart-overlay {
+    position: static;
+    width: auto;
+    max-height: none;
+    border: none;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+  .layers {
+    left: 8px;
+    bottom: 8px;
+  }
+}

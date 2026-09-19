@@ -1,0 +1,1048 @@
+<title>Dark Transit PRD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Zilla+Slab:wght@500;600;700&display=swap">
+
+<style>
+/* ═══════════ tokens — light is the base set ═══════════ */
+:root{
+  --sea:#e9eef1; --chart:#f7f9fa; --sunk:#dde5e9;
+  --ink:#10202b; --ink-2:#45606f; --ink-3:#7c94a1;
+  --rule:#c3d0d7; --rule-2:#dbe3e8;
+  --amber:#b3540a; --amber-soft:#f6e5d4;
+  --must:#0f6f5c; --caution:#8a5410; --stop:#a8203f; --stop-soft:#f7e0e5;
+  --disp:"Zilla Slab",Rockwell,Georgia,serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --sea:#0a1219; --chart:#0f1a22; --sunk:#060d12;
+    --ink:#cfdae1; --ink-2:#8ba1ae; --ink-3:#5d7482;
+    --rule:#23343f; --rule-2:#182630;
+    --amber:#ff8b2e; --amber-soft:#33210f;
+    --must:#3fae95; --caution:#d08a3a; --stop:#e05c78; --stop-soft:#33131c;
+  }
+}
+:root[data-theme="dark"]{
+  --sea:#0a1219; --chart:#0f1a22; --sunk:#060d12;
+  --ink:#cfdae1; --ink-2:#8ba1ae; --ink-3:#5d7482;
+  --rule:#23343f; --rule-2:#182630;
+  --amber:#ff8b2e; --amber-soft:#33210f;
+  --must:#3fae95; --caution:#d08a3a; --stop:#e05c78; --stop-soft:#33131c;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--sea);color:var(--ink);
+  font-family:var(--body);font-size:15.5px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ═══════════ shell ═══════════ */
+.wrap{display:grid;grid-template-columns:212px minmax(0,1fr);gap:0;max-width:1108px;margin:0 auto}
+@media (max-width:1000px){.wrap{grid-template-columns:1fr}}
+
+.rail{
+  position:sticky;top:0;align-self:start;max-height:100vh;overflow-y:auto;
+  padding:34px 20px 40px 24px;border-right:1px solid var(--rule);
+}
+@media (max-width:1000px){
+  .rail{position:static;max-height:none;border-right:0;border-bottom:1px solid var(--rule);padding:22px 24px}
+}
+.rail .brand{font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 2px}
+.rail .brandsub{font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--ink-3);margin:0 0 22px}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+@media (max-width:1000px){.rail ol{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:2px 18px}}
+.rail a{
+  display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:baseline;
+  color:var(--ink-2);text-decoration:none;font-size:13px;padding:3px 0;line-height:1.35;
+}
+.rail a:hover{color:var(--amber)}
+.rail a:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.rail a .num{font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+
+.doc{padding:34px clamp(20px,4vw,54px) 96px;min-width:0}
+
+/* ═══════════ masthead ═══════════ */
+.mast{border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:14px}
+.mast .kicker{
+  font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--amber);margin:0 0 12px;
+}
+.mast h1{
+  font-family:var(--disp);font-weight:700;font-size:clamp(34px,5.4vw,56px);
+  line-height:1.02;letter-spacing:-.02em;margin:0 0 10px;text-wrap:balance;
+}
+.mast .stand{font-size:17px;color:var(--ink-2);max-width:62ch;margin:0}
+.mast .stand b{color:var(--ink);font-weight:600}
+
+.facts{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);margin:26px 0 40px;
+}
+.facts div{background:var(--chart);padding:11px 13px 12px}
+.facts .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--ink-3);display:block}
+.facts .v{font-family:var(--mono);font-size:13.5px;margin-top:4px;display:block;font-variant-numeric:tabular-nums}
+.facts .v.hot{color:var(--amber)}
+
+/* ═══════════ sections ═══════════ */
+section{margin:0 0 52px;scroll-margin-top:20px}
+h2{
+  font-family:var(--disp);font-weight:600;font-size:clamp(23px,2.8vw,30px);
+  line-height:1.12;letter-spacing:-.012em;margin:0 0 16px;text-wrap:balance;
+  display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:baseline;
+}
+h2 .n{font-family:var(--mono);font-size:12px;color:var(--amber);font-weight:400}
+h3{
+  font-family:var(--body);font-weight:600;font-size:12px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-2);margin:30px 0 10px;
+}
+h4{font-family:var(--disp);font-weight:600;font-size:17px;margin:22px 0 7px;letter-spacing:-.005em}
+p{margin:0 0 13px;max-width:68ch}
+ul,ol.body{margin:0 0 13px;padding-left:20px;max-width:66ch}
+li{margin-bottom:6px}
+a{color:var(--amber)}
+strong{font-weight:600}
+em.term{font-style:normal;font-family:var(--mono);font-size:.9em;color:var(--ink-2)}
+
+.lede{font-size:17px;color:var(--ink-2);max-width:64ch}
+
+/* ═══════════ quote of the official text ═══════════ */
+.official{
+  border-left:3px solid var(--ink-3);background:var(--chart);
+  padding:16px 20px;margin:0 0 22px;
+}
+.official p{font-size:14.5px;color:var(--ink-2);margin-bottom:9px}
+.official p:last-child{margin-bottom:0}
+.official .src{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:9px}
+
+/* ═══════════ tables ═══════════ */
+.scroller{overflow-x:auto;margin:0 0 18px;border:1px solid var(--rule);background:var(--chart)}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
+caption{
+  text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);padding:9px 13px;border-bottom:1px solid var(--rule);
+  background:var(--sunk);
+}
+th{
+  text-align:left;font-family:var(--mono);font-weight:400;font-size:9.5px;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);
+  padding:8px 13px;border-bottom:1px solid var(--ink);white-space:nowrap;
+}
+td{padding:9px 13px;border-bottom:1px solid var(--rule-2);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.id{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+
+.pill{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid currentColor;padding:1px 6px;white-space:nowrap;display:inline-block;
+}
+.p-must{color:var(--must)} .p-should{color:var(--amber)}
+.p-could{color:var(--ink-3)} .p-wont{color:var(--ink-3);opacity:.7}
+
+/* ═══════════ gates ═══════════ */
+.gate{
+  border:1px solid var(--stop);border-left-width:3px;background:var(--stop-soft);
+  padding:13px 17px;margin:0 0 12px;
+}
+.gate .gid{
+  font-family:var(--mono);font-size:10px;letter-spacing:.17em;text-transform:uppercase;
+  color:var(--stop);display:block;margin-bottom:5px;
+}
+.gate h4{margin:0 0 5px;font-size:16px}
+.gate p{margin:0;font-size:14px;color:var(--ink-2);max-width:66ch}
+.gate p + p{margin-top:8px}
+
+/* ═══════════ callout ═══════════ */
+.note{
+  border-left:3px solid var(--amber);background:var(--amber-soft);
+  padding:14px 18px;margin:0 0 18px;
+}
+.note .lbl{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;
+  color:var(--amber);display:block;margin-bottom:6px;
+}
+.note p{margin:0;font-size:14px;color:var(--ink-2);max-width:66ch}
+.note p + p{margin-top:8px}
+
+/* ═══════════ formula ═══════════ */
+.formula{
+  font-family:var(--mono);font-size:14px;background:var(--chart);border:1px solid var(--rule);
+  padding:15px 18px;margin:0 0 16px;overflow-x:auto;line-height:1.9;
+}
+.formula .cm{color:var(--ink-3)}
+
+/* ═══════════ figures ═══════════ */
+figure{margin:0 0 22px;border:1px solid var(--rule);background:var(--chart)}
+figure .fscroll{overflow-x:auto}
+figure svg{display:block;min-width:560px;width:100%;height:auto}
+figcaption{
+  font-size:13px;color:var(--ink-2);padding:11px 15px;border-top:1px solid var(--rule);
+  background:var(--sunk);max-width:none;
+}
+figcaption b{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:4px;font-weight:400}
+
+/* ═══════════ phase blocks ═══════════ */
+.phases{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);margin:0 0 18px}
+.phase{background:var(--chart);padding:15px 17px}
+.phase .when{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--amber);display:block;margin-bottom:5px}
+.phase h4{margin:0 0 6px}
+.phase p{margin:0;font-size:14px;color:var(--ink-2)}
+.phase ul{margin:8px 0 0;font-size:14px;color:var(--ink-2)}
+
+footer{
+  border-top:1px solid var(--rule);margin-top:20px;padding-top:20px;
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-3);line-height:1.8;
+}
+footer b{color:var(--ink-2);font-weight:400}
+
+@media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+</style>
+
+<div class="wrap">
+
+<nav class="rail" aria-label="Contents">
+  <p class="brand">Dark Transit</p>
+  <p class="brandsub">PRD · rev A</p>
+  <ol>
+    <li><a href="#s1"><span class="num">01</span><span>What this is</span></a></li>
+    <li><a href="#s2"><span class="num">02</span><span>The ask, decoded</span></a></li>
+    <li><a href="#s3"><span class="num">03</span><span>Positioning</span></a></li>
+    <li><a href="#s4"><span class="num">04</span><span>Goals &amp; non-goals</span></a></li>
+    <li><a href="#s5"><span class="num">05</span><span>Users</span></a></li>
+    <li><a href="#s6"><span class="num">06</span><span>Architecture</span></a></li>
+    <li><a href="#s7"><span class="num">07</span><span>Functional requirements</span></a></li>
+    <li><a href="#s8"><span class="num">08</span><span>The attribution model</span></a></li>
+    <li><a href="#s9"><span class="num">09</span><span>Gates: when it refuses</span></a></li>
+    <li><a href="#s10"><span class="num">10</span><span>Data model</span></a></li>
+    <li><a href="#s11"><span class="num">11</span><span>Data sources</span></a></li>
+    <li><a href="#s12"><span class="num">12</span><span>Stack</span></a></li>
+    <li><a href="#s13"><span class="num">13</span><span>NFRs &amp; dual-use safety</span></a></li>
+    <li><a href="#s14"><span class="num">14</span><span>Validation &amp; metrics</span></a></li>
+    <li><a href="#s15"><span class="num">15</span><span>Build order</span></a></li>
+    <li><a href="#s16"><span class="num">16</span><span>Phases &amp; milestones</span></a></li>
+    <li><a href="#s17"><span class="num">17</span><span>Acceptance criteria</span></a></li>
+    <li><a href="#s18"><span class="num">18</span><span>Risk register</span></a></li>
+    <li><a href="#s19"><span class="num">19</span><span>Open questions</span></a></li>
+  </ol>
+</nav>
+
+<main class="doc">
+
+  <header class="mast">
+    <p class="kicker">Product requirements · SIH 2026 · SIH26143</p>
+    <h1>Dark Transit</h1>
+    <p class="stand">Satellite oil-spill detection, drift hindcasting, and vessel attribution for the
+      National Technical Research Organisation. <b>Most teams will build a slick detector. This one
+      produces a name — and states, on the same page, what that name is not.</b></p>
+  </header>
+
+  <div class="facts">
+    <div><span class="k">Problem statement</span><span class="v">SIH26143</span></div>
+    <div><span class="k">Organisation</span><span class="v">NTRO</span></div>
+    <div><span class="k">Category</span><span class="v">Software</span></div>
+    <div><span class="k">Theme</span><span class="v">Disaster Management</span></div>
+    <div><span class="k">Portal closes</span><span class="v hot">20 Sep 2026</span></div>
+    <div><span class="k">Days remaining</span><span class="v hot">13</span></div>
+  </div>
+
+  <!-- ═══ 1 ═══ -->
+  <section id="s1">
+    <h2><span class="n">01</span><span>What this is</span></h2>
+    <p class="lede">The source of truth for what Dark Transit does, what it deliberately refuses to do,
+      and how we will know it works. Everything on a slide or in a demo traces back here.</p>
+    <p>Ships discharge oily bilge water at sea because it is cheaper than paying for reception facilities
+      in port. It is illegal under MARPOL Annex I, and it is close to unenforceable: a satellite finds
+      the slick hours or days later, by which time the vessel is gone and the physical evidence has
+      spread over tens of square kilometres.</p>
+    <p>The gap is not detection. Detection is a solved research problem with a public labelled dataset.
+      The gap is the step from <em class="term">there is oil here</em> to <em class="term">this hull put it
+      here</em>, and that step is a chain of three inferences — where the oil started, who was there, and
+      whether their behaviour is consistent with having poured it. Dark Transit builds that chain, scores
+      it, and hands an analyst a ranked shortlist with the reasoning attached.</p>
+    <div class="note">
+      <span class="lbl">The one line</span>
+      <p>Everyone else detects the spill. We reconstruct the crime scene and name the suspects — with the
+        limits of that naming printed above the finding, not buried under it.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 2 ═══ -->
+  <section id="s2">
+    <h2><span class="n">02</span><span>The ask, decoded</span></h2>
+
+    <div class="official">
+      <span class="src">Official text · SIH26143 · verbatim</span>
+      <p>“Participants are to design an intelligent automated pipeline to do the following: <strong>(a)</strong>
+        Detect and characterise the oil spill and calculating geometric properties and age if feasible.
+        <strong>(b)</strong> Using oceanographic and meteorological data, it is envisaged to trace the slick
+        towards the origin point and time, predict the future flow of the slick, and <strong>(c)</strong>
+        analyse and attribute the spill to a vessel using historic AIS data to reconstruct vessel traffic
+        around the origin window in space and time. The irrelevant traffic is to be filtered out and
+        potential suspect vessels are to be scored considering various aspects such as proximity,
+        trajectory, behavioural anomalies etc.”</p>
+      <p>“An automated detection and hindcasting machine learning model … It also ranks potential culprit
+        vessel based on spatio-temporal correlation with AIS data. A suitable visual interface is also to
+        be developed.”</p>
+    </div>
+
+    <p>Read past the phrase “machine learning model” and look at where the difficulty actually sits. Only
+      one of the four deliverables is a model-training problem, and that one has a labelled dataset named
+      in the problem statement itself.</p>
+
+    <div class="scroller">
+      <table>
+        <caption>Requirement decomposition</caption>
+        <thead><tr><th>Clause</th><th>What it really is</th><th>Novel ML?</th><th>Where the risk sits</th></tr></thead>
+        <tbody>
+          <tr><td class="id">(a) detect</td><td>Semantic segmentation on SAR, plus a look-alike discriminator</td><td>Fine-tune only</td><td>Look-alike false positives, not detection</td></tr>
+          <tr><td class="id">(a) characterise</td><td>Polygon geometry — PCA, moments, perimeter</td><td>No</td><td>“Age if feasible” is under-specified</td></tr>
+          <tr><td class="id">(b) hindcast</td><td>Lagrangian particle advection through a reanalysis velocity field</td><td>No</td><td>Backward diffusion is ill-posed</td></tr>
+          <tr><td class="id">(b) forecast</td><td>Same integrator, forward, plus coastline intersection</td><td>No</td><td>Low — this direction is well-posed</td></tr>
+          <tr><td class="id">(c) filter</td><td>Spatio-temporal join, <em class="term">geopandas</em> + <em class="term">shapely</em></td><td>No</td><td>Low</td></tr>
+          <tr><td class="id">(c) score</td><td>Declarative weighted rule pack over derived features</td><td>No</td><td>Defensibility of the weights</td></tr>
+          <tr><td class="id">interface</td><td>React + MapLibre workstation</td><td>No</td><td>Low</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Two consequences follow, and they shape the whole plan. First, the team’s weakest axis — training
+      novel models — is barely loaded. Second, the crowded half of this problem statement is clause (a);
+      the half that decides the round is clause (c), which most teams will reach with two hours left.</p>
+  </section>
+
+  <!-- ═══ 3 ═══ -->
+  <section id="s3">
+    <h2><span class="n">03</span><span>Positioning</span></h2>
+    <p>An oil-spill detector is a commodity. ESA, EMSA’s CleanSeaNet, and a dozen published papers already
+      do it, and a judge has seen the dark-patch-on-radar slide before. What nobody hands them is the
+      chain of custody from that patch to a hull.</p>
+
+    <h3>The three claims we make</h3>
+    <p><strong>One — the slick’s shape is a bearing.</strong> A discharge made under way lays film
+      <em>along the vessel’s track</em>, so an elongated slick’s principal axis is a heading. Comparing
+      that axis against each candidate’s course over ground is the single most discriminating factor in
+      the model, it is cheap to compute, and it does not depend on the drift reconstruction being right.
+      Most teams will not think of it.</p>
+    <p><strong>Two — silence is a signal, scored against the vessel’s own baseline.</strong> A Class A
+      transponder reports every 2–10 seconds under way. A hull that goes dark on approach to the origin
+      region and resumes after leaving it has produced an anomaly relative to <em>its own</em> cadence —
+      which is the only defensible way to score a gap, because satellite AIS coverage genuinely thins
+      offshore and a naive gap detector would flag half the ocean.</p>
+    <p><strong>Three — a hull is bright on radar whether or not it broadcasts.</strong> The same SAR scene
+      that shows the slick shows ships as point targets. Running a CFAR detector over it and matching the
+      returns against interpolated AIS positions gives a second channel that is independent of the
+      transponder — so a vessel that defeats one is still visible to the other. The problem statement does
+      not ask for this. It is the differentiator.</p>
+
+    <div class="note">
+      <span class="lbl">Where the marks are</span>
+      <p>Clause (c) is worth more than clause (a) because it is where the problem statement’s own author
+        placed the unsolved part. Build order in §15 reflects that: detection is scheduled fourth, not
+        first, so that a slow model cannot take the demo down with it.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 4 ═══ -->
+  <section id="s4">
+    <h2><span class="n">04</span><span>Goals &amp; non-goals</span></h2>
+
+    <h3>Goals</h3>
+    <ul>
+      <li>Given one SAR scene and an AIS archive covering the drift horizon, produce a ranked vessel
+        shortlist with a per-factor score breakdown, unattended.</li>
+      <li>Express every spatial and temporal output as a <strong>region and a window</strong>, never a
+        point and an instant, and show the uncertainty growing as the hindcast runs back.</li>
+      <li>Refuse, explicitly and legibly, when the evidence does not support a conclusion — see §09.</li>
+      <li>Emit a dossier whose first page is the limitations, ahead of the finding.</li>
+      <li>Keep every scoring weight in a versioned JSON pack, editable live in the interface, so a reader
+        can see how much the conclusion depends on any single assumption.</li>
+    </ul>
+
+    <h3>Non-goals</h3>
+    <ul>
+      <li><strong>Not</strong> a real-time monitoring service. One incident, one scene, one window.</li>
+      <li><strong>Not</strong> a finding of legal responsibility, and no output may be worded as one.</li>
+      <li><strong>Not</strong> an oil-weathering or fate-and-transport model. We advect and diffuse; we do
+        not model evaporation, emulsification or biodegradation beyond what OpenDrift gives us for free.</li>
+      <li><strong>Not</strong> a global AIS ingest. One region, one archive, one 72-hour window.</li>
+      <li><strong>Not</strong> a spoofing detector. We note that AIS can be forged and score kinematic
+        plausibility; we do not claim to catch a careful spoof.</li>
+    </ul>
+  </section>
+
+  <!-- ═══ 5 ═══ -->
+  <section id="s5">
+    <h2><span class="n">05</span><span>Users</span></h2>
+    <div class="scroller">
+      <table>
+        <caption>Personas — the interface serves the first two; the third receives the dossier</caption>
+        <thead><tr><th>Who</th><th>What they need from it</th><th>What loses their trust</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>NTRO imagery analyst</strong><br><span style="color:var(--ink-3);font-size:13px">primary</span></td>
+            <td>To see why a candidate was retained and eleven were rejected; to re-run with different
+              weights; to know which stage the confidence came from.</td>
+            <td>A single confidence number with no decomposition. A model that will not say “look-alike”.</td>
+          </tr>
+          <tr>
+            <td><strong>MRCC / Coast Guard watch officer</strong><br><span style="color:var(--ink-3);font-size:13px">primary</span></td>
+            <td>Forward drift and time-to-coast, so a response can be staged. The shortlist is secondary
+              to them; the forecast is not.</td>
+            <td>An origin region so large it constrains nothing, presented as though it does.</td>
+          </tr>
+          <tr>
+            <td><strong>DG Shipping enforcement</strong><br><span style="color:var(--ink-3);font-size:13px">downstream</span></td>
+            <td>A document that survives being questioned — method, parameters, weight pack version, and
+              an explicit statement of what it cannot establish.</td>
+            <td>Anything that reads like an accusation. A number they cannot reproduce.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 6 ═══ -->
+  <section id="s6">
+    <h2><span class="n">06</span><span>Architecture</span></h2>
+    <p>Seven stages, strictly sequential, three of which can halt the run. Each stage writes a typed
+      artefact to the run directory, so any stage can be replayed against a stored input without
+      re-running the ones before it — which is also what makes the demo robust.</p>
+
+    <figure>
+      <div class="fscroll">
+      <svg viewBox="0 0 1080 300" role="img" aria-label="Seven-stage pipeline: ingest, detect, characterise, hindcast, traffic, dark channel, score and file. Gates that can halt the run sit after detect, after hindcast, and after dark channel.">
+        <!-- inputs -->
+        <g font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-3)">
+          <text x="8" y="30">INPUTS</text>
+          <text x="8" y="52">Sentinel-1 GRD</text>
+          <text x="8" y="68">AIS archive</text>
+          <text x="8" y="84">CMEMS currents</text>
+          <text x="8" y="100">ERA5 wind</text>
+        </g>
+        <path d="M118 70 L152 70 L152 148 L168 148" fill="none" stroke="var(--rule)" stroke-width="1.2"/>
+
+        <!-- track -->
+        <line x1="168" y1="148" x2="1050" y2="148" stroke="var(--rule)" stroke-width="1.2"/>
+
+        <!-- stage blocks -->
+        <g>
+          <rect x="168" y="122" width="104" height="52" fill="var(--sunk)" stroke="var(--ink-3)" stroke-width="1"/>
+          <text x="178" y="140" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">01</text>
+          <text x="178" y="157" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="600" fill="var(--ink)">Ingest</text>
+          <text x="178" y="170" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="var(--ink-3)">rasterio · pyais</text>
+        </g>
+        <g>
+          <rect x="292" y="122" width="104" height="52" fill="var(--chart)" stroke="var(--ink)" stroke-width="1.2"/>
+          <text x="302" y="140" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">02</text>
+          <text x="302" y="157" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="600" fill="var(--ink)">Detect</text>
+          <text x="302" y="170" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="var(--ink-3)">U-Net on σ⁰</text>
+        </g>
+        <g>
+          <rect x="416" y="122" width="104" height="52" fill="var(--sunk)" stroke="var(--ink-3)" stroke-width="1"/>
+          <text x="426" y="140" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">03</text>
+          <text x="426" y="157" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="600" fill="var(--ink)">Characterise</text>
+          <text x="426" y="170" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="var(--ink-3)">shapely · PCA</text>
+        </g>
+        <g>
+          <rect x="540" y="122" width="104" height="52" fill="var(--chart)" stroke="var(--ink)" stroke-width="1.2"/>
+          <text x="550" y="140" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">04</text>
+          <text x="550" y="157" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="600" fill="var(--ink)">Hindcast</text>
+          <text x="550" y="170" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="var(--ink-3)">OpenDrift · RK4</text>
+        </g>
+        <g>
+          <rect x="664" y="122" width="104" height="52" fill="var(--sunk)" stroke="var(--ink-3)" stroke-width="1"/>
+          <text x="674" y="140" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">05</text>
+          <text x="674" y="157" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="600" fill="var(--ink)">Traffic</text>
+          <text x="674" y="170" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="var(--ink-3)">reachable sets</text>
+        </g>
+        <g>
+          <rect x="788" y="122" width="104" height="52" fill="var(--chart)" stroke="var(--ink)" stroke-width="1.2"/>
+          <text x="798" y="140" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">06</text>
+          <text x="798" y="157" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="600" fill="var(--ink)">Dark channel</text>
+          <text x="798" y="170" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="var(--ink-3)">CFAR · AIS match</text>
+        </g>
+        <g>
+          <rect x="912" y="122" width="112" height="52" fill="var(--sunk)" stroke="var(--ink-3)" stroke-width="1"/>
+          <text x="922" y="140" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-3)">07</text>
+          <text x="922" y="157" font-family="IBM Plex Sans, sans-serif" font-size="12.5" font-weight="600" fill="var(--ink)">Score &amp; file</text>
+          <text x="922" y="170" font-family="IBM Plex Mono, monospace" font-size="8.5" fill="var(--ink-3)">weights · dossier</text>
+        </g>
+
+        <!-- gates -->
+        <g>
+          <line x1="404" y1="96" x2="404" y2="200" stroke="var(--stop)" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <rect x="368" y="76" width="72" height="20" fill="var(--stop)"/>
+          <text x="404" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#fff">GATE 1</text>
+          <text x="404" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--stop)">conf ≥ 0.50</text>
+        </g>
+        <g>
+          <line x1="652" y1="96" x2="652" y2="200" stroke="var(--stop)" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <rect x="616" y="76" width="72" height="20" fill="var(--stop)"/>
+          <text x="652" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#fff">GATE 2</text>
+          <text x="652" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--stop)">r₉₅ &lt; 36 km</text>
+        </g>
+        <g>
+          <line x1="900" y1="96" x2="900" y2="200" stroke="var(--stop)" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <rect x="864" y="76" width="72" height="20" fill="var(--stop)"/>
+          <text x="900" y="90" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="#fff">GATE 3</text>
+          <text x="900" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--stop)">pass in window</text>
+        </g>
+
+        <!-- outputs -->
+        <g font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-3)">
+          <text x="8" y="256">ARTEFACTS</text>
+          <text x="168" y="256">scene.tif</text>
+          <text x="292" y="256">mask.geojson</text>
+          <text x="416" y="256">geometry.json</text>
+          <text x="540" y="256">origin.nc</text>
+          <text x="664" y="256">candidates.json</text>
+          <text x="788" y="256">targets.json</text>
+          <text x="912" y="256">dossier.pdf</text>
+        </g>
+        <line x1="168" y1="238" x2="1050" y2="238" stroke="var(--rule-2)" stroke-width="1"/>
+      </svg>
+      </div>
+      <figcaption><b>Figure 1 — pipeline</b>Every stage writes a typed artefact, so any stage replays from
+        stored input. Three gates can halt the run and report why; the design principle is that a halt is a
+        successful outcome, not a failure.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ═══ 7 ═══ -->
+  <section id="s7">
+    <h2><span class="n">07</span><span>Functional requirements</span></h2>
+    <p>MoSCoW against the grand-finale build. <span class="pill p-must">Must</span> means the demo does not
+      exist without it.</p>
+
+    <h3>IN — Intake &amp; pre-flight</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td class="id">IN-1</td><td>Ingest a Sentinel-1 GRD product (IW mode, VV/VH), read its CRS and pixel spacing, and subset to an area of interest.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">IN-2</td><td>Apply radiometric calibration to σ⁰ and record the noise floor in the run log.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">IN-3</td><td>Ingest an AIS archive (NMEA or CSV) and normalise to a position table keyed on MMSI and timestamp.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">IN-4</td><td>Pre-flight check that refuses to start the run unless the AIS archive spans the full drift horizon, the CRS is declared, and the forcing sources responded.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">IN-5</td><td>Declare, in the run log and on dossier page 1, whether AIS is real or synthetic.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">IN-6</td><td>Accept a RISAT or other calibrated σ⁰ product through the same path.</td><td><span class="pill p-could">Could</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>DT — Detection</h3>
+    <p>Oil damps short capillary and gravity waves, which suppresses Bragg scattering, so a slick returns
+      almost nothing and arrives as a dark region. So does a low-wind cell, a biogenic film, an algal
+      bloom, rain, and the lee of a headland. Separating them is the whole of this stage.</p>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td class="id">DT-1</td><td>Speckle-filter (refined Lee) and land-mask the calibrated scene.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DT-2</td><td>Adaptive threshold to produce dark-region candidates; report the candidate count.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DT-3</td><td>Segment candidates with a U-Net or DeepLabv3 using a pretrained encoder, fine-tuned on the Zenodo Sentinel-1 oil-spill dataset. <strong>No architecture is to be invented.</strong></td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DT-4</td><td>Reject look-alikes on explicit, individually reported criteria: edge-gradient sharpness, wind speed at the pixel, shape complexity, contrast ratio.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DT-5</td><td>Emit a confidence value with its drivers named — never a bare number.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DT-6</td><td>Derive the wind field for DT-4 from ERA5; upgrade to SAR-derived wind via CMOD5 if time allows.</td><td><span class="pill p-should">Should</span></td></tr>
+          <tr><td class="id">DT-7</td><td>Report the full candidate table with per-candidate rejection reason, not only the survivor.</td><td><span class="pill p-should">Should</span></td></tr>
+          <tr><td class="id">DT-8</td><td>Fuse an optical (EO) scene where one is co-temporal.</td><td><span class="pill p-wont">Won’t</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>CH — Characterisation</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td class="id">CH-1</td><td>Area (km²), perimeter (km), centroid in EPSG:4326.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">CH-2</td><td>Principal axis orientation in degrees true, and elongation ratio, from PCA on the mask.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">CH-3</td><td>Emit the polygon as GeoJSON in EPSG:4326 with the confidence attached.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">CH-4</td><td><strong>Age, primary estimate:</strong> detection time minus hindcast origin time. The drift reconstruction is what makes “age if feasible” feasible at all.</td><td><span class="pill p-should">Should</span></td></tr>
+          <tr><td class="id">CH-5</td><td><strong>Age, independent cross-check:</strong> a discharge made under way is a line source — its long-axis length is roughly vessel speed × discharge duration, and its across-track width grows by spreading and lateral diffusion since release. Width therefore gives a second age estimate that does not use the hindcast. Report both; disagreement is itself a finding.</td><td><span class="pill p-could">Could</span></td></tr>
+          <tr><td class="id">CH-6</td><td>Thickness class from damping ratio.</td><td><span class="pill p-wont">Won’t</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>DR — Drift, backward and forward</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td class="id">DR-1</td><td>Seed ≥2 000 particles inside the slick polygon.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DR-2</td><td>Advect with velocity = surface current + leeway coefficient × 10 m wind, α ≈ 0.03. RK4, dt = 600 s.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DR-3</td><td>Add a horizontal random walk with eddy diffusivity <em class="term">K_h</em>, so the cloud spreads for a physical reason rather than a cosmetic one.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DR-4</td><td>Run backward to a 40 h horizon and emit the origin region as a space–time density, plus a 95 % containment radius per hour.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DR-5</td><td>Run forward over the same horizon and flag any coastline the cloud reaches, with time of arrival.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DR-6</td><td>Report the growing 95 % radius as a first-class output, on screen and in the dossier.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DR-7</td><td>Use OpenDrift’s OpenOil module rather than hand-rolled advection; fall back to hand-rolled if integration cost is too high.</td><td><span class="pill p-should">Should</span></td></tr>
+          <tr><td class="id">DR-8</td><td>Ensemble over perturbed leeway coefficient and forcing to separate parameter uncertainty from diffusive spread.</td><td><span class="pill p-could">Could</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <span class="lbl">Stated limitation — carry this to the slide</span>
+      <p>Forward advection with diffusion is well-posed. Running it backward is not: diffusion cannot be
+        un-mixed, so the backward cloud is a <strong>reachable set</strong> — the region a particle could
+        have come from — and not a probability density over true origins. We will use the phrase “origin
+        region”, never “origin point”, and never quote a probability for a specific launch position.</p>
+    </div>
+
+    <h3>TR — Traffic &amp; broadcast behaviour</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td class="id">TR-1</td><td>Spatio-temporal join: retain only vessels whose track intersects the origin region within the origin window.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">TR-2</td><td>Report how many vessels were dropped and on what basis, not only how many survived.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">TR-3</td><td>Compute each vessel’s own median reporting cadence over the archive, and score gaps <strong>relative to that baseline</strong> — never against a fixed threshold.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">TR-4</td><td>For each gap, dead-reckon forward from the last fix and backward from the next, bounded by the vessel’s plausible maximum speed, to build a reachable set across the dark period. Report its overlap fraction with the origin region.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">TR-5</td><td>Extract course over ground through the region for the heading factor.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">TR-6</td><td>Read vessel type and dimensions from AIS static messages (type 5) for the class prior.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">TR-7</td><td>Synthetic AIS generator producing a realistic multi-vessel scene with a parameterised culprit, for evaluation and for the demo.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">TR-8</td><td>Kinematic plausibility check flagging positions implying impossible speeds.</td><td><span class="pill p-should">Should</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>DK — Dark channel</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td class="id">DK-1</td><td>CFAR bright-target detection over the same scene, with guard cells and a stated false-alarm rate.</td><td><span class="pill p-should">Should</span></td></tr>
+          <tr><td class="id">DK-2</td><td>Match detected targets against AIS positions interpolated to scene acquisition time; report matched and unmatched counts.</td><td><span class="pill p-should">Should</span></td></tr>
+          <tr><td class="id">DK-3</td><td>Estimate target length from its extent, with azimuth-smearing caveats stated.</td><td><span class="pill p-should">Should</span></td></tr>
+          <tr><td class="id">DK-4</td><td>Present an unmatched return as <em>corroboration</em> of a ranked vessel where geometry agrees — never as a separate named suspect.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">DK-5</td><td>Declare the channel unavailable, in those words, when no radar pass covers the origin window.</td><td><span class="pill p-must">Must</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>SC — Scoring · RP — Report · UI — Interface</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td class="id">SC-1</td><td>Five-factor weighted score per §08, weights loaded from a versioned JSON pack, never hardcoded.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">SC-2</td><td>Per-factor breakdown with a written justification for each factor and each vessel.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">SC-3</td><td>Report the leader margin — the gap between rank 1 and rank 2 — as a first-class output.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">RP-1</td><td>Generate a PDF dossier whose <strong>first page carries the limitations, above the finding</strong>.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">RP-2</td><td>Record method, parameters, forcing sources, weight-pack version and run timestamp, so a reader can recompute.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">RP-3</td><td>Word every conclusion as a ranking for investigation. The string “responsible for” may not appear in generated output.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">UI-1</td><td>MapLibre workstation with layers: SAR scene, slick polygon, backward drift, origin region, AIS tracks coloured by rank.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">UI-2</td><td>Time slider scrubbing the whole incident, driving the drift cloud and the clock together.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">UI-3</td><td>Live weight sliders that re-rank on input, so a judge can watch the conclusion’s dependency on any assumption.</td><td><span class="pill p-must">Must</span></td></tr>
+          <tr><td class="id">UI-4</td><td>Run log visible in the interface, including every gate decision.</td><td><span class="pill p-should">Should</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 8 ═══ -->
+  <section id="s8">
+    <h2><span class="n">08</span><span>The attribution model</span></h2>
+    <p>Five factors, each normalised to <em class="term">[0,1]</em>, combined as a weighted mean. The
+      weights normalise on read, so a reader can move one without having to rebalance the rest.</p>
+
+    <div class="formula">
+      <span class="cm">// weights.v4.json — the only place these live</span><br>
+      score(v) = Σᵢ wᵢ · fᵢ(v) ⁄ Σᵢ wᵢ<br><br>
+      <span class="cm">// default pack</span><br>
+      containment 22 &nbsp; timing 18 &nbsp; heading 26 &nbsp; broadcast 24 &nbsp; class 10
+    </div>
+
+    <div class="scroller">
+      <table>
+        <caption>The five factors</caption>
+        <thead><tr><th>Factor</th><th>Computed from</th><th>Why it discriminates</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Containment</strong></td><td>Overlap fraction of the vessel’s track — or its reachable set across a gap — with the origin region.</td><td>Direct spatial evidence. Weak on its own, because the region is large by construction.</td></tr>
+          <tr><td><strong>Timing</strong></td><td>Alignment of the crossing, or the dark period, with the hindcast origin window.</td><td>Cheaply clears vessels that transited hours before the window opened.</td></tr>
+          <tr><td><strong>Heading</strong></td><td>|COG − slick principal axis|, modulo 180°.</td><td><strong>Strongest single factor.</strong> A discharge under way lays film along the track; a 40° mismatch is decisive and does not depend on the drift being right.</td></tr>
+          <tr><td><strong>Broadcast</strong></td><td>Gap duration and placement, scored against the vessel’s own median cadence.</td><td>Behavioural rather than geometric, so it is genuinely independent of the other four.</td></tr>
+          <tr><td><strong>Class prior</strong></td><td>Ship type and dimensions from AIS static data.</td><td>Weakest, and weighted accordingly. A 27 m fishing hull cannot produce a 12 km² slick.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The reachable set across a broadcast gap</h3>
+    <p>This is the part that does real work. When a transponder goes dark, the vessel does not vanish —
+      it becomes bounded. From the last fix it can travel no further than its plausible maximum speed
+      allows; from the next fix, the same constraint runs backward. The intersection of those two discs,
+      swept over the dark period, is the region it could have occupied.</p>
+
+    <figure>
+      <div class="fscroll">
+      <svg viewBox="0 0 620 300" role="img" aria-label="Two circles, one grown forward from the last AIS fix and one grown backward from the next fix, intersect in a lens. The origin region overlaps that lens by seventy-one percent.">
+        <rect x="0" y="0" width="620" height="300" fill="var(--chart)"/>
+        <!-- reachable discs -->
+        <circle cx="196" cy="160" r="120" fill="var(--amber)" fill-opacity=".08" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 4"/>
+        <circle cx="392" cy="128" r="120" fill="var(--amber)" fill-opacity=".08" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 4"/>
+        <!-- lens via clip -->
+        <defs>
+          <clipPath id="lensA"><circle cx="196" cy="160" r="120"/></clipPath>
+        </defs>
+        <g clip-path="url(#lensA)">
+          <circle cx="392" cy="128" r="120" fill="var(--amber)" fill-opacity=".26" stroke="none"/>
+        </g>
+        <!-- origin region -->
+        <rect x="252" y="86" width="120" height="104" fill="none" stroke="var(--stop)" stroke-width="1.6" stroke-dasharray="7 5"/>
+        <text x="252" y="78" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--stop)">ORIGIN REGION</text>
+        <!-- fixes -->
+        <circle cx="196" cy="160" r="4.5" fill="var(--ink)"/>
+        <circle cx="392" cy="128" r="4.5" fill="none" stroke="var(--ink)" stroke-width="1.8"/>
+        <text x="120" y="182" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-2)">last fix</text>
+        <text x="120" y="196" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-3)">23:10:22</text>
+        <text x="406" y="118" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-2)">next fix</text>
+        <text x="406" y="132" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-3)">01:50:07</text>
+        <!-- radius annotation -->
+        <line x1="196" y1="160" x2="316" y2="160" stroke="var(--ink-3)" stroke-width="1"/>
+        <text x="222" y="154" font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-3)">v_max · Δt</text>
+        <!-- legend -->
+        <g font-family="IBM Plex Mono, monospace" font-size="10">
+          <rect x="34" y="236" width="14" height="10" fill="var(--amber)" fill-opacity=".26"/>
+          <text x="56" y="245" fill="var(--ink-2)">reachable set — intersection of both bounds</text>
+          <text x="34" y="266" fill="var(--ink-2)">overlap with origin region</text>
+          <text x="300" y="266" fill="var(--amber)">71 %</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption><b>Figure 2 — reachable set</b>Dead reckoning from both ends of a 2 h 40 m broadcast gap.
+        The overlap fraction feeds the containment factor. It establishes that the vessel <em>could</em>
+        have been at the origin — never that it was.</figcaption>
+    </figure>
+
+    <h3>Why the weights are exposed</h3>
+    <p>Any weighting is an assumption, and hiding it invites exactly the question we cannot answer.
+      Putting the sliders in the interface converts that weakness into the demonstration: drop
+      <em class="term">heading</em> to zero in front of a judge and watch the leader margin collapse. That
+      is an honest statement about how much of the conclusion rests on one geometric argument, and it is
+      worth more than a defended number.</p>
+  </section>
+
+  <!-- ═══ 9 ═══ -->
+  <section id="s9">
+    <h2><span class="n">09</span><span>Gates: when the system refuses</span></h2>
+    <p>The product’s central claim is that it knows what it cannot establish. That claim is only credible
+      if the refusals are implemented, reachable, and demonstrated. Each gate below halts the run, states
+      its reason in the log and the dossier, and is worth showing deliberately in the demo.</p>
+
+    <div class="gate">
+      <span class="gid">Gate 1 · detection confidence</span>
+      <h4>Below 0.50 confidence, report a look-alike and stop.</h4>
+      <p>No origin region is computed and no vessel is named. The output is “a dark feature was found and
+        we do not believe it is oil”, with the rejection criteria that drove that.</p>
+    </div>
+    <div class="gate">
+      <span class="gid">Gate 2 · origin region size</span>
+      <h4>Past a 36 km 95 % containment radius, drop the spatial filter.</h4>
+      <p>Beyond roughly 36 hours of hindcast the region is large enough that it no longer constrains
+        traffic — nearly every vessel in the area intersects it. The pipeline abandons the spatial filter
+        at that point and reports attribution as unavailable, rather than shrinking the region to look
+        decisive.</p>
+    </div>
+    <div class="gate">
+      <span class="gid">Gate 3 · dark channel availability</span>
+      <h4>No radar pass inside the origin window, no second channel.</h4>
+      <p>The dark channel is declared unavailable in those words. A single-channel result is still
+        reported, flagged as single-channel.</p>
+    </div>
+    <div class="gate">
+      <span class="gid">Gate 4 · leader margin</span>
+      <h4>If rank 1 and rank 2 differ by less than 0.10, name neither.</h4>
+      <p>The system reports that the evidence does not separate the candidates and returns both. This is
+        the gate most likely to fire on real data, and the one most worth building.</p>
+    </div>
+    <div class="gate">
+      <span class="gid">Gate 5 · archive coverage</span>
+      <h4>If the AIS archive does not span the drift horizon, do not start.</h4>
+      <p>Caught in pre-flight (IN-4), before any compute is spent. A partial archive silently truncates
+        the candidate set, which is worse than not running.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 10 ═══ -->
+  <section id="s10">
+    <h2><span class="n">10</span><span>Data model</span></h2>
+    <div class="scroller">
+      <table>
+        <caption>Core entities</caption>
+        <thead><tr><th>Entity</th><th>Key fields</th></tr></thead>
+        <tbody>
+          <tr><td class="id">Scene</td><td>scene_id, sensor, mode, polarisation, acquired_utc, crs, pixel_m, noise_floor_db, aoi_bbox</td></tr>
+          <tr><td class="id">Detection</td><td>detection_id, scene_id, geometry (Polygon, EPSG:4326), confidence, drivers[], verdict, sigma0_delta_db</td></tr>
+          <tr><td class="id">SlickGeometry</td><td>detection_id, area_km2, perimeter_km, centroid, principal_axis_deg, elongation, age_hours_hindcast, age_hours_width</td></tr>
+          <tr><td class="id">DriftRun</td><td>run_id, detection_id, n_particles, integrator, dt_s, leeway_alpha, k_h, horizon_h, forcing_current, forcing_wind</td></tr>
+          <tr><td class="id">OriginRegion</td><td>run_id, hour_back, geometry, r95_km, window_start_utc, window_end_utc</td></tr>
+          <tr><td class="id">Vessel</td><td>mmsi, imo, name, ship_type, length_m, beam_m, draught_m, source (real | synthetic)</td></tr>
+          <tr><td class="id">Track</td><td>mmsi, positions[] (t, lat, lon, sog, cog, heading, nav_status), median_cadence_s</td></tr>
+          <tr><td class="id">BroadcastGap</td><td>mmsi, gap_start_utc, gap_end_utc, duration_s, baseline_cadence_s, anomaly_score, envelope_geometry, overlap_fraction</td></tr>
+          <tr><td class="id">RadarTarget</td><td>target_id, scene_id, position, est_length_m, matched_mmsi (nullable), pfa</td></tr>
+          <tr><td class="id">Candidate</td><td>run_id, mmsi (nullable for radar-only), factors{}, score, rank, channel, justifications{}</td></tr>
+          <tr><td class="id">Dossier</td><td>run_id, generated_utc, weight_pack_version, gates_fired[], pages, limitations[]</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p><code style="font-family:var(--mono);font-size:13px">Candidate.mmsi</code> is nullable on purpose: an
+      unmatched radar target is a candidate with no identity, and the model must be able to hold that
+      without inventing one.</p>
+  </section>
+
+  <!-- ═══ 11 ═══ -->
+  <section id="s11">
+    <h2><span class="n">11</span><span>Data sources</span></h2>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>What</th><th>Source</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td>SAR imagery</td><td>Sentinel-1 GRD via Copernicus Data Space</td><td>Free, registration required. IW mode, 10 m, VV/VH.</td></tr>
+          <tr><td>Labelled spills</td><td>Zenodo Sentinel-1 SAR Oil Spill Dataset</td><td><strong>Named in the problem statement.</strong> Verify it downloads and is labelled as advertised — OQ-1.</td></tr>
+          <tr><td>Surface currents</td><td>CMEMS <em class="term">GLOBAL_ANALYSISFORECAST_PHY</em>, 1/12°, hourly</td><td>Free with account. HYCOM as fallback.</td></tr>
+          <tr><td>Wind</td><td>ERA5 10 m, 0.25°, hourly, via CDS API</td><td>Requests queue — pull the region early.</td></tr>
+          <tr><td>AIS format</td><td>marinecadastre.gov sample</td><td>Referenced by the problem statement for format only.</td></tr>
+          <tr><td>AIS traffic</td><td>Synthetic generator (TR-7)</td><td>Explicitly permitted. Declared on dossier page 1.</td></tr>
+          <tr><td>Drift validation</td><td>Global Drifter Program trajectories</td><td>Real drogued-buoy tracks — the independent check in §14.</td></tr>
+          <tr><td>Coastline</td><td>GSHHG / Natural Earth</td><td>For the forward-drift landfall flag.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 12 ═══ -->
+  <section id="s12">
+    <h2><span class="n">12</span><span>Stack</span></h2>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Layer</th><th>Choice</th><th>Because</th></tr></thead>
+        <tbody>
+          <tr><td>Raster I/O</td><td>rasterio, xarray, netCDF4</td><td>Standard, and xarray handles the time-varying forcing grids natively.</td></tr>
+          <tr><td>Detection</td><td>PyTorch, U-Net / DeepLabv3, pretrained encoder</td><td>Public recipe, public weights, public dataset.</td></tr>
+          <tr><td>Drift</td><td>OpenDrift (OpenOil), else numpy advection</td><td>Purpose-built for this exact task; the fallback is 200 lines.</td></tr>
+          <tr><td>Geospatial</td><td>geopandas, shapely, pyproj</td><td>The track–region join is one spatial predicate.</td></tr>
+          <tr><td>AIS parsing</td><td>pyais, pandas</td><td>Handles NMEA sentence assembly.</td></tr>
+          <tr><td>Scoring</td><td>Declarative JSON weight pack</td><td>Weights must be editable without a deploy, and versioned for audit.</td></tr>
+          <tr><td>API</td><td>FastAPI</td><td>Shares the Python geospatial runtime; no second language.</td></tr>
+          <tr><td>Front end</td><td>React + Vite + TypeScript + MapLibre GL</td><td>Already shipped once by this team.</td></tr>
+          <tr><td>Report</td><td>WeasyPrint</td><td>HTML to PDF, so the dossier and the web view share one template.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4>Rejected alternatives — say these out loud on the slide</h4>
+    <ul>
+      <li><strong>Not ArcGIS / ENVI.</strong> Licensed, and undeployable to the operational users named in §05.</li>
+      <li><strong>Not a from-scratch segmentation architecture.</strong> The dataset is small and the recipe
+        is public; inventing here spends a week to lose accuracy.</li>
+      <li><strong>Not YOLO on the slick.</strong> Object detection returns a box. The task needs a polygon,
+        because the polygon’s principal axis is the strongest scoring factor.</li>
+      <li><strong>Not a learned end-to-end attribution model.</strong> There is no labelled corpus of
+        attributed spills to train it on, and a black box cannot produce the per-factor justification that
+        makes the dossier usable.</li>
+    </ul>
+  </section>
+
+  <!-- ═══ 13 ═══ -->
+  <section id="s13">
+    <h2><span class="n">13</span><span>Non-functional requirements &amp; dual-use safety</span></h2>
+    <p>This system points at a named vessel. That is the whole value and the whole hazard, and the
+      safeguards below are product requirements, not a disclaimer appended at the end.</p>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+        <tbody>
+          <tr><td class="id">NFR-1</td><td><strong>Explainability.</strong> Every score carries its factors, their weights, a written justification per factor, and the weight-pack version. No bare numbers anywhere in the product.</td></tr>
+          <tr><td class="id">NFR-2</td><td><strong>Ranking, not finding.</strong> Output is a shortlist for investigation. Generated text may not assert responsibility; RP-3 makes this checkable.</td></tr>
+          <tr><td class="id">NFR-3</td><td><strong>Absence is not evidence.</strong> Vessels below the AIS carriage threshold broadcast nothing. Their absence from the analysis is stated as a limitation and never scored against anyone.</td></tr>
+          <tr><td class="id">NFR-4</td><td><strong>No automated transmission.</strong> The dossier is generated; sending it to an enforcement body is a human action, with a human name attached.</td></tr>
+          <tr><td class="id">NFR-5</td><td><strong>Reproducibility.</strong> A run is fully described by scene ID, archive, forcing sources, parameters and weight-pack version. Same inputs, same output.</td></tr>
+          <tr><td class="id">NFR-6</td><td><strong>Uncertainty is first-class.</strong> No spatial output renders as a point, no temporal output as an instant.</td></tr>
+          <tr><td class="id">NFR-7</td><td><strong>Provenance of traffic.</strong> Real versus synthetic AIS is declared in the run log, in the interface, and on dossier page 1.</td></tr>
+          <tr><td class="id">NFR-8</td><td><strong>Performance.</strong> A full run over one scene and a 72 h archive completes in under 10 minutes on a laptop, so the demo is live rather than a recording.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 14 ═══ -->
+  <section id="s14">
+    <h2><span class="n">14</span><span>Validation &amp; metrics</span></h2>
+    <div class="note">
+      <span class="lbl">Read this before quoting any number</span>
+      <p>Every figure below is a <strong>target, not a result</strong>. Presenting a target as achieved is
+        an integrity failure and the judges do check. Numbers move out of this section only after the
+        experiment has been run, and the run is recorded.</p>
+    </div>
+
+    <p>The honest difficulty is that <strong>no ground-truth dataset of attributed spills exists</strong>.
+      We therefore validate the three stages independently rather than pretending to validate the whole.</p>
+
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Stage</th><th>Method</th><th>Target</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Detection</strong></td><td>Held-out split of the Zenodo dataset. Report per-class IoU, not an aggregate.</td><td class="n">IoU ≥ 0.70</td></tr>
+          <tr><td><strong>Look-alike rejection</strong></td><td>Same holdout, restricted to labelled look-alikes.</td><td class="n">FPR ≤ 0.15</td></tr>
+          <tr><td><strong>Drift — the real one</strong></td><td>Global Drifter Program buoys. Take a drifter’s known position, hindcast it backward 24 h through our forcing, and measure the distance from its actual position then. This validates the advection scheme against reality with no spill involved.</td><td class="n">90 % inside r₉₅</td></tr>
+          <tr><td><strong>Attribution</strong></td><td>Synthetic scenes with an injected culprit, swept over horizon and traffic density.</td><td class="n">top-1 ≥ 0.70 @ 24 h</td></tr>
+          <tr><td><strong>Refusal</strong></td><td>Adversarial scenes built to fire each gate.</td><td class="n">5 of 5 fire</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>The ablation</h4>
+    <p>Re-score the synthetic evaluation set with each factor zeroed in turn, and report top-1 recall for
+      each. This produces the sensitivity claim in §08 as a measurement rather than an assertion, and it
+      is the single most useful table we can put in front of a technical judge.</p>
+
+    <h4>The negative control</h4>
+    <p>Run the full pipeline on a clean scene with no spill and ordinary traffic. The correct output is
+      Gate 1 firing. A system that names a vessel here is worse than useless, and this test runs before
+      every demo.</p>
+  </section>
+
+  <!-- ═══ 15 ═══ -->
+  <section id="s15">
+    <h2><span class="n">15</span><span>Build order</span></h2>
+    <p>Each step must stand alone and demo alone before the next connects to it.</p>
+    <ol class="body">
+      <li><strong>Scene on a map.</strong> Load a Sentinel-1 GRD, calibrate, render in MapLibre. Nothing else.</li>
+      <li><strong>Hand-drawn polygon → drift → origin region.</strong> Hardcode the slick. Get the forcing
+        data flowing and the uncertainty growing on screen. <em>Detection is not involved.</em></li>
+      <li><strong>Synthetic AIS → filter → score → ranked list.</strong> The whole of clause (c), against a
+        hardcoded polygon and a real origin region.</li>
+      <li><strong>Train the detector</strong> and swap out the hardcoded polygon.</li>
+      <li><strong>Dark channel</strong> — CFAR and AIS matching.</li>
+      <li><strong>Dossier</strong> generation.</li>
+      <li><strong>Gates</strong>, adversarial scenes, ablation, negative control.</li>
+      <li><strong>Polish</strong> — time slider, weight sliders, run log.</li>
+    </ol>
+    <div class="note">
+      <span class="lbl">Why detection is fourth</span>
+      <p>It is the only machine-learning component and the only one that can silently consume a week.
+        Everything downstream is buildable and demonstrable against a hand-drawn polygon. If detection
+        underperforms, the system still runs, still ranks, and still demos — and clause (c), which is
+        where the marks are, is unaffected.</p>
+    </div>
+  </section>
+
+  <!-- ═══ 16 ═══ -->
+  <section id="s16">
+    <h2><span class="n">16</span><span>Phases &amp; milestones</span></h2>
+    <div class="phases">
+      <div class="phase">
+        <span class="when">Now → 20 Sep 2026 · 13 days</span>
+        <h4>Phase 0 — portal submission</h4>
+        <p>The deliverable is the idea submission, not the system. What must exist:</p>
+        <ul>
+          <li>Submission deck in the SIH prescribed format.</li>
+          <li>A demonstrable vertical slice for credibility — build steps 1–3, which need no trained model.</li>
+          <li>One generated dossier, even against a hardcoded polygon.</li>
+          <li>Open questions OQ-1 and OQ-2 resolved, because both can invalidate the approach.</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <span class="when">Post-selection → finale</span>
+        <h4>Phase 1 — full build</h4>
+        <p>Build steps 4–7. Detector trained and evaluated, dark channel in, all five gates implemented
+          and covered by adversarial scenes, ablation table produced. Metrics in §14 move from target to
+          measured, or are removed.</p>
+      </div>
+      <div class="phase">
+        <span class="when">Grand finale · 36 hours</span>
+        <h4>Phase 2 — what must run live</h4>
+        <p>Nothing new is built in 36 hours. The finale is for the incident walkthrough, one live end-to-end
+          run inside the 10-minute NFR-8 budget, the negative control, and one deliberate gate firing in
+          front of the judges. Everything else is polish and rehearsal.</p>
+      </div>
+    </div>
+
+    <h3>Team allocation — 6 members</h3>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Role</th><th>Owns</th><th>Critical path</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Tech lead</strong></td><td>Pipeline spine, run artefacts, gates, dossier</td><td>Build steps 2, 6, 7</td></tr>
+          <tr><td><strong>Remote sensing</strong></td><td>Scene ingest, calibration, CFAR dark channel</td><td>Build steps 1, 5</td></tr>
+          <tr><td><strong>ML / CV</strong></td><td>Detector fine-tune, look-alike rejection, IoU evaluation</td><td>Build step 4</td></tr>
+          <tr><td><strong>Oceanography / data</strong></td><td>CMEMS and ERA5 pulls, OpenDrift integration, drifter validation</td><td>Build step 2 — <strong>starts first</strong>, downloads are slow</td></tr>
+          <tr><td><strong>Full-stack</strong></td><td>MapLibre workstation, time slider, weight sliders</td><td>Build steps 3, 8</td></tr>
+          <tr><td><strong>Research / deck</strong></td><td>MARPOL grounding, submission deck, claims traceability</td><td>Phase 0</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Compliance is mandatory and unforgiving: exactly six members, at least one female member, one idea
+      per team, all from the same institution, and no identifying metadata in a blind submission.</p>
+  </section>
+
+  <!-- ═══ 17 ═══ -->
+  <section id="s17">
+    <h2><span class="n">17</span><span>Acceptance criteria</span></h2>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Criterion</th></tr></thead>
+        <tbody>
+          <tr><td class="id">AC-1</td><td>Given one SAR scene and an AIS archive, the pipeline runs end to end unattended and emits a dossier PDF. No manual step.</td></tr>
+          <tr><td class="id">AC-2</td><td>Dossier page 1 carries the limitations above the finding, and names whether AIS was real or synthetic.</td></tr>
+          <tr><td class="id">AC-3</td><td>Every ranked vessel shows five factor scores, five written justifications, and the weight-pack version.</td></tr>
+          <tr><td class="id">AC-4</td><td>Moving any weight slider in the interface re-ranks the shortlist and updates the leader margin, live.</td></tr>
+          <tr><td class="id">AC-5</td><td>All five gates fire on their adversarial scenes and are reported in the run log.</td></tr>
+          <tr><td class="id">AC-6</td><td>Negative control: clean scene, ordinary traffic — Gate 1 fires, no vessel named.</td></tr>
+          <tr><td class="id">AC-7</td><td>Drift validation against at least 20 Global Drifter Program trajectories, with the result reported whatever it is.</td></tr>
+          <tr><td class="id">AC-8</td><td>Two runs with identical inputs produce identical scores and rankings.</td></tr>
+          <tr><td class="id">AC-9</td><td>Full run completes in under 10 minutes on the demo laptop.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 18 ═══ -->
+  <section id="s18">
+    <h2><span class="n">18</span><span>Risk register</span></h2>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Risk</th><th>Handling</th></tr></thead>
+        <tbody>
+          <tr><td class="id">R-1</td><td>Detection is the team’s ML gap and can eat a week.</td><td>Public dataset, public architecture, pretrained encoder. Scheduled fourth so it cannot block the demo.</td></tr>
+          <tr><td class="id">R-2</td><td>CMEMS and ERA5 downloads are large and queue for hours or days.</td><td>Owner assigned on day one. Subset to one region and one window immediately.</td></tr>
+          <tr><td class="id">R-3</td><td>Backward drift is ill-posed and the region may be too large to constrain anything.</td><td>That is Gate 2, and it is a feature. Demo it deliberately.</td></tr>
+          <tr><td class="id">R-4</td><td>Synthetic AIS caps realism and a judge may call it out.</td><td>Explicitly permitted by the problem statement. Say so first, on the slide, before being asked.</td></tr>
+          <tr><td class="id">R-5</td><td>The Zenodo dataset may not be as advertised.</td><td>OQ-1. Verify inside 48 hours; it changes the whole detection plan.</td></tr>
+          <tr><td class="id">R-6</td><td>Scope creep into full spill forecasting or a monitoring service.</td><td>Non-goals in §04 are binding. One incident, one scene, one 72 h window.</td></tr>
+          <tr><td class="id">R-7</td><td>The system names an innocent vessel in a demo and the framing is misread as an accusation.</td><td>NFR-2, NFR-3, RP-3, and Gate 4. All demo vessel identities are synthetic and labelled as such.</td></tr>
+          <tr><td class="id">R-8</td><td>Thirteen days to the portal is not enough for a trained detector.</td><td>It is not meant to be. Phase 0 needs build steps 1–3 only.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 19 ═══ -->
+  <section id="s19">
+    <h2><span class="n">19</span><span>Open questions</span></h2>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>ID</th><th>Question</th><th>Blocks</th></tr></thead>
+        <tbody>
+          <tr><td class="id">OQ-1</td><td>Does the Zenodo Sentinel-1 oil-spill dataset actually download, and is it labelled as the problem statement claims?</td><td class="id">DT-3 · highest</td></tr>
+          <tr><td class="id">OQ-2</td><td>Which incident do we hindcast? Needs a documented spill with a known date and a Sentinel-1 pass over it.</td><td class="id">§14 validation</td></tr>
+          <tr><td class="id">OQ-3</td><td>Real AIS for Indian waters, or synthetic? It changes the whole of TR.</td><td class="id">TR-7</td></tr>
+          <tr><td class="id">OQ-4</td><td>Is the 36 km Gate 2 threshold defensible from literature, or is it our own judgement? Say which.</td><td class="id">Gate 2</td></tr>
+          <tr><td class="id">OQ-5</td><td>Does OpenDrift integrate inside the timeline, or do we ship hand-rolled advection?</td><td class="id">DR-7</td></tr>
+          <tr><td class="id">OQ-6</td><td>What is the plausible maximum speed bound per ship class for the reachable set — design draught, or observed maximum in the archive?</td><td class="id">TR-4</td></tr>
+          <tr><td class="id">OQ-7</td><td>Does the SIH prescribed submission format allow an appendix beyond the main slides?</td><td class="id">Phase 0</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <b>Dark Transit — Product Requirements Document, revision A.</b><br>
+    Source of truth for SIH26143. Interface studies: <i>Dark Transit Workstation</i> (analyst tool) and
+    <i>Forty Hours Back</i> (narrative). Every metric in §14 is a projected target until the experiment is
+    recorded. Every vessel identity in any artefact is synthetic and corresponds to no real ship or incident.
+  </footer>
+
+</main>
+</div>
