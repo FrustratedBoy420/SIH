@@ -92,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--build", action="store_true",
                     help="build the web interface first if web/dist is missing (needs npm)")
 
+    bn = sub.add_parser("bench", help="latency p50/p95 on the built-in scenes vs the NFR-01/02 targets")
+    bn.add_argument("--runs", type=int, default=20)
+
     ho = sub.add_parser("heldout", help="router accuracy on the blind held-out set (RTR-07)")
     ho.add_argument("--path", default=None, help="default: reference/router_heldout.jsonl")
 
@@ -117,6 +120,37 @@ def main(argv: list[str] | None = None) -> int:
     rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "bench":
+        # NFR-01/02: p95 < 8 s single-image, < 15 s cross-modal, on the venue
+        # laptop. Run this there; the numbers are only as true as the machine.
+        import platform
+        import time
+        from .server import scene_bundle
+        b = scene_bundle()
+        cases = [
+            ("RQ-1 describe", "single", "Describe the land-cover and major objects visible in this image.", Inputs(optical=b["t2"])),
+            ("RQ-2 water", "single", "Highlight the water body referred to in the query.", Inputs(optical=b["t2"])),
+            ("RQ-3 change", "single", "What changed between these two dates, and where did the change occur?", Inputs(t1=b["t1"], t2=b["t2"])),
+            ("RQ-4 cross-modal", "cross", "Use the optical and SAR images together to identify built-up and water-covered regions.", Inputs(optical=b["optical"], sar=b["sar"])),
+            ("refusal", "single", "What changed between these two dates?", Inputs(optical=b["t2"])),
+        ]
+        target = {"single": 8.0, "cross": 15.0}
+        pipe = Pipeline()
+        print(f"  {platform.processor() or platform.machine()} · {platform.platform()} · {args.runs} runs each, 512 px Sentinel scenes\n")
+        worst = True
+        for name, kind, q, inp in cases:
+            ts = []
+            for _ in range(args.runs):
+                t0 = time.perf_counter()
+                pipe.run(q, inp)
+                ts.append(time.perf_counter() - t0)
+            ts.sort()
+            p50, p95 = ts[len(ts) // 2], ts[min(len(ts) - 1, int(0.95 * len(ts)))]
+            ok = p95 < target[kind]
+            worst &= ok
+            print(f"  {'✓' if ok else '✗'} {name:18s} p50 {p50 * 1000:7.0f} ms   p95 {p95 * 1000:7.0f} ms   target p95 < {target[kind]:.0f} s")
+        return 0 if worst else 1
 
     if args.cmd == "heldout":
         from . import evaluate
