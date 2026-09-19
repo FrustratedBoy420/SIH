@@ -7,23 +7,34 @@ import { cn } from '@/lib/utils'
 
 const NAV: { to: string; label: string; short?: string }[] = [
   { to: '/workstation', label: 'Workstation' },
-  { to: '/data', label: 'Data + Models', short: 'Data' },
+  { to: '/data', label: 'Data & models', short: 'Data' },
   { to: '/results', label: 'Results' },
 ]
 
-const item = 'relative whitespace-nowrap px-1 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] sm:px-3 sm:text-[11.5px]'
-const active = 'text-ink after:absolute after:inset-x-1 after:-bottom-[13px] after:h-[3px] after:bg-ink sm:after:inset-x-3'
+const item = 'relative whitespace-nowrap px-1.5 py-1.5 text-[14px] font-medium sm:px-3 sm:text-[15px]'
+const active = 'text-ink after:absolute after:inset-x-1.5 after:-bottom-[3px] after:h-[2px] after:bg-ink sm:after:inset-x-3'
+
+/** A 3×3 pixel tile with one cell lit: a scene, and the pixel the question found. */
+export function Mark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 30 30" className={className} aria-hidden>
+      {[0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => (
+        <rect key={`${r}${c}`} x={c * 10} y={r * 10} width={10} height={10}
+          fill={r === 0 && c === 2 ? 'var(--color-sun)' : (r + c) % 2 ? 'var(--color-accent)' : 'var(--color-ink)'} />
+      )))}
+    </svg>
+  )
+}
 
 /**
- * The masthead reads like a publication's, not a product's: a wordmark, what
- * the instrument is, four sections. It compresses on scroll by type alone —
- * the height stays 56 px, because the pinned landing and the workstation are
- * laid out against it.
+ * Wordmark left, three sections and the report right, one action in yellow.
+ * The height is fixed (--masthead) because the workstation and the landing
+ * hero are laid out against it.
  */
 export default function Masthead() {
-  const [compact, setCompact] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
-    const on = () => setCompact(window.scrollY > 24)
+    const on = () => setScrolled(window.scrollY > 8)
     on()
     window.addEventListener('scroll', on, { passive: true })
     return () => window.removeEventListener('scroll', on)
@@ -35,13 +46,14 @@ export default function Masthead() {
   const [recent, setRecent] = useState<string | undefined>()
   useEffect(() => { setRecent(api.runs()[0]?.run_id) }, [current, pathname])
   const report = current ?? recent
+  const inStation = pathname.startsWith('/workstation')
 
   return (
-    <header className="no-print sticky top-0 z-50 border-b border-ink bg-paper">
-      <div className="flex h-14 items-center gap-3 px-4 sm:gap-6 sm:px-6">
-        <Link to="/" className="flex items-baseline gap-2.5" aria-label="SatQuery — home">
-          <span className={cn('font-display font-extrabold uppercase tracking-[-0.03em] transition-[font-size] duration-200', compact ? 'text-[17px] sm:text-[18px]' : 'text-[18px] sm:text-[22px]')}>SatQuery</span>
-          <span className={cn('mono hidden text-[10.5px] uppercase tracking-[0.08em] text-ink-2 transition-opacity duration-200 lg:inline', compact && 'lg:opacity-0')}>Remote sensing / agentic vision</span>
+    <header className={cn('no-print sticky top-0 z-50 border-b bg-paper transition-colors', scrolled || inStation ? 'border-ink' : 'border-transparent')}>
+      <div className="flex h-16 items-center gap-3 px-4 sm:gap-6 sm:px-8">
+        <Link to="/" className="flex items-center gap-2.5" aria-label="SatQuery — home">
+          <Mark className="size-7" />
+          <span className="text-[19px] font-semibold tracking-[-0.02em]">SatQuery<span className="ml-1 text-ink-3">AI</span></span>
         </Link>
         <nav aria-label="Primary" className="ml-auto flex items-center">
           {NAV.map((n) => (
@@ -55,6 +67,7 @@ export default function Masthead() {
             : <span className={cn(item, 'cursor-not-allowed text-ink-3')} title="Run a query first — the report is of a run" aria-disabled="true" data-testid="nav-report">Report</span>}
         </nav>
         <EngineBadge className="hidden md:block" />
+        {!inStation && <Link to="/workstation" className="btn btn-sun btn-sm hidden lg:inline-flex">Ask the imagery</Link>}
       </div>
     </header>
   )

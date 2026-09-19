@@ -1,149 +1,153 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   SatQuery AI — "Editorial Instrument"
-   docs/06_Design_System.md §2–§4 and web/BUILD_PLAN.md §2.
+   SatQuery AI — "Field Atlas"
+   docs/06_Design_System.md §2–§4.
 
-   Light, always. Colour is taken from remote sensing, not from a UI trend:
-   the accent is the SAR/water signature and carries interaction only; the
+   Light, warm stone ground; a bold serif sets every headline, a plain sans
+   carries everything else; imagery is shown big and square-cornered inside a
+   one-pixel ink frame. Yellow marks the one action that matters on a screen,
+   forest green carries interaction, sage is the quiet second accent. The
    modality hues are marks, never fills; red means change or refusal and
    nothing else.
    ========================================================================== */
 
 @theme {
-  --color-paper: #f3f5f4;
-  --color-surface: #ffffff;
-  --color-surface-2: #e9edeb;
-  --color-rule: #d3dad7;
-  --color-rule-2: #b9c3bf;
+  --color-paper: #efeeec;
+  --color-surface: #f8f7f5;
+  --color-surface-2: #e4e2de;
+  --color-rule: #d5d2cc;
+  --color-rule-2: #b6b1a9;
 
-  --color-ink: #0f1613;
-  --color-ink-2: #4a5551;
-  --color-ink-3: #7c8783;
+  --color-ink: #0e2129;
+  --color-ink-2: #45565d;
+  --color-ink-3: #7a878c;
 
-  --color-accent: #0e7c86;
-  --color-accent-2: #0a5c64;
-  --color-accent-bg: #ddeef0;
+  --color-accent: #3b7552;
+  --color-accent-2: #2b5a3e;
+  --color-accent-bg: #dde8d6;
+
+  --color-sun: #ffc000;
+  --color-sun-2: #e6ad00;
+  --color-sage: #9cc384;
 
   --color-optical: #b8763a;
   --color-sar: #2c7a8c;
   --color-fusion: #6b5ca5;
 
   --color-nir: #c4342a;
-  --color-nir-bg: #f7e4e1;
+  --color-nir-bg: #f5e2de;
   --color-good: #2f7d5a;
-  --color-good-bg: #e0efe7;
-  --color-warn: #a1740f;
-  --color-warn-bg: #f5ecd6;
+  --color-good-bg: #dfece3;
+  --color-warn: #9c700c;
+  --color-warn-bg: #f3e8cf;
 
-  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Source Serif 4 Variable", "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-sans: "Geist Variable", "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   --ease-instrument: cubic-bezier(0.2, 0.7, 0.3, 1);
 
-  --animate-marquee: marquee var(--duration) linear infinite;
-  --animate-sweep: sweep 2.8s var(--ease-instrument) infinite;
-
-  @keyframes marquee {
-    from { transform: translateX(0); }
-    to { transform: translateX(calc(-100% - var(--gap))); }
-  }
-  @keyframes sweep {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(100%); }
-  }
 }
+
+/* Fixed chrome: the 64 px masthead (+1 px rule) and the 32 px disclosure bar.
+   Full-height regions size against these, never against literals. */
+:root { --masthead: 65px; --chrome: 97px; }
 
 html { background: var(--color-paper); }
 body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-::selection { background: var(--color-accent-bg); color: var(--color-ink); }
+::selection { background: var(--color-sun); color: var(--color-ink); }
 
 /* ----------------------------------------------------------------- type */
 
-/* The campaign headline. Set straight across the imagery. */
+/* Headlines are serif, bold and tight — set like an atlas title page. */
 .t-hero {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(56px, 11vw, 200px);
-  letter-spacing: -0.045em;
-  line-height: 0.84;
-  font-variation-settings: "opsz" 96;
+  font-weight: 700;
+  font-size: clamp(44px, 6.2vw, 84px);
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  font-optical-sizing: auto;
 }
 .t-section {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(36px, 6vw, 96px);
-  letter-spacing: -0.04em;
-  line-height: 0.9;
-  font-variation-settings: "opsz" 96;
+  font-weight: 700;
+  font-size: clamp(32px, 3.8vw, 52px);
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  font-optical-sizing: auto;
 }
 .t-display {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.02;
-  font-variation-settings: "opsz" 48;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  font-optical-sizing: auto;
 }
 
-/* The rule that matters more than the typeface: every value is data. */
+/* Every value is data: tabular, monospaced. */
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-/* Telemetry at display scale — the signature move. */
 .t-telemetry {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 500;
   letter-spacing: -0.03em;
-  line-height: 0.92;
+  line-height: 0.95;
 }
 
+/* Section eyebrow: small serif capitals, as on a map legend. */
 .label {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-ink-2);
+  color: var(--color-ink);
 }
 
-/* ------------------------------------------------------ cartographic furniture */
+/* ------------------------------------------------------------- surfaces */
 
-.graticule {
-  background-image:
-    linear-gradient(to right, rgb(15 22 19 / 0.055) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(15 22 19 / 0.055) 1px, transparent 1px);
-  background-size: 64px 64px;
-}
+/* The frame: one pixel of ink, square corners. Cards, plates, panels. */
+.frame { border: 1px solid var(--color-ink); }
 
-/* Registration marks at the corners of a plate — survey-office, not SaaS. */
-.crop { position: relative; }
-.crop::before, .crop::after {
-  content: "";
-  position: absolute;
-  width: 14px; height: 14px;
-  pointer-events: none;
-  z-index: 2;
-}
-.crop::before { top: -7px; left: -7px; border-top: 1px solid var(--color-ink); border-left: 1px solid var(--color-ink); }
-.crop::after { bottom: -7px; right: -7px; border-bottom: 1px solid var(--color-ink); border-right: 1px solid var(--color-ink); }
+/* Floating panels over imagery. */
+.raised { box-shadow: 0 1px 2px rgb(14 33 41 / 0.06), 0 10px 30px rgb(14 33 41 / 0.10); }
 
-.raised { box-shadow: 0 1px 2px rgb(15 22 19 / 0.04), 0 8px 24px rgb(15 22 19 / 0.06); }
-
-/* Glass is permitted exactly twice: the toolbar floating over the scene, and
-   the command palette. Nowhere else. (06 §4) */
 .glass {
-  background: rgb(255 255 255 / 0.74);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border: 1px solid rgb(15 22 19 / 0.08);
+  background: rgb(248 247 245 / 0.86);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid rgb(14 33 41 / 0.14);
 }
+
+/* ------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.6rem;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.2;
+  transition: background-color 150ms var(--ease-instrument), color 150ms var(--ease-instrument);
+}
+.btn-sun { background: var(--color-sun); color: var(--color-ink); }
+.btn-sun:hover { background: var(--color-sun-2); }
+.btn-ink { background: var(--color-ink); color: var(--color-paper); }
+.btn-ink:hover { background: #1c3743; }
+.btn-line { border: 1px solid var(--color-ink); color: var(--color-ink); }
+.btn-line:hover { background: var(--color-ink); color: var(--color-paper); }
+.btn-sm { padding: 0.45rem 0.9rem; font-size: 14px; }
 
 /* ------------------------------------------------------------ controls */
 
@@ -161,15 +165,14 @@ input[type="range"].instrument {
 input[type="range"].instrument::-webkit-slider-thumb {
   appearance: none;
   width: 14px; height: 14px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  border: 2px solid var(--color-accent);
+  background: var(--color-sun);
+  border: 1px solid var(--color-ink);
 }
 input[type="range"].instrument::-moz-range-thumb {
   width: 12px; height: 12px;
-  border-radius: 50%;
-  background: var(--color-surface);
-  border: 2px solid var(--color-accent);
+  border-radius: 0;
+  background: var(--color-sun);
+  border: 1px solid var(--color-ink);
 }
 
 .scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-rule-2) transparent; }

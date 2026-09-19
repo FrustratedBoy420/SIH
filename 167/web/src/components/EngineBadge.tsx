@@ -22,14 +22,14 @@ export default function EngineBadge({ className }: { className?: string }) {
         data-testid="engine-badge"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 border border-rule bg-surface px-2.5 py-1.5 text-left hover:border-ink-3"
+        className="flex items-center gap-2 border border-ink/25 px-2.5 py-1.5 text-left hover:border-ink"
       >
         <span className="inline-block size-1.5 rounded-full" style={{ background: preview ? 'var(--color-warn)' : 'var(--color-good)' }} />
-        <span className="label !text-ink">{preview ? 'Preview engine' : 'API'}</span>
+        <span className="text-[13px] font-medium">{preview ? 'Preview engine' : 'API'}</span>
         <span className="mono hidden text-[11px] text-ink-2 sm:inline">{health?.version ?? '…'}</span>
       </button>
       {open && (
-        <div role="dialog" aria-label="Engine" className="raised absolute right-0 top-[calc(100%+6px)] z-[70] w-[340px] border border-rule bg-surface p-4 text-[13.5px]">
+        <div role="dialog" aria-label="Engine" className="raised frame absolute right-0 top-[calc(100%+8px)] z-[70] w-[340px] bg-surface p-4 text-[14px]">
           <p className="label mb-2">Answering now</p>
           <p className="mb-3 text-ink">
             {preview
@@ -40,7 +40,7 @@ export default function EngineBadge({ className }: { className?: string }) {
           <div className="flex flex-wrap gap-2">
             {(['preview', 'auto', 'http'] as const).map((m) => (
               <button key={m} type="button" onClick={() => setEngine(m)}
-                className={cn('mono border px-2 py-1 text-[12px]', (m === 'http' ? !preview : m === 'preview' && preview) ? 'border-accent bg-accent-bg text-accent-2' : 'border-rule text-ink-2 hover:border-ink-3')}>
+                className={cn('mono border px-2 py-1 text-[12px]', (m === 'http' ? !preview : m === 'preview' && preview) ? 'border-ink bg-sun text-ink' : 'border-rule text-ink-2 hover:border-ink')}>
                 {m === 'auto' ? 'auto-detect API' : m === 'http' ? 'use API' : 'use preview'}
               </button>
             ))}
