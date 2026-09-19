@@ -1,0 +1,16 @@
+# Only what the image needs: the package, the web source and its public data.
+**/node_modules
+**/__pycache__
+*.egg-info
+.venv
+var
+web/dist
+web/shots
+web/refshots
+deck
+docs
+research
+notebooks
+ml
+models
+adapters

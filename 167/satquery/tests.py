@@ -545,6 +545,28 @@ def _():
         srv.shutdown()
 
 
+@check("ADP-09 — a runtime that starts after the API is picked up without a restart")
+def _():
+    import socket
+    import threading
+    from .runtime import HttpRuntime, serve_runtime
+    with socket.socket() as sk:
+        sk.bind(("127.0.0.1", 0))
+        port = sk.getsockname()[1]
+    rt = HttpRuntime(f"http://127.0.0.1:{port}", timeout=2)
+    rt.RETRY_S = 0.0
+    pipe = Pipeline(runtime=rt)                                   # nothing listening yet
+    ok(not pipe.grounding.adapter_loaded, "a pack was claimed before the runtime existed")
+    srv = serve_runtime("127.0.0.1", port, _stub_runtime().directory, quiet=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        sc = scenes.build(size=96, seed=5)
+        r = pipe.run("highlight the water body", Inputs(optical=sc.optical(5)))
+        ok(r.engine == "neural+classical", f"late runtime ignored: engine {r.engine!r}")
+    finally:
+        srv.shutdown()
+
+
 @check("ADP-09 — a runtime that is down never hangs or breaks a query")
 def _():
     from .runtime import HttpRuntime

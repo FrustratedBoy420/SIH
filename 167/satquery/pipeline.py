@@ -136,6 +136,10 @@ class Pipeline:
         self.vqa = VQA()
         self.change = Change()
         self.fusion = Fusion()
+        self._refresh()
+
+    def _refresh(self) -> None:
+        """Which specialists have a pack right now — asked per run, not once."""
         for tool, spec in self._tools().items():
             spec.adapter_loaded = self.runtime.available(REGISTRY[tool]["adapter"])
 
@@ -148,6 +152,7 @@ class Pipeline:
         t0 = time.time()
         thr = self.threshold if threshold is None else threshold
         tr = Trace()
+        self._refresh()
 
         # 1 — input validation (VAL-01). No model is touched anywhere above
         # the execute step, which is what makes a refusal cost milliseconds.

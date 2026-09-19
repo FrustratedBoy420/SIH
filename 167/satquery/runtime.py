@@ -89,9 +89,16 @@ def load_packs(directory: str | Path = "adapters") -> dict[str, AdapterPack]:
     """
     root = Path(directory)
     packs: dict[str, AdapterPack] = {}
-    if not root.is_dir():
+    try:
+        if not root.is_dir():
+            return packs
+        dirs = sorted(p for p in root.iterdir() if p.is_dir())
+    except OSError as exc:
+        # e.g. a bind mount the container may not read (SELinux without :z)
+        import sys
+        print(f"  adapter packs: cannot read {root} ({exc.strerror}); serving none", file=sys.stderr)
         return packs
-    for d in sorted(p for p in root.iterdir() if p.is_dir()):
+    for d in dirs:
         manifest = d / "pack.json"
         if not manifest.exists():
             continue
@@ -184,24 +191,36 @@ class HttpRuntime:
 
     transport = "http"
 
+    #: After a failed /packs, wait this long before asking again — so a runtime
+    #: that starts after the API is picked up, without hammering one that is down.
+    RETRY_S = 5.0
+
     def __init__(self, base: str, timeout: float = 20.0) -> None:
         self.base = base.rstrip("/")
         self.timeout = timeout
         self._packs: dict[str, AdapterPack] | None = None
+        self._failed_at = 0.0
+        self.reachable = False
 
     def _get(self, path: str) -> Any:
         with urllib.request.urlopen(f"{self.base}{path}", timeout=self.timeout) as r:
             return json.loads(r.read().decode("utf-8"))
 
     def packs(self) -> dict[str, AdapterPack]:
+        # Only a successful answer is cached. A failure is not "no packs
+        # forever": at the venue the runtime may come up after the API.
+        import time
         if self._packs is not None:
             return dict(self._packs)
+        if time.time() - self._failed_at < self.RETRY_S:
+            return {}
         try:
             raw = self._get("/packs")
         except (urllib.error.URLError, OSError, json.JSONDecodeError):
-            self._packs = {}
+            self._failed_at, self.reachable = time.time(), False
             return {}
         self._packs = {str(p["adapter"]): AdapterPack(**p) for p in raw.get("packs", [])}
+        self.reachable = True
         return dict(self._packs)
 
     def available(self, adapter: str) -> bool:
@@ -304,6 +323,7 @@ def describe(runtime: ModelRuntime) -> dict[str, Any]:
         "adapters_loaded": bool(packs),
         "adapters": sorted(packs),
         "stub_packs": sorted(a for a, p in packs.items() if p.stub),
+        "runtime_reachable": getattr(runtime, "reachable", True),
         "engine": "neural+classical" if packs else "classical",
         "serving_plan": SERVING_PLAN,
     }

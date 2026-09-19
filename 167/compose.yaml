@@ -1,0 +1,36 @@
+# SatQuery AI at the venue.
+#
+#   docker compose up                       the app on http://127.0.0.1:8000
+#                                           (SATQUERY_PORT=8080 docker compose up if 8000 is taken)
+#   docker compose --profile model up       plus the model runtime on :8100,
+#                                           serving the packs in ./adapters
+#
+# With the model profile, point the API at the runtime in .env:
+#   SATQUERY_RUNTIME=http://runtime:8100
+# Without it, the API serves every capability from the classical path and
+# says so in each result's `engine` and trace.
+
+services:
+  app:
+    build: .
+    image: satquery:0.4.0
+    ports: ["127.0.0.1:${SATQUERY_PORT:-8000}:8000"]   # SATQUERY_PORT if 8000 is taken
+    environment:
+      SATQUERY_RUNTIME: ${SATQUERY_RUNTIME:-inproc}
+      SATQUERY_RUNTIME_TIMEOUT: ${SATQUERY_RUNTIME_TIMEOUT:-20}
+    volumes:
+      - satquery-data:/data                 # uploads and stored runs survive restarts
+      - ./adapters:/app/adapters:ro,z       # adapter packs, if any (z: SELinux relabel, no-op elsewhere)
+    restart: unless-stopped
+
+  runtime:
+    profiles: ["model"]
+    image: satquery:0.4.0
+    command: ["satquery", "runtime", "--host", "0.0.0.0", "--port", "8100", "--adapters", "/app/adapters"]
+    volumes:
+      - ./adapters:/app/adapters:ro,z
+    expose: ["8100"]
+    restart: unless-stopped
+
+volumes:
+  satquery-data:

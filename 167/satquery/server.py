@@ -219,7 +219,8 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
             note += (" Stub pack(s) present (" + ", ".join(d["stub_packs"]) +
                      ") — these exercise the loader and report no measurements.")
         return {"ok": True, "version": __version__, "engine": d["engine"],
-                "adapters_loaded": d["adapters_loaded"], "note": note,
+                "adapters_loaded": d["adapters_loaded"], "adapters": d["adapters"], "note": note,
+                "runtime_reachable": d["runtime_reachable"],
                 "transport": d["transport"], "serving_plan": d["serving_plan"],
                 "rasters_stored": len(rasters), "runs_stored": len(runs.ids()),
                 "limits": {"max_bytes": MAX_BYTES, "max_pixels": MAX_PIXELS,
