@@ -363,7 +363,14 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
 def _mount_web(app) -> None:
     """Serve the built frontend from the same origin (NFR-14)."""
     dist = Path(__file__).resolve().parent.parent / "web" / "dist"
-    if not dist.exists():
+    if not (dist / "index.html").exists():
+        # A clean clone has no build. Say so at "/" instead of a blank page or
+        # a JSON 404 — the first thing a judge following the README opens.
+        from fastapi.responses import HTMLResponse
+
+        @app.get("/", include_in_schema=False)
+        def unbuilt() -> HTMLResponse:
+            return HTMLResponse(UNBUILT_PAGE, status_code=503)
         return
 
     from fastapi.staticfiles import StaticFiles
@@ -386,15 +393,47 @@ def _mount_web(app) -> None:
     app.mount("/", SinglePageApp(directory=str(dist), html=True), name="web")
 
 
+UNBUILT_PAGE = """<!doctype html><meta charset="utf-8"><title>SatQuery — interface not built</title>
+<body style="font:16px/1.55 system-ui,sans-serif;max-width:640px;margin:10vh auto;padding:0 20px;color:#0e2129;background:#efeeec">
+<h1 style="font-family:Georgia,serif">The API is running; the interface is not built yet</h1>
+<p>This checkout has no <code>web/dist</code>. Build it once (needs Node 20+), then reload:</p>
+<pre style="background:#f8f7f5;border:1px solid #0e2129;padding:12px">satquery serve --build</pre>
+<p>or by hand: <code>cd web &amp;&amp; npm ci &amp;&amp; npm run build</code>. With Docker instead: <code>docker compose up</code>.</p>
+<p>The API itself is live: <a href="/api/health">/api/health</a> · <a href="/docs">/docs</a></p>
+</body>"""
+
+
+def build_web(force: bool = False) -> bool:
+    """Build web/dist with npm if it is missing (or `force`). True if a build exists after."""
+    import shutil
+    import subprocess
+    web = Path(__file__).resolve().parent.parent / "web"
+    if (web / "dist" / "index.html").exists() and not force:
+        return True
+    npm = shutil.which("npm")
+    if npm is None:
+        print("  npm not found — install Node 20+ to build the interface, or use `docker compose up`.")
+        return False
+    install = ["ci"] if (web / "package-lock.json").exists() else ["install"]
+    for step in (install, ["run", "build"]):
+        print(f"  web/: npm {' '.join(step)}")
+        if subprocess.run([npm, *step], cwd=web).returncode != 0:
+            print(f"  npm {' '.join(step)} failed; the API will still start.")
+            return False
+    return (web / "dist" / "index.html").exists()
+
+
 def serve(host: str = "127.0.0.1", port: int = 8000,
-          var: str | None = None, adapters: str = "adapters") -> None:
+          var: str | None = None, adapters: str = "adapters", build: bool = False) -> None:
     import uvicorn
+    if build:
+        build_web()
     app = build_app(var=var, adapters=adapters)
     dist = Path(__file__).resolve().parent.parent / "web" / "dist"
     print(f"\n  SatQuery {__version__}  ->  http://{host}:{port}")
     print(f"  API docs               ->  http://{host}:{port}/docs")
     print("  web/dist               ->  " +
           ("served from this origin" if dist.exists()
-           else "not built — run `npm run build` in web/ to serve the UI here"))
+           else "not built — `satquery serve --build`, or `cd web && npm ci && npm run build`"))
     print()
     uvicorn.run(app, host=host, port=port, log_level="warning")

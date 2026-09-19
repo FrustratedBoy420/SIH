@@ -89,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="where rasters and runs are stored (default ./var)")
     sv.add_argument("--adapters", default="adapters",
                     help="directory of adapter packs")
+    sv.add_argument("--build", action="store_true",
+                    help="build the web interface first if web/dist is missing (needs npm)")
 
     bt = sub.add_parser("batch", help="run a manifest of queries offline; write results.jsonl")
     bt.add_argument("manifest", nargs="?", help="JSON or JSON Lines manifest (paths relative to it)")
@@ -277,7 +279,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "serve":
         from .server import serve
         serve(host=args.host, port=args.port, var=args.var,
-              adapters=args.adapters)
+              adapters=args.adapters, build=args.build)
         return 0
 
     return 1
