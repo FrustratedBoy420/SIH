@@ -45,35 +45,50 @@ class GeoBox:
     y0: int
     x1: int
     y1: int
-    lon0: float = 0.0
-    lat0: float = 0.0
-    lon1: float = 0.0
-    lat1: float = 0.0
+    #: None for non-georeferenced imagery (audit A1). A benchmark PNG has no
+    #: position on Earth, and an identity transform would invent one.
+    lon0: float | None = None
+    lat0: float | None = None
+    lon1: float | None = None
+    lat1: float | None = None
     area_px: int = 0
     area_ha: float = 0.0
 
+    @property
+    def georeferenced(self) -> bool:
+        return self.lon0 is not None
+
     @classmethod
     def from_pixels(cls, bbox: list[int], transform: GeoTransform,
-                    area_px: int = 0) -> "GeoBox":
+                    area_px: int = 0, georeferenced: bool = True) -> "GeoBox":
         x0, y0, x1, y1 = bbox
+        area = area_px or ((x1 - x0 + 1) * (y1 - y0 + 1))
+        if not georeferenced:
+            return cls(x0, y0, x1, y1, area_px=int(area), area_ha=0.0)
         lon0, lat0 = transform.pixel_to_world(x0, y0)
         lon1, lat1 = transform.pixel_to_world(x1 + 1, y1 + 1)
         gsd = transform.ground_sample_distance
-        area = area_px or ((x1 - x0 + 1) * (y1 - y0 + 1))
         return cls(x0, y0, x1, y1,
                    round(lon0, 6), round(lat0, 6), round(lon1, 6), round(lat1, 6),
                    int(area), round(area * gsd * gsd / 10_000.0, 3))
 
-    def centre(self) -> tuple[float, float]:
+    def centre(self) -> tuple[float, float] | None:
+        if not self.georeferenced:
+            return None
         return (self.lat0 + self.lat1) / 2, (self.lon0 + self.lon1) / 2
 
     def to_geojson(self, props: dict | None = None) -> dict:
+        # Pixel-space polygons for non-georeferenced input: x right, y down,
+        # declared as such in the collection's `crs` so no GIS tool mistakes
+        # them for degrees.
+        if self.georeferenced:
+            a, b, c, d = self.lon0, self.lat0, self.lon1, self.lat1
+        else:
+            a, b, c, d = self.x0, self.y0, self.x1 + 1, self.y1 + 1
         return {
             "type": "Feature",
             "geometry": {"type": "Polygon", "coordinates": [[
-                [self.lon0, self.lat0], [self.lon1, self.lat0],
-                [self.lon1, self.lat1], [self.lon0, self.lat1],
-                [self.lon0, self.lat0]]]},
+                [a, b], [c, b], [c, d], [a, d], [a, b]]]},
             "properties": {"area_ha": self.area_ha, "area_px": self.area_px,
                            **(props or {})},
         }
@@ -179,12 +194,16 @@ class EvidenceSet:
 # --------------------------------------------------------------------------- #
 
 def boxes_from_props(props: list[dict], transform: GeoTransform,
-                     limit: int = 24) -> list[GeoBox]:
-    return [GeoBox.from_pixels(p["bbox"], transform, p["area_px"])
+                     limit: int = 24, georeferenced: bool = True) -> list[GeoBox]:
+    return [GeoBox.from_pixels(p["bbox"], transform, p["area_px"], georeferenced)
             for p in props[:limit]]
 
 
-def mask_area_ha(mask: np.ndarray, transform: GeoTransform) -> float:
+def mask_area_ha(mask: np.ndarray, transform: GeoTransform,
+                 georeferenced: bool = True) -> float:
+    """Ground area in hectares; 0.0 when there is no ground to measure."""
+    if not georeferenced:
+        return 0.0
     gsd = transform.ground_sample_distance
     return round(float(mask.sum()) * gsd * gsd / 10_000.0, 3)
 

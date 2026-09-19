@@ -1,27 +1,37 @@
-"""HTTP API.
+"""The HTTP API — API-01 to API-13.
 
-FastAPI when it is installed; a standard-library server when it is not. The
-fallback exists because a venue machine is not guaranteed to have anything, and
-a demo that cannot start is worth nothing regardless of what it would have shown.
+One origin. The API serves the built web application from `web/dist`, so a
+judge who follows the README sees the interface rather than a blank page and a
+CORS error (NFR-14). There is no second base URL to configure anywhere.
 
-Routes:
+Every response the frontend consumes is defined in `docs/08_TRD.md` §5.2 and
+mirrored in `web/src/lib/contract.ts`; that file is the acceptance test for
+this one. Two conventions it already assumes and this module honours:
 
-    GET  /api/health                    liveness, versions, engine
-    GET  /api/scene                     the demo scene metadata
-    GET  /api/scene/{layer}.png         optical | sar | fusion | t1 | t2
-    GET  /api/datasets                  what data is staged, honestly
-    GET  /api/models                    model registry and weight status
-    GET  /api/registry                  the tool registry the router selects from
-    GET  /api/evaluation                metrics and the A-E ablation
-    POST /api/query                     run one query
-    GET  /api/runs                      saved runs
-    GET  /api/runs/{id}                 one run
+    inputs: {"optical": "demo:optical"}     built-in scenes are addressed
+                                            as `demo:<role>`
+    /api/scenes/demo/optical.png            and their layers live here
+
+Errors are typed and readable (API-12): `{error: {code, message, remedy}}`,
+never a stack trace. An unknown `/api/*` path returns JSON 404 rather than the
+HTML shell (API-10) — without that guard the frontend reports "unexpected
+token <" instead of "no such endpoint", which sends a debugging session in
+entirely the wrong direction.
+
+Single implementation, deliberately. The prototype carried a standard-library
+fallback server for venue machines with nothing installed; the dependency
+manifest pins FastAPI now, so the fallback bought a second copy of a much
+larger API surface and the drift between them was the more likely failure.
 """
 
-from __future__ import annotations
+# No `from __future__ import annotations` in this file, on purpose. FastAPI
+# reads route annotations at runtime to decide what is a body, a form field or
+# an upload; stringified annotations are resolved against the *module*
+# namespace, so any type imported inside `build_app()` (UploadFile, a request
+# model) silently becomes unresolvable and every request fails with "class not
+# fully defined". Eager annotations make that impossible.
 
 import io
-import json
 import time
 from pathlib import Path
 from typing import Any
@@ -29,56 +39,58 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from . import __version__, datasets, evaluate, scene as scenes
-from .pipeline import Pipeline, Result, save_run
+from . import __version__, datasets, evaluate, report as reports, runtime as rt, scene as scenes
+from .errors import SatQueryError, not_found
+from .pipeline import Pipeline, Result
 from .router import Inputs, REGISTRY
+from .store import ACCEPTED, MAX_BYTES, MAX_PIXELS, RasterStore, RunStore, ROLES
 
 # --------------------------------------------------------------------------- #
-# scene cache — generating a 512px scene takes ~0.4 s, so do it once
+# built-in scenes
 # --------------------------------------------------------------------------- #
+
+DEMO_SEED = 7
+DEMO_SIZE = 512
+LAYERS = ("optical", "sar", "fusion", "t1", "t2")
 
 _CACHE: dict[str, Any] = {}
 
 
-def scene_bundle(size: int = 512, seed: int = 7) -> dict[str, Any]:
+def scene_bundle(size: int = DEMO_SIZE, seed: int = DEMO_SEED) -> dict[str, Any]:
+    """The demo scene, built once. Generating 512 px costs ~0.4 s."""
     key = f"{size}:{seed}"
-    if key in _CACHE:
-        return _CACHE[key]
-
-    sc = scenes.build(size=size, seed=seed)
-    t1s, t2s, truth_mask = scenes.bitemporal(size=size, seed=seed)
-    bundle = {
-        "scene": sc,
-        "optical": sc.optical(seed),
-        "sar": sc.sar(seed),
-        "t1": t1s.optical(seed, with_cloud=False),
-        "t2": t2s.optical(seed, with_cloud=False),
-        "truth_change": truth_mask,
-    }
-    _CACHE[key] = bundle
-    return bundle
+    if key not in _CACHE:
+        sc = scenes.build(size=size, seed=seed)
+        t1s, t2s, truth = scenes.bitemporal(size=size, seed=seed)
+        _CACHE[key] = {
+            "scene": sc,
+            "optical": sc.optical(seed),
+            "sar": sc.sar(seed),
+            "t1": t1s.optical(seed, with_cloud=False),
+            "t2": t2s.optical(seed, with_cloud=False),
+            "truth_change": truth,
+        }
+    return _CACHE[key]
 
 
 def _png(arr: np.ndarray) -> bytes:
-    """(h, w, 3) float [0,1] -> PNG bytes."""
     img = Image.fromarray((np.clip(arr, 0, 1) * 255).astype(np.uint8), mode="RGB")
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
 
-def layer_png(layer: str, size: int = 512, seed: int = 7) -> bytes:
-    """Render one layer.
+def layer_png(layer: str, size: int = DEMO_SIZE, seed: int = DEMO_SEED) -> bytes:
+    """Render one demo layer.
 
     `fusion` is the only derived one: the optical scene with SAR-detected
-    built-up areas overlaid, and the areas that SAR recovered from beneath
-    cloud marked more strongly. That distinction is the point of the whole
-    cross-modal requirement, so it is visible rather than described.
+    built-up areas overlaid, and the areas SAR recovered from beneath cloud
+    marked more strongly. That distinction is the point of the cross-modal
+    requirement, so it is shown rather than described.
     """
     b = scene_bundle(size, seed)
     if layer in ("optical", "sar", "t1", "t2"):
         return _png(b[layer].rgb())
-
     if layer == "fusion":
         from . import cv
         opt, sar = b["optical"], b["sar"]
@@ -86,273 +98,283 @@ def layer_png(layer: str, size: int = 512, seed: int = 7) -> bytes:
         vv = cv.lee_filter(sar.named("vv"), 7, 4)
         hard = cv.closing(cv.opening(vv >= cv.otsu_multi(vv, 3)[-1], 1), 1)
         cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data), 1), 2)
-
-        nir = np.array([0.77, 0.20, 0.16])      # NIR crimson — the change colour
-        cyan = np.array([0.21, 0.88, 0.91])     # SAR cyan
-        recovered = hard & cloud
-        clear_hit = hard & ~cloud
-        base[clear_hit] = base[clear_hit] * 0.42 + cyan * 0.58
-        base[recovered] = base[recovered] * 0.25 + nir * 0.75
+        crimson = np.array([0.77, 0.20, 0.16])     # recovered from under cloud
+        cyan = np.array([0.21, 0.88, 0.91])        # seen by both
+        recovered, clear = hard & cloud, hard & ~cloud
+        base[clear] = base[clear] * 0.42 + cyan * 0.58
+        base[recovered] = base[recovered] * 0.25 + crimson * 0.75
         return _png(base)
-
-    raise KeyError(layer)
-
-
-def _inputs(mode: str, size: int = 512, seed: int = 7) -> Inputs:
-    b = scene_bundle(size, seed)
-    if mode == "bi_temporal":
-        return Inputs(t1=b["t1"], t2=b["t2"])
-    if mode == "optical":
-        return Inputs(optical=b["optical"])
-    if mode == "sar":
-        return Inputs(sar=b["sar"])
-    return Inputs(optical=b["optical"], sar=b["sar"])
-
-
-def _scene_payload(size: int = 512, seed: int = 7) -> dict[str, Any]:
-    b = scene_bundle(size, seed)
-    sc = b["scene"]
-    return {
-        "size": size,
-        "layers": ["optical", "sar", "fusion", "t1", "t2"],
-        "optical": b["optical"].summary(),
-        "sar": b["sar"].summary(),
-        "t1": b["t1"].summary(),
-        "t2": b["t2"].summary(),
-        "truth": sc.truth,
-        "note": "Pixel values are generated — Cartosat-2S and RISAT imagery "
-                "cannot be obtained and the ISRO/SAC evaluation set is "
-                "undisclosed. The rasters are real GeoTIFFs with a correct "
-                "affine geotransform, and every algorithm operating on them is "
-                "a real implementation.",
-    }
-
-
-def run_query(query: str, mode: str = "optical_sar", threshold: float = 0.45,
-              size: int = 512, seed: int = 7, save: bool = False) -> dict[str, Any]:
-    r: Result = Pipeline(threshold=threshold).run(query, _inputs(mode, size, seed))
-    if save:
-        save_run(r)
-    return r.to_dict()
-
-
-try:                                                  # pragma: no cover
-    from pydantic import BaseModel, Field
-
-    class QueryRequest(BaseModel):
-        """The POST /api/query body.
-
-        Defined at MODULE level, and that placement is load-bearing.
-
-        This file uses `from __future__ import annotations`, so every annotation
-        is a string at runtime and FastAPI resolves it with
-        `typing.get_type_hints()`. That call looks the name up in the *module*
-        namespace. A model declared inside `build_app()` is invisible there, so
-        resolution fails, FastAPI falls back to treating the parameter as a
-        scalar, and every POST is rejected with
-        `{"loc": ["query", "req"], "msg": "Field required"}` — which reads like
-        a client bug and is not one.
-
-        Also deliberately not named `Query`: FastAPI exports its own `Query` for
-        query-string parameters, and shadowing it invites the same confusion for
-        a different reason.
-        """
-
-        query: str = Field(..., min_length=1, max_length=500)
-        mode: str = Field("optical_sar",
-                          pattern="^(optical_sar|bi_temporal|optical|sar)$")
-        threshold: float = Field(0.45, ge=0.0, le=1.0)
-        save: bool = False
-
-except ImportError:                                   # pragma: no cover
-    QueryRequest = None                               # stdlib fallback path
+    raise not_found("layer")
 
 
 # --------------------------------------------------------------------------- #
-# FastAPI
+# input resolution
 # --------------------------------------------------------------------------- #
 
-def build_app():                                     # pragma: no cover
-    from fastapi import FastAPI, HTTPException, Response
-    from fastapi.middleware.cors import CORSMiddleware
+def resolve_inputs(spec: dict[str, str], store: RasterStore) -> Inputs:
+    """`{role: raster_id}` → rasters, uploaded and built-in through one path.
 
-    app = FastAPI(title="SatQuery AI", version=__version__,
-                  description="Agentic vision-language analysis of remote-sensing "
-                              "imagery. SIH26167 (ISRO).")
-    app.add_middleware(CORSMiddleware, allow_origins=["*"],
-                       allow_methods=["*"], allow_headers=["*"])
+    VAL-07: a built-in scene takes exactly the same route as an upload. If the
+    demo had a shortcut around validation, the demo would be the only thing
+    that ever worked.
+    """
+    got: dict[str, Any] = {}
+    for role, ident in (spec or {}).items():
+        if role not in ROLES:
+            raise SatQueryError("bad_role", f"{role!r} is not an input role.",
+                                f"Use one of: {', '.join(ROLES)}.")
+        if not ident:
+            continue
+        if isinstance(ident, str) and ident.startswith("demo:"):
+            want = ident.split(":", 1)[1]
+            bundle = scene_bundle()
+            if want not in ("optical", "sar", "t1", "t2"):
+                raise not_found("built-in scene layer")
+            got[role] = bundle[want]
+        else:
+            got[role] = store.get(str(ident))
+    return Inputs(optical=got.get("optical"), sar=got.get("sar"),
+                  t1=got.get("t1"), t2=got.get("t2"))
 
+
+# --------------------------------------------------------------------------- #
+# request body
+# --------------------------------------------------------------------------- #
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+
+class QueryBody(BaseModel):
+    """POST /api/query (API-02, API-11).
+
+    Not named `Query`, which FastAPI exports for query-string parameters —
+    shadowing it produces errors that read like client bugs.
+    """
+
+    query: str = Field(..., min_length=1, max_length=500)
+    inputs: dict[str, str] = Field(default_factory=dict)
+    threshold: float | None = Field(None, ge=0.0, le=1.0)
+    save: bool = True
+
+
+# --------------------------------------------------------------------------- #
+# application
+# --------------------------------------------------------------------------- #
+
+def build_app(var: str | Path | None = None, adapters: str = "adapters"):
+    from fastapi import Body, FastAPI, File, Form, Request, Response, UploadFile
+    from fastapi.responses import JSONResponse
+
+    root = Path(var) if var else None
+    rasters = RasterStore(root / "rasters" if root else None)
+    runs = RunStore(root / "runs" if root else None)
+    model_runtime = rt.load_runtime(directory=adapters)
+    pipeline = Pipeline(runtime=model_runtime)
+
+    app = FastAPI(
+        title="SatQuery AI", version=__version__,
+        description="Agentic vision-language analysis of remote-sensing "
+                    "imagery. SIH PS26167 (ISRO).")
+
+    # -- errors, uniformly typed (API-12) -------------------------------- #
+    @app.exception_handler(SatQueryError)
+    async def _typed(_: Request, exc: SatQueryError):
+        return JSONResponse(exc.payload(), status_code=exc.status)
+
+    @app.exception_handler(Exception)
+    async def _unexpected(_: Request, exc: Exception):
+        # The trace is logged, never served. A client gets a sentence.
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            {"error": {"code": "internal",
+                       "message": "The API failed while handling that request.",
+                       "remedy": "Retry; if it persists the server log has the "
+                                 "detail."}}, status_code=500)
+
+    # -- health ----------------------------------------------------------- #
     @app.get("/api/health")
-    def health():
-        return {"ok": True, "version": __version__,
-                "engine": "classical",
-                "adapters_loaded": False,
-                "note": "No LoRA adapters present. Measurements are real; the "
-                        "neural path activates when weights are staged."}
+    def health() -> dict[str, Any]:
+        d = rt.describe(model_runtime)
+        note = ("Adapter packs loaded: " + ", ".join(d["adapters"])
+                if d["adapters_loaded"] else
+                "No adapter packs staged. Every number is measured by the "
+                "classical path; the adapted path activates when a pack is "
+                "placed under adapters/.")
+        if d["stub_packs"]:
+            note += (" Stub pack(s) present (" + ", ".join(d["stub_packs"]) +
+                     ") — these exercise the loader and report no measurements.")
+        return {"ok": True, "version": __version__, "engine": d["engine"],
+                "adapters_loaded": d["adapters_loaded"], "note": note,
+                "transport": d["transport"], "serving_plan": d["serving_plan"],
+                "rasters_stored": len(rasters), "runs_stored": len(runs.ids()),
+                "limits": {"max_bytes": MAX_BYTES, "max_pixels": MAX_PIXELS,
+                           "accepted": list(ACCEPTED)}}
 
-    @app.get("/api/scene")
-    def scene():
-        return _scene_payload()
+    # -- upload (API-01, ING-01/09) --------------------------------------- #
+    @app.post("/api/rasters")
+    async def upload(file: UploadFile = File(...), role: str = Form(...),
+                     sensor: str = Form("")) -> dict[str, Any]:
+        data = await file.read()
+        raster_id, summary = rasters.put(data, file.filename or "upload", role, sensor)
+        return {"raster_id": raster_id, "summary": summary}
 
-    @app.get("/api/scene/{layer}.png")
-    def scene_layer(layer: str):
-        try:
-            return Response(content=layer_png(layer), media_type="image/png",
-                            headers={"Cache-Control": "public, max-age=3600"})
-        except KeyError:
-            raise HTTPException(404, f"unknown layer {layer!r}")
+    @app.get("/api/rasters/{raster_id}")
+    def raster_summary(raster_id: str) -> dict[str, Any]:
+        return {"raster_id": raster_id, "summary": rasters.summary(raster_id)}
+
+    # -- query (API-02, API-11) ------------------------------------------- #
+    @app.post("/api/query")
+    def query(body: QueryBody = Body(...)) -> dict[str, Any]:
+        inputs = resolve_inputs(body.inputs, rasters)
+        result: Result = pipeline.run(body.query, inputs, body.threshold)
+        payload = result.to_dict()
+        if body.save:
+            runs.save(payload, seed=DEMO_SEED)
+        return payload
+
+    # -- runs and exports (API-03, API-04) -------------------------------- #
+    @app.get("/api/runs")
+    def run_list(limit: int = 25) -> dict[str, Any]:
+        return {"runs": [{"run_id": r.get("run_id"), "created": r.get("created"),
+                          "query": r.get("query"), "task": r.get("task"),
+                          "refused": r.get("refused"),
+                          "abstained": r.get("abstained"),
+                          "confidence": r.get("confidence")}
+                         for r in runs.recent(limit)]}
+
+    @app.get("/api/runs/{run_id}")
+    def run_one(run_id: str) -> dict[str, Any]:
+        return runs.get(run_id)
+
+    @app.get("/api/runs/{run_id}/geojson")
+    def run_geojson(run_id: str):
+        body = reports.geojson_bytes(runs.get(run_id))
+        return Response(
+            body, media_type="application/geo+json",
+            headers={"Content-Disposition":
+                     f'attachment; filename="{run_id}.geojson"'})
+
+    @app.get("/api/runs/{run_id}/report")
+    def run_report(run_id: str, format: str = "html"):
+        run = runs.get(run_id)
+        env = runs.environment(run_id)
+        if format == "pdf":
+            pdf = reports.to_pdf(run, env)
+            if pdf is None:
+                raise SatQueryError(
+                    "pdf_unavailable",
+                    "PDF export needs ReportLab, which is not installed.",
+                    "Download the HTML report instead — it is self-contained "
+                    "and prints to PDF from any browser.", status=501)
+            return Response(pdf, media_type="application/pdf",
+                            headers={"Content-Disposition":
+                                     f'attachment; filename="{run_id}.pdf"'})
+        return Response(reports.to_html(run, env), media_type="text/html",
+                        headers={"Content-Disposition":
+                                 f'inline; filename="{run_id}.html"'})
+
+    # -- transparency (API-06, API-07, API-08) ---------------------------- #
+    @app.get("/api/registry")
+    def registry() -> dict[str, Any]:
+        return {"tools": REGISTRY,
+                "note": "The router selects from this table and cannot invent "
+                        "a tool. Only the listed parameters are configurable, "
+                        "and they are clamped to the stated range."}
 
     @app.get("/api/datasets")
-    def ds():
+    def api_datasets() -> dict[str, Any]:
         return datasets.summary(".")
 
     @app.get("/api/models")
-    def models():
-        return {"models": datasets.models()}
-
-    @app.get("/api/registry")
-    def registry():
-        return {"tools": REGISTRY,
-                "note": "The router selects from this list and cannot invent a "
-                        "tool. Only 'threshold' is configurable."}
+    def api_models() -> dict[str, Any]:
+        # Rows are keyed by component (M1–M4); a pack names its component in
+        # its manifest, so that is the join — not the adapter directory name.
+        by_component = {p.component: p for p in model_runtime.packs().values()}
+        rows = datasets.models()
+        for row in rows:
+            pack = by_component.get(str(row.get("id", "")))
+            if pack is not None:
+                row["adapter"] = pack.adapter
+                row["weights_present"] = True
+                row["weights_path"] = pack.path
+                row["status"] = "loaded"
+                row["pack"] = pack.to_dict()
+        return {"models": rows}
 
     @app.get("/api/evaluation")
-    def evaluation(size: int = 192):
-        return evaluate.full_report(size=size)
+    def api_evaluation(size: int = 192) -> dict[str, Any]:
+        return evaluate.contract_report(size=size, seed=DEMO_SEED, source="api")
 
-    @app.post("/api/query")
-    def query(req: QueryRequest):
-        return run_query(req.query, req.mode, req.threshold, save=req.save)
+    # -- demo layers (API-09) --------------------------------------------- #
+    @app.get("/api/scenes")
+    def scene_list() -> dict[str, Any]:
+        b = scene_bundle()
+        return {"scenes": [{
+            "id": "demo", "layers": list(LAYERS), "size": DEMO_SIZE,
+            "seed": DEMO_SEED,
+            "rasters": {r: b[r].summary() for r in ("optical", "sar", "t1", "t2")},
+            "truth": b["scene"].truth,
+            "note": "Pixel values are generated — Cartosat-2S and RISAT "
+                    "imagery cannot be obtained and the ISRO/SAC evaluation "
+                    "set is undisclosed. The rasters are real GeoTIFFs with a "
+                    "correct affine geotransform, and every algorithm "
+                    "operating on them is a real implementation.",
+        }]}
 
-    @app.get("/api/runs")
-    def runs():
-        root = Path("runs")
-        if not root.exists():
-            return {"runs": []}
-        return {"runs": sorted((p.name for p in root.iterdir() if p.is_dir()),
-                               reverse=True)}
+    @app.get("/api/scenes/{scene_id}/{layer}.png")
+    def scene_layer(scene_id: str, layer: str):
+        if scene_id != "demo":
+            raise not_found("scene")
+        return Response(layer_png(layer), media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=3600"})
 
-    @app.get("/api/runs/{run_id}")
-    def run(run_id: str):
-        p = Path("runs") / run_id / "run.json"
-        if not p.exists():
-            raise HTTPException(404, "no such run")
-        return json.loads(p.read_text(encoding="utf-8"))
+    # -- unknown /api paths are JSON, never the shell (API-10) ------------ #
+    @app.api_route("/api/{rest:path}",
+                   methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+    def api_404(rest: str):
+        raise SatQueryError("no_such_endpoint", f"/api/{rest} is not an endpoint.",
+                            "See /docs for the API surface.", status=404)
 
-    # serve the built frontend when it exists
-    dist = Path(__file__).resolve().parent.parent / "web" / "dist"
-    if dist.exists():
-        from fastapi.staticfiles import StaticFiles
-        # Starlette's StaticFiles raises *starlette's* HTTPException, which is
-        # the PARENT of FastAPI's. `except fastapi.HTTPException` therefore does
-        # not catch it, and the fallback below never fires. Catch the base.
-        from starlette.exceptions import HTTPException as StarletteHTTPException
-
-        class SinglePageApp(StaticFiles):
-            """Static files, falling back to index.html for client-side routes.
-
-            `StaticFiles(html=True)` serves index.html for a *directory*. A
-            React Router path such as /workstation is not a directory, so a
-            page refresh or a pasted link 404s -- which is exactly the moment a
-            judge would try it. The router can only read the URL if the server
-            hands back the shell for paths it does not recognise.
-
-            /api is excluded deliberately. Without the guard an unknown API
-            path returns the HTML shell with status 200, and the frontend
-            reports "unexpected token <" instead of "no such endpoint".
-            """
-
-            async def get_response(self, path: str, scope):
-                # `path` arrives OS-normalised -- on Windows StaticFiles hands
-                # over "api\nope", not "api/nope", so a startswith("api/")
-                # test silently never matches and every mistyped API path
-                # returns the HTML shell. Test the request path from the ASGI
-                # scope, which is always slash-separated.
-                request_path = scope.get("path", "")
-                if request_path == "/api" or request_path.startswith("/api/"):
-                    raise HTTPException(404, "no such endpoint")
-                try:
-                    return await super().get_response(path, scope)
-                except StarletteHTTPException as exc:
-                    if exc.status_code != 404:
-                        raise
-                    return await super().get_response("index.html", scope)
-
-        app.mount("/", SinglePageApp(directory=str(dist), html=True), name="web")
-
+    _mount_web(app)
     return app
 
 
-def serve(host: str = "127.0.0.1", port: int = 8000) -> None:
-    try:
-        import uvicorn
-        app = build_app()
-        print(f"\n  SatQuery {__version__}  ->  http://{host}:{port}")
-        print(f"  docs                   ->  http://{host}:{port}/docs\n")
-        uvicorn.run(app, host=host, port=port, log_level="warning")
-    except ImportError:
-        _serve_stdlib(host, port)
+def _mount_web(app) -> None:
+    """Serve the built frontend from the same origin (NFR-14)."""
+    dist = Path(__file__).resolve().parent.parent / "web" / "dist"
+    if not dist.exists():
+        return
 
+    from fastapi.staticfiles import StaticFiles
+    # Starlette's HTTPException is the PARENT of FastAPI's, so catching the
+    # FastAPI one here silently never fires and a refresh on a client-side
+    # route 404s — the exact moment a judge would try it.
+    from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# --------------------------------------------------------------------------- #
-# stdlib fallback
-# --------------------------------------------------------------------------- #
+    class SinglePageApp(StaticFiles):
+        """Static files, falling back to index.html for client-side routes."""
 
-def _serve_stdlib(host: str, port: int) -> None:          # pragma: no cover
-    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-    from urllib.parse import urlparse
-
-    class Handler(BaseHTTPRequestHandler):
-        def _send(self, obj, code=200, ctype="application/json"):
-            body = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
-            self.send_response(code)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
-            self.end_headers()
-            self.wfile.write(body)
-
-        def do_OPTIONS(self):
-            self._send(b"", 204, "text/plain")
-
-        def do_GET(self):
-            path = urlparse(self.path).path
+        async def get_response(self, path: str, scope):
             try:
-                if path == "/api/health":
-                    return self._send({"ok": True, "version": __version__,
-                                       "engine": "classical", "server": "stdlib"})
-                if path == "/api/scene":
-                    return self._send(_scene_payload())
-                if path.startswith("/api/scene/") and path.endswith(".png"):
-                    layer = path[len("/api/scene/"):-4]
-                    return self._send(layer_png(layer), 200, "image/png")
-                if path == "/api/datasets":
-                    return self._send(datasets.summary("."))
-                if path == "/api/models":
-                    return self._send({"models": datasets.models()})
-                if path == "/api/registry":
-                    return self._send({"tools": REGISTRY})
-                if path == "/api/evaluation":
-                    return self._send(evaluate.full_report(size=192))
-                self._send({"error": "not found"}, 404)
-            except Exception as exc:                       # noqa: BLE001
-                self._send({"error": str(exc)}, 500)
+                return await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code != 404:
+                    raise
+                return await super().get_response("index.html", scope)
 
-        def do_POST(self):
-            if urlparse(self.path).path != "/api/query":
-                return self._send({"error": "not found"}, 404)
-            n = int(self.headers.get("Content-Length", 0))
-            try:
-                body = json.loads(self.rfile.read(n) or b"{}")
-                self._send(run_query(body.get("query", ""),
-                                     body.get("mode", "optical_sar"),
-                                     float(body.get("threshold", 0.45))))
-            except Exception as exc:                       # noqa: BLE001
-                self._send({"error": str(exc)}, 500)
+    app.mount("/", SinglePageApp(directory=str(dist), html=True), name="web")
 
-        def log_message(self, *a):
-            pass
 
-    print(f"\n  SatQuery {__version__} (stdlib server)  ->  http://{host}:{port}\n")
-    ThreadingHTTPServer((host, port), Handler).serve_forever()
+def serve(host: str = "127.0.0.1", port: int = 8000,
+          var: str | None = None, adapters: str = "adapters") -> None:
+    import uvicorn
+    app = build_app(var=var, adapters=adapters)
+    dist = Path(__file__).resolve().parent.parent / "web" / "dist"
+    print(f"\n  SatQuery {__version__}  ->  http://{host}:{port}")
+    print(f"  API docs               ->  http://{host}:{port}/docs")
+    print("  web/dist               ->  " +
+          ("served from this origin" if dist.exists()
+           else "not built — run `npm run build` in web/ to serve the UI here"))
+    print()
+    uvicorn.run(app, host=host, port=port, log_level="warning")

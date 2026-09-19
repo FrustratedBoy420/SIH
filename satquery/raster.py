@@ -276,8 +276,8 @@ def read(path: str | Path, sensor: str = "", band_names: list[str] | None = None
                 data=arr, transform=gt,
                 crs=str(ds.crs) if ds.crs else "EPSG:4326",
                 georeferenced=ds.crs is not None,
-                sensor=sensor or _guess_sensor(path.name, arr.shape[0]),
-                band_names=band_names or _default_band_names(arr.shape[0]),
+                sensor=(resolved := sensor or _guess_sensor(path.name, arr.shape[0])),
+                band_names=band_names or _default_band_names(arr.shape[0], resolved),
                 source=path.name,
             )
 
@@ -306,8 +306,8 @@ def read(path: str | Path, sensor: str = "", band_names: list[str] | None = None
         transform=transform or GeoTransform.identity(width, height),
         crs=crs,
         georeferenced=geo,
-        sensor=sensor or _guess_sensor(path.name, arr.shape[0]),
-        band_names=band_names or _default_band_names(arr.shape[0]),
+        sensor=(resolved := sensor or _guess_sensor(path.name, arr.shape[0])),
+        band_names=band_names or _default_band_names(arr.shape[0], resolved),
         source=path.name,
     )
 
@@ -343,19 +343,37 @@ def write_geotiff(raster: Raster, path: str | Path) -> Path:
 
 
 def _guess_sensor(name: str, bands: int) -> str:
+    """Filename evidence only, defaulting to optical — audit B4.
+
+    Band count is not evidence of sensor type. A Cartosat-2S panchromatic
+    scene is one band and entirely optical; treating it as SAR would send it
+    down the speckle-filtering path and produce confident nonsense. The
+    declared role from the upload always wins over this function; it is
+    consulted only when nothing was declared.
+    """
     low = name.lower()
     if any(k in low for k in ("s1", "sar", "grd", "risat", "vv", "vh")):
         return "sar"
-    if any(k in low for k in ("s2", "opt", "msi", "cartosat", "rgb")):
-        return "optical"
-    return "sar" if bands == 1 else "optical"
+    return "optical"
 
 
-def _default_band_names(n: int) -> list[str]:
+def _default_band_names(n: int, sensor: str = "optical") -> list[str]:
+    """Names for unlabelled bands, which depend on the sensor, not the count.
+
+    SAR polarisations are reported as supplied: VV/VH and HH/HV are both
+    ordinary, and single-pol is as common as dual-pol (audit B4). A one-band
+    optical raster is panchromatic, not VV.
+    """
+    if sensor == "sar":
+        if n == 1:
+            return ["vv"]
+        if n == 2:
+            return ["vv", "vh"]
+        return [f"pol{i}" for i in range(1, n + 1)]
     if n == 1:
-        return ["vv"]
+        return ["pan"]
     if n == 2:
-        return ["vv", "vh"]
+        return ["b1", "b2"]
     if n == 3:
         return ["red", "green", "blue"]
     if n >= 4:

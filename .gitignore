@@ -91,3 +91,9 @@ desktop.ini
 # 17,000 files, almost all of it node_modules and generated run output.
 Mridul/
 dark-transit/
+
+# --- backend runtime state -----------------------------------------------
+# Uploaded rasters and stored runs. Reproducible from inputs + seed (OPS-02).
+/var/
+/runs/
+*.egg-info/

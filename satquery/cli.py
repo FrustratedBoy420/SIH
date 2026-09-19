@@ -85,6 +85,10 @@ def main(argv: list[str] | None = None) -> int:
     sv = sub.add_parser("serve", help="HTTP API")
     sv.add_argument("--port", type=int, default=8000)
     sv.add_argument("--host", default="127.0.0.1")
+    sv.add_argument("--var", default=None,
+                    help="where rasters and runs are stored (default ./var)")
+    sv.add_argument("--adapters", default="adapters",
+                    help="directory of adapter packs")
 
     args = ap.parse_args(argv)
 
@@ -182,7 +186,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "serve":
         from .server import serve
-        serve(host=args.host, port=args.port)
+        serve(host=args.host, port=args.port, var=args.var,
+              adapters=args.adapters)
         return 0
 
     return 1

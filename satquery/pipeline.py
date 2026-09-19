@@ -23,15 +23,17 @@ from __future__ import annotations
 
 import json
 import platform
+import secrets
 import time
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
-from . import __version__
+from . import __version__, validate
 from .evidence import Evidence, EvidenceSet
 from .raster import Raster
 from .router import Inputs, Plan, REGISTRY, plan as make_plan
+from .runtime import ModelRuntime, load_runtime
 from .specialists import Change, Fusion, Grounding, VQA
 
 # --------------------------------------------------------------------------- #
@@ -71,6 +73,16 @@ class Trace:
 # result
 # --------------------------------------------------------------------------- #
 
+def new_run_id() -> str:
+    """`run-<utc>-<hex>`: sortable by time, unique without a counter."""
+    return (f"run-{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-"
+            f"{secrets.token_hex(3)}")
+
+
+def _now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
 @dataclass
 class Result:
     query: str
@@ -88,6 +100,12 @@ class Result:
     elapsed_ms: float = 0.0
     version: str = __version__
     engine: str = "classical"
+    #: Identity and provenance. `precomputed` is the venue fallback flag
+    #: (ADP-09, TRC-04): true means these numbers came from a staged run, not
+    #: from this request, and the UI says so.
+    run_id: str = field(default_factory=new_run_id)
+    created: str = field(default_factory=_now)
+    precomputed: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -101,15 +119,29 @@ class Result:
 # --------------------------------------------------------------------------- #
 
 class Pipeline:
-    def __init__(self, threshold: float = 0.45, adapters: dict | None = None) -> None:
+    """Orchestration. Holds a `ModelRuntime`, never a model.
+
+    Which component serves a capability is decided here and nowhere else: if
+    the runtime has a pack for a tool's adapter the adapted path runs and the
+    result reports `neural+classical`; otherwise the classical specialist runs
+    and the result says `classical`. Both are recorded in the trace (TRC-05),
+    so no one has to guess which one produced a number.
+    """
+
+    def __init__(self, threshold: float = 0.45,
+                 runtime: ModelRuntime | None = None) -> None:
         self.threshold = threshold
-        self.adapters = adapters or {}
+        self.runtime = runtime if runtime is not None else load_runtime()
         self.grounding = Grounding()
         self.vqa = VQA()
         self.change = Change()
         self.fusion = Fusion()
-        for spec in (self.grounding, self.vqa, self.change, self.fusion):
-            spec.adapter_loaded = bool(self.adapters.get(spec.model))
+        for tool, spec in self._tools().items():
+            spec.adapter_loaded = self.runtime.available(REGISTRY[tool]["adapter"])
+
+    def _tools(self) -> dict[str, Any]:
+        return {"rs_vqa": self.vqa, "grounding": self.grounding,
+                "change_vqa": self.change, "optical_sar": self.fusion}
 
     # -- main ------------------------------------------------------------- #
     def run(self, query: str, inputs: Inputs, threshold: float | None = None) -> Result:
@@ -117,8 +149,9 @@ class Pipeline:
         thr = self.threshold if threshold is None else threshold
         tr = Trace()
 
-        # 1 — input validation
-        manifest = inputs.manifest()
+        # 1 — input validation (VAL-01). No model is touched anywhere above
+        # the execute step, which is what makes a refusal cost milliseconds.
+        manifest = validate.manifest(inputs)
         if manifest["count"] == 0:
             tr.add("Input validated", "no rasters supplied", ok=False)
             return self._refuse(query, "No imagery was supplied. Upload at least one "
@@ -133,7 +166,7 @@ class Pipeline:
         # 2, 3, 4 — classify, check compatibility, select
         p: Plan = make_plan(query, inputs, thr)
         tr.add("Task identified", f"{p.task} · {p.rule}",
-               confidence=p.task_confidence)
+               confidence=p.task_confidence, router="rules")
 
         if not p.valid:
             tr.add("Compatibility check",
@@ -152,6 +185,20 @@ class Pipeline:
                " · ".join(f"{k}={v}" for k, v in p.params.items()),
                permitted=sorted(REGISTRY[p.tools[0]]["params"]))
 
+        # 4b — co-registration: validated, never solved (VAL-05, VAL-06).
+        # Warping the imagery to make the answer possible would hide an
+        # assumption the user never made, so the offset is measured, reported
+        # and paid for in confidence instead.
+        coreg = validate.coregistration(inputs)
+        if coreg is not None:
+            tr.add("Co-registration checked",
+                   f"{coreg['pair']} · offset {coreg['offset_px']:.2f} px "
+                   f"(tolerance {coreg['tolerance_px']:.0f} px)",
+                   ok=bool(coreg["aligned"]),
+                   offset_px=coreg["offset_px"], geometric_px=coreg["geometric_px"],
+                   phase_px=coreg["phase_px"], same_crs=coreg["same_crs"],
+                   same_shape=coreg["same_shape"])
+
         # 5 — execute
         es = EvidenceSet(threshold=p.params["threshold"])
         engine = "classical"
@@ -169,6 +216,19 @@ class Pipeline:
                            "modality": i.modality} for i in sub.items])
 
         # 6 — fuse and gate
+        pen = validate.penalty(coreg)
+        if coreg is not None and not coreg["aligned"]:
+            # Two effects, deliberately distinct: each record loses `pen` for
+            # resting on imagery that does not line up, and the aggregate
+            # loses its standard per-conflict penalty for the disagreement
+            # being there at all (EvidenceSet.confidence).
+            for e in es.items:
+                e.confidence = round(max(0.0, e.confidence - pen), 3)
+                e.conflicts.extend(coreg["conflicts"])
+            tr.add("Co-registration penalty",
+                   f"every record lowered by {pen:.2f}", ok=False,
+                   penalty=pen, offset_px=coreg["offset_px"])
+
         conflicts = [c for e in es.items for c in e.conflicts]
         if conflicts:
             tr.add("Conflicts recorded",
@@ -178,11 +238,21 @@ class Pipeline:
         if es.abstain:
             tr.add("Confidence gate",
                    f"nothing cleared {es.threshold:.2f} — abstaining", ok=False)
+            # When a record says *why* it could not measure (a missing band,
+            # an unknown target), that reason is the useful answer — a generic
+            # "not confident" would send the user to lower the threshold,
+            # which cannot help.
+            why = next((e.method for e in es.items if e.method.startswith("missing band")), "")
+            text = ("I cannot answer that from this imagery: "
+                    + why[len("missing band: "):] + ". Supply imagery with those "
+                    "bands, or ask about something the supplied bands can measure."
+                    if why else
+                    "I am not sufficiently confident to answer that from this "
+                    "imagery. Every measurement fell below the confidence "
+                    "threshold, so no claim is being made.")
             return Result(
                 query=query,
-                answer="I am not sufficiently confident to answer that from this "
-                       "imagery. Every measurement fell below the confidence "
-                       "threshold, so no claim is being made.",
+                answer=text,
                 abstained=True, confidence=es.confidence, task=p.task,
                 tools=p.tools, params=p.params, evidence=es.to_dict(),
                 geojson=es.geojson(), trace=tr.to_list(), manifest=manifest,
@@ -195,7 +265,8 @@ class Pipeline:
         text = answer(p.task, es, query)
         gj = es.geojson()
         tr.add("Evidence returned",
-               f"{len(gj['features'])} georeferenced feature(s) · {es.crs}")
+               f"{len(gj['features'])} georeferenced feature(s) · {es.crs}",
+               engine=engine, crs=es.crs)
 
         return Result(query=query, answer=text, confidence=es.confidence,
                       task=p.task, tools=p.tools, params=p.params,
@@ -205,8 +276,7 @@ class Pipeline:
 
     # -- helpers ----------------------------------------------------------- #
     def _spec_for(self, tool: str):
-        return {"rs_vqa": self.vqa, "grounding": self.grounding,
-                "change_vqa": self.change, "optical_sar": self.fusion}.get(tool)
+        return self._tools().get(tool)
 
     @staticmethod
     def _single(i: Inputs) -> tuple[Raster | None, Raster | None]:
@@ -256,6 +326,10 @@ class Pipeline:
 # --------------------------------------------------------------------------- #
 # the answer layer — evidence in, sentence out. No pixels. ADR-007.
 # --------------------------------------------------------------------------- #
+
+_LABEL = {"built": "built-up", "water": "water", "vegetation": "vegetation",
+          "bare": "bare-soil"}
+
 
 def _plural(n: int, word: str, plural: str | None = None) -> str:
     """Agreement, because '1 structures' undermines everything around it."""
@@ -338,6 +412,20 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
         else:
             parts.append("Nothing matching that description was located in this scene.")
 
+    elif any(e.claim.startswith("detected ") for e in items):
+        # Structured scene summary (audit B3): shares, then detected classes.
+        dom = by_claim.get("dominant land cover")
+        if dom is not None:
+            parts.append(f"Dominant land cover is {dom.value}.")
+            if dom.supporting:
+                parts.append("Shares: " + "; ".join(dom.supporting[:4]) + ".")
+        found = [e for e in items if e.claim.startswith("detected ") and e.value]
+        if found:
+            parts.append("Detected: " + "; ".join(
+                f"{int(e.value)} {_LABEL.get(e.claim.removeprefix('detected ').removesuffix(' regions'), '')} "
+                f"{_plural(int(e.value), 'region')} ({e.mask_area_ha:.1f} ha)"
+                for e in found) + ".")
+
     else:  # single_vqa
         e = items[0]
         if e.unit in ("regions", "areas"):
@@ -346,6 +434,8 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
                 parts.append(f"Total extent {e.mask_area_ha:.2f} ha.")
         elif e.unit == "ha":
             parts.append(f"{e.value} hectares.")
+        elif e.claim == "dominant land cover":
+            parts.append(f"Dominant land cover is {e.value}.")
         else:
             parts.append(f"{e.value}." if e.value is not None else e.claim + ".")
         if e.supporting:

@@ -1,0 +1,41 @@
+[project]
+name = "satquery"
+version = "0.4.0"
+description = "SatQuery AI — agentic vision-language analysis of remote-sensing imagery (SIH PS26167, ISRO)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+# Pinned, because a venue machine gets one install attempt and OPS-06 forbids
+# reaching the network afterwards. Everything here has wheels on Linux,
+# macOS and Windows — nothing pulls GDAL. GeoTIFF tags are read through
+# Pillow (satquery/raster.py), so rasterio stays an optional accelerator.
+dependencies = [
+    "numpy==2.5.3",
+    "pillow==12.3.0",
+    "fastapi==0.141.1",
+    "starlette==1.6.0",
+    "pydantic==2.13.5",
+    "uvicorn==0.53.0",
+    "python-multipart==0.0.32",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1"]
+# Optional, never required: rasterio replaces the Pillow GeoTIFF reader when
+# GDAL happens to be present; reportlab turns the HTML report into a PDF.
+extras = ["rasterio>=1.4", "reportlab>=4.2"]
+
+[project.scripts]
+satquery = "satquery.cli:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["satquery"]
+
+[tool.pytest.ini_options]
+python_files = ["tests.py", "test_*.py"]
+testpaths = ["satquery"]
