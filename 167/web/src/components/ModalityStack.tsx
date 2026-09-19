@@ -31,8 +31,8 @@ export type LayerKey = 'optical' | 'fusion' | 'sar'
 
 const LAYERS: { key: LayerKey; y: number; label: string; colour: string }[] = [
   { key: 'optical', y: 1, label: 'OPTICAL', colour: '#b8763a' },
-  { key: 'fusion', y: 0, label: 'FUSION', colour: '#6b5ca5' },
-  { key: 'sar', y: -1, label: 'SAR', colour: '#2c7a8c' },
+  { key: 'fusion', y: 0, label: 'FUSION', colour: '#b04aa0' },
+  { key: 'sar', y: -1, label: 'SAR', colour: '#1f6fd1' },
 ]
 
 interface Props {

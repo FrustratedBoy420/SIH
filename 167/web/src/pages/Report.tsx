@@ -23,10 +23,10 @@ export default function Report() {
   if (isLoading) return <p className="label p-10">Loading run…</p>
   if (!r) {
     return (
-      <section className="px-5 py-20 sm:px-10">
+      <section className="px-5 py-20 sm:px-8">
         <h1 className="t-section">No run {runId}.</h1>
         <p className="mt-4 max-w-lg text-ink-2">Runs made by the preview engine are kept in this browser only; this one is not here. Run the query again from the workstation.</p>
-        <Link to="/workstation" className="mt-6 inline-block border border-ink px-3 py-1.5">Open the workstation</Link>
+        <Link to="/workstation" className="btn btn-sun mt-6">Open the workstation</Link>
       </section>
     )
   }
@@ -37,15 +37,15 @@ export default function Report() {
   const saveGeo = () => download(`satquery-${r.run_id}.geojson`, JSON.stringify(r.geojson, null, 2), 'application/geo+json')
 
   return (
-    <div className="px-5 py-10 sm:px-10 print:p-0" data-testid="report">
+    <div className="px-5 py-10 sm:px-8 print:p-0" data-testid="report">
       <div className="no-print mb-8 flex flex-wrap gap-2">
-        <button type="button" onClick={saveHtml} data-testid="download-report" className="bg-ink px-3 py-1.5 text-[13.5px] text-paper hover:bg-accent-2">Download report (.html)</button>
-        <button type="button" onClick={() => window.print()} className="border border-ink px-3 py-1.5 text-[13.5px] hover:bg-ink hover:text-paper">Print / save as PDF</button>
-        <button type="button" onClick={saveGeo} disabled={!r.geojson.features.length} className="border border-rule px-3 py-1.5 text-[13.5px] hover:border-ink disabled:opacity-40">GeoJSON ({r.geojson.features.length})</button>
+        <button type="button" onClick={saveHtml} data-testid="download-report" className="btn btn-sun btn-sm">Download report (.html)</button>
+        <button type="button" onClick={() => window.print()} className="btn btn-line btn-sm">Print / save as PDF</button>
+        <button type="button" onClick={saveGeo} disabled={!r.geojson.features.length} className="btn btn-line btn-sm disabled:opacity-40">GeoJSON ({r.geojson.features.length})</button>
         <Link to={`/workstation?q=${encodeURIComponent(r.query)}`} className="ml-auto self-center text-[13.5px] text-accent hover:underline">← back to the workstation</Link>
       </div>
 
-      <article className="mx-auto max-w-[980px] border border-rule bg-surface p-6 sm:p-10 print:border-0 print:p-0">
+      <article className="frame mx-auto max-w-[980px] bg-surface p-6 sm:p-10 print:border-0 print:p-0">
         <p className="mono text-[11.5px] text-ink-2">SatQuery AI · run report · {r.run_id} · {utc(r.created)}</p>
         <h1 className={cn('t-section mt-3', state === 'refused' && 'text-nir')}>{outcome(r)}</h1>
         <p className="mono mt-2 text-[12px] text-ink-2">engine {r.engine}{preview ? ' (browser preview)' : ''} · version {r.version} · {ms(r.elapsed_ms)}{r.precomputed ? ' · PRE-COMPUTED' : ''}</p>

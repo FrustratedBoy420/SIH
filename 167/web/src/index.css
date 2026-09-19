@@ -31,9 +31,11 @@
   --color-sun-2: #e6ad00;
   --color-sage: #9cc384;
 
+  /* modality marks — validated as a set (dataviz validate_palette.js, all pairs,
+     on #efeeec): worst CVD ΔE 8.2; fusion vs --color-nir ΔE 16.3 */
   --color-optical: #b8763a;
-  --color-sar: #2c7a8c;
-  --color-fusion: #6b5ca5;
+  --color-sar: #1f6fd1;
+  --color-fusion: #b04aa0;
 
   --color-nir: #c4342a;
   --color-nir-bg: #f5e2de;

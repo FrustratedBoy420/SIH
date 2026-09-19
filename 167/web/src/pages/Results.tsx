@@ -19,10 +19,10 @@ function Section({ n, title, req, children, lede }: { n: string; title: string; 
   return (
     // Plain section, not an in-view reveal: a results page must print and
     // capture whole, so nothing on it waits for the viewport to arrive.
-    <section className="grid gap-8 border-t border-ink py-14 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+    <section className="grid gap-8 border-t border-ink py-16 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
       <div>
-        <p className="t-telemetry text-[56px] text-ink-3">{n}</p>
-        <h2 className="t-display mt-2 text-[clamp(28px,3vw,44px)]">{title}</h2>
+        <p className="grid size-10 place-items-center bg-sun font-display text-[18px] font-bold">{n}</p>
+        <h2 className="t-display mt-4 text-[clamp(28px,3vw,40px)]">{title}</h2>
         <p className="mono mt-3 inline-block border border-ink px-2 py-0.5 text-[11.5px]">{req}</p>
         <p className="mt-4 max-w-[420px] text-[14.5px] leading-[1.55] text-ink-2">{lede}</p>
       </div>
@@ -32,7 +32,7 @@ function Section({ n, title, req, children, lede }: { n: string; title: string; 
 }
 
 const Pending = ({ owner, what }: { owner: string; what: string }) => (
-  <p className="mono mt-3 text-[11.5px] text-warn">pending · {what} · owner {owner}</p>
+  <p className="mt-4 inline-block bg-warn-bg px-2 py-0.5 text-[12.5px] text-warn">Pending · {what} · owner {owner}</p>
 )
 
 export default function Results() {
@@ -41,15 +41,15 @@ export default function Results() {
   const pct = (v: number) => `${(v * 100).toFixed(1)} %`
 
   return (
-    <div className="px-5 pb-24 pt-14 sm:px-10" data-testid="results-page">
+    <div className="px-5 pb-24 pt-14 sm:px-8" data-testid="results-page">
       <p className="label">Results · UI-09</p>
-      <h1 className="t-hero mt-4">What it<br />measured.</h1>
+      <h1 className="t-hero mt-4 max-w-[900px]">What it measured, and what it hasn’t yet</h1>
       <div className="mt-8 grid max-w-[1100px] gap-4 md:grid-cols-2">
-        <p className="border-l-[3px] border-ink bg-surface px-4 py-3 text-[14px]" data-testid="provenance">
+        <p className="frame bg-surface px-4 py-3 text-[14px]" data-testid="provenance">
           <span className="label mr-2 !text-ink">Measured</span>
           {ev ? <>on synthetic scenes ({ev.scene.size} px, seed {ev.scene.seed}) against ground truth the pipeline never reads — {ev.source === 'browser' ? 'in this browser, by the preview engine' : 'by the API'}, at <span className="mono">{ev.measured_at.slice(11, 19)}Z</span>. Reproducible: reload and it runs again.</> : isLoading ? 'measuring…' : '—'}
         </p>
-        <p className="border-l-[3px] border-warn bg-warn-bg/50 px-4 py-3 text-[14px]">
+        <p className="border border-warn bg-warn-bg px-4 py-3 text-[14px]">
           <span className="label mr-2 !text-warn">Not claimed</span>
           Public-benchmark numbers need the trained adapter and read <span className="mono">{PLACEHOLDER}</span> until a recorded run fills them. A figure on this page is either measured or absent — never estimated.
         </p>
@@ -95,7 +95,7 @@ export default function Results() {
               rows={(ev?.system_ablation.rows ?? []).map((r) => ({ key: r.config, label: `${r.config} · ${r.name}`, value: r.capability, tip: `Δ vs A ${r.delta_vs_A >= 0 ? '+' : ''}${r.delta_vs_A.toFixed(3)}` }))} />
           </div>
         </div>
-        <p className="mono mt-6 border border-ink bg-surface px-3 py-2 text-[12.5px]" data-testid="formula">{ev?.system_ablation.formula}</p>
+        <p className="frame mono mt-6 bg-surface px-3 py-2 text-[12.5px]" data-testid="formula">{ev?.system_ablation.formula}</p>
         <div className="mt-6 overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left text-[12.5px]">
             <thead><tr className="border-b border-ink">{['Config', 'What actually runs', 'built F1', 'water F1', 'mean F1', 'router', 'recovered %', 'capability', 'Δ vs A'].map((h) => <th key={h} className="label py-2 pr-3 font-medium">{h}</th>)}</tr></thead>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
 import EngineBadge from './EngineBadge'
+import Mark from './Mark'
 import { api } from '@/lib/api'
 import { useStation } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -13,18 +14,6 @@ const NAV: { to: string; label: string; short?: string }[] = [
 
 const item = 'relative whitespace-nowrap px-1.5 py-1.5 text-[14px] font-medium sm:px-3 sm:text-[15px]'
 const active = 'text-ink after:absolute after:inset-x-1.5 after:-bottom-[3px] after:h-[2px] after:bg-ink sm:after:inset-x-3'
-
-/** A 3×3 pixel tile with one cell lit: a scene, and the pixel the question found. */
-export function Mark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 30 30" className={className} aria-hidden>
-      {[0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => (
-        <rect key={`${r}${c}`} x={c * 10} y={r * 10} width={10} height={10}
-          fill={r === 0 && c === 2 ? 'var(--color-sun)' : (r + c) % 2 ? 'var(--color-accent)' : 'var(--color-ink)'} />
-      )))}
-    </svg>
-  )
-}
 
 /**
  * Wordmark left, three sections and the report right, one action in yellow.

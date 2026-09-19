@@ -24,11 +24,11 @@ const Chip = ({ s }: { s: string }) => <span className={cn('mono inline-block bo
 
 function DatasetRow({ d, i }: { d: DatasetEntry; i: number }) {
   return (
-    <article className="grid gap-6 border-t border-ink py-8 lg:grid-cols-[120px_minmax(0,4fr)_minmax(0,5fr)]" data-testid="dataset-row">
-      <p className="t-telemetry text-[64px] text-ink-3">0{i + 1}</p>
+    <article className="frame grid gap-6 bg-surface p-6 sm:p-8 lg:grid-cols-[56px_minmax(0,4fr)_minmax(0,5fr)]" data-testid="dataset-row">
+      <p className="grid size-10 place-items-center bg-sun font-display text-[18px] font-bold">{i + 1}</p>
       <div>
         <p className="label">{d.role}{d.role === 'hidden' ? ' · final scoring' : ''}</p>
-        <h3 className="t-display mt-1 text-[clamp(28px,3.4vw,48px)]">{d.name}</h3>
+        <h3 className="t-display mt-1 text-[clamp(26px,2.8vw,38px)]">{d.name}</h3>
         <div className="mt-3 flex flex-wrap gap-2"><Chip s={d.status} /><span className="mono border border-rule px-1.5 py-0.5 text-[11px]">{d.requirement}</span></div>
         <p className="mt-4 text-[15px] leading-[1.55] text-ink-2">{d.purpose}</p>
       </div>
@@ -58,7 +58,7 @@ function DatasetRow({ d, i }: { d: DatasetEntry; i: number }) {
 function ModelRow({ m }: { m: ModelEntry }) {
   return (
     <tr className="border-b border-rule align-top" data-testid="model-row">
-      <td className="t-telemetry py-4 pr-4 text-[30px]">{m.id}</td>
+      <td className="t-display py-4 pr-4 text-[26px]">{m.id}</td>
       <td className="py-4 pr-4"><p className="text-[15px] font-semibold">{m.name}</p><p className="mono text-[11.5px] text-ink-2">{m.kind}{m.requirement ? ` · ${m.requirement}` : ''}</p></td>
       <td className="py-4 pr-4"><Chip s={m.status} />{m.weights_path && <p className="mono mt-1 text-[11px] text-ink-2">{m.weights_path}</p>}</td>
       <td className="mono py-4 pr-4 text-[12px]">{m.adapter ?? '—'}<br /><span className="text-ink-2">{m.datasets.join(', ') || '—'}</span></td>
@@ -74,24 +74,24 @@ export default function DataModels() {
   const loaded = adapters.filter((m) => m.status === 'loaded')
 
   return (
-    <div className="px-5 pb-24 pt-14 sm:px-10" data-testid="data-page">
+    <div className="px-5 pb-24 pt-14 sm:px-8" data-testid="data-page">
       <p className="label">Data & models · UI-08</p>
-      <h1 className="t-hero mt-4">What it is<br />built on.</h1>
-      <p className="mt-8 max-w-[760px] border-l-[3px] border-ink bg-surface px-4 py-3 text-[14.5px]" data-testid="state-source">
+      <h1 className="t-hero mt-4 max-w-[900px]">What it is built on</h1>
+      <p className="frame mt-8 max-w-[760px] bg-surface px-4 py-3 text-[14.5px]" data-testid="state-source">
         <span className="label mr-2 !text-ink">Local state</span>{cat?.state_source ?? 'reading…'}
       </p>
 
-      <div className="mt-14 grid gap-px bg-ink sm:grid-cols-2 lg:grid-cols-4">
+      <div className="frame mt-14 grid gap-px bg-ink sm:grid-cols-2 lg:grid-cols-4">
         {[
           { v: 464044, label: 'BigEarthNet.txt — co-registered S1/S2 image pairs' },
           { v: 9.6, d: 1, pre: '~', suf: ' M', label: 'BigEarthNet.txt — text annotations (not images)' },
           { v: 123221, label: 'VRSBench — VQA pairs; trains and tests M1' },
           { v: 2968, label: 'CDVQA — bi-temporal pairs for change VQA' },
         ].map((x) => (
-          <div key={x.label} className="bg-paper p-5">
+          <div key={x.label} className="bg-surface p-6">
             {/* Static on purpose: these are catalogue facts, not measurements
                 arriving, and a count-up shows wrong figures mid-flight (DAT-01). */}
-            <p className="t-telemetry text-[clamp(40px,4.6vw,72px)]">{x.pre}{x.v.toLocaleString('en-US', { minimumFractionDigits: x.d ?? 0 })}{x.suf}</p>
+            <p className="t-display text-[clamp(36px,4vw,60px)]">{x.pre}{x.v.toLocaleString('en-US', { minimumFractionDigits: x.d ?? 0 })}{x.suf}</p>
             <p className="mt-2 text-[13px] text-ink-2">{x.label}</p>
           </div>
         ))}
@@ -100,7 +100,7 @@ export default function DataModels() {
       <section className="mt-20" aria-labelledby="ds-h">
         <h2 id="ds-h" className="t-section">Datasets</h2>
         <p className="mt-3 max-w-[700px] text-ink-2">The four public datasets the problem statement names, and the undisclosed set it is scored on. Official splits are used unmodified; anything self-built is split geographically at tile level, never randomly.</p>
-        <div className="mt-8">{cat?.datasets.map((d, i) => <DatasetRow key={d.key} d={d} i={i} />)}</div>
+        <div className="mt-8 space-y-5">{cat?.datasets.map((d, i) => <DatasetRow key={d.key} d={d} i={i} />)}</div>
       </section>
 
       <section className="mt-20" aria-labelledby="m-h">

@@ -39,13 +39,13 @@ export default function BarChart({ rows, max = 1, ticks, fmt = (v) => v.toFixed(
         {rows.map((r, i) => (
           <div key={r.key} className="contents">
             <div className="flex items-center gap-2 py-2 pr-1 text-[13px]">
-              {r.mark && <span className="inline-block size-2 shrink-0 rounded-full" style={{ background: r.mark }} aria-hidden />}
+              {r.mark && <span className="inline-block size-2.5 shrink-0" style={{ background: r.mark }} aria-hidden />}
               <span className="min-w-0"><span className="block leading-tight">{r.label}</span>{r.sub && <span className="mono block text-[10.5px] text-ink-2">{r.sub}</span>}</span>
             </div>
             <div className="relative py-2">
               <div className="relative h-6">
                 {r.value === null ? (
-                  <div className="absolute inset-y-0 left-0 right-0 flex items-center border border-dashed border-rule-2 bg-[repeating-linear-gradient(45deg,transparent_0_6px,rgb(15_22_19/0.05)_6px_7px)] px-2">
+                  <div className="absolute inset-y-0 left-0 right-0 flex items-center border border-dashed border-rule-2 bg-[repeating-linear-gradient(45deg,transparent_0_6px,rgb(14_33_41/0.06)_6px_7px)] px-2">
                     <span className="mono text-[12px] text-ink-2">{PLACEHOLDER} · not measured</span>
                   </div>
                 ) : (
@@ -53,7 +53,7 @@ export default function BarChart({ rows, max = 1, ticks, fmt = (v) => v.toFixed(
                     aria-label={`${r.label}: ${fmt(r.value)}`}
                     onMouseMove={(e) => { const b = e.currentTarget.getBoundingClientRect(); setTip({ i, x: e.clientX - b.left, y: 0 }) }}
                     onMouseLeave={() => setTip(null)} onFocus={() => setTip({ i, x: 40, y: 0 })} onBlur={() => setTip(null)}>
-                    <motion.span className="absolute inset-y-1 left-0 block rounded-r-[4px] bg-ink group-hover:bg-accent-2"
+                    <motion.span className="absolute inset-y-1 left-0 block rounded-r-[4px] bg-ink group-hover:bg-accent"
                       initial={{ width: pct(r.from ?? 0) }} animate={{ width: pct(r.value) }}
                       transition={{ duration: 0.9, delay: i * 0.06, ease: [0.2, 0.7, 0.3, 1] }} />
                     <motion.span className="mono absolute top-1/2 -translate-y-1/2 pl-2 text-[12px] text-ink"
@@ -63,7 +63,7 @@ export default function BarChart({ rows, max = 1, ticks, fmt = (v) => v.toFixed(
                 )}
               </div>
               {tip?.i === i && r.value !== null && (
-                <div role="tooltip" className="raised pointer-events-none absolute z-20 -translate-y-full border border-rule bg-surface px-2.5 py-1.5 text-[12px]" style={{ left: Math.min(tip.x, 360), top: 0 }}>
+                <div role="tooltip" className="raised frame pointer-events-none absolute z-20 -translate-y-full bg-surface px-2.5 py-1.5 text-[12px]" style={{ left: Math.min(tip.x, 360), top: 0 }}>
                   <p className="font-medium">{r.label}</p>
                   <p className="mono">{fmt(r.value)}</p>
                   {r.tip && <p className="mono max-w-[260px] text-[11px] text-ink-2">{r.tip}</p>}
@@ -82,7 +82,7 @@ export default function BarChart({ rows, max = 1, ticks, fmt = (v) => v.toFixed(
         <div />
         <div className={`relative ${hasRefs ? 'mt-12' : 'mt-2'} mb-5`}>
           {t.map((v) => <div key={v} className="absolute inset-y-0 w-px bg-rule/70" style={{ left: pct(v) }} />)}
-          {band && <div className="absolute inset-y-0 bg-accent-bg/60" style={{ left: pct(band[0]), width: `calc(${pct(band[1])} - ${pct(band[0])})` }} />}
+          {band && <div className="absolute inset-y-0 bg-sage/30" style={{ left: pct(band[0]), width: `calc(${pct(band[1])} - ${pct(band[0])})` }} />}
           {refs.map((r) => <div key={r.label} className="absolute inset-y-0 border-l border-dashed border-ink-2" style={{ left: pct(r.value) }} />)}
         </div>
       </div>
