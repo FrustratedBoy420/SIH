@@ -90,6 +90,11 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--adapters", default="adapters",
                     help="directory of adapter packs")
 
+    bt = sub.add_parser("batch", help="run a manifest of queries offline; write results.jsonl")
+    bt.add_argument("manifest", nargs="?", help="JSON or JSON Lines manifest (paths relative to it)")
+    bt.add_argument("--out", default="batch-results", help="output directory")
+    bt.add_argument("--example", metavar="PATH", help="write a starter manifest over the built-in scenes and exit")
+
     st = sub.add_parser("stress", help="EVL-08 stress suite: behaviour under bad input")
     st.add_argument("--out", default=None, help="also record it (default web/public/stress.json with --record)")
     st.add_argument("--record", action="store_true", help="write web/public/stress.json for the Results page")
@@ -107,6 +112,22 @@ def main(argv: list[str] | None = None) -> int:
     rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "batch":
+        from pathlib import Path
+        from . import batch
+        if args.example:
+            scenes_dir = Path(__file__).resolve().parent.parent / "web" / "public" / "scenes"
+            p = batch.write_example(args.example, Path(scenes_dir).resolve())
+            print(f"  example manifest -> {p}")
+            return 0
+        if not args.manifest:
+            print("  give a manifest, or --example PATH to write one")
+            return 2
+        s = batch.run(args.manifest, args.out, progress=True)
+        print(f"\n  {s['items']} items · {s['answered']} answered · {s['refused']} refused · "
+              f"{s['abstained']} abstained · {s['errors']} errors · {s['seconds']} s -> {args.out}/results.jsonl")
+        return 1 if s["errors"] else 0
 
     if args.cmd == "stress":
         import json

@@ -571,6 +571,29 @@ def _():
     ok(not bad, f"{len(bad)} case(s) misbehave: {bad[:3]}")
 
 
+@check("audit B1 — batch mode runs a JSON Lines manifest offline and survives a bad item")
+def _():
+    import tempfile
+    from pathlib import Path
+    from . import batch
+    scenes_dir = Path(__file__).resolve().parent.parent / "web" / "public" / "scenes"
+    d = Path(tempfile.mkdtemp(prefix="satquery-batch-"))
+    (d / "m.jsonl").write_text("\n".join(json.dumps(x) for x in [
+        {"id": "water", "query": "Highlight the water body referred to in the query.",
+         "inputs": {"optical": str(scenes_dir / "t2.tif")}},
+        {"id": "missing", "query": "highlight water", "inputs": {"optical": "nope.tif"}},
+        {"id": "refuse", "query": "What changed between these two dates?",
+         "inputs": {"optical": str(scenes_dir / "t2.tif")}},
+    ]))
+    s = batch.run(d / "m.jsonl", d / "out")
+    lines = [json.loads(x) for x in (d / "out" / "results.jsonl").read_text().splitlines()]
+    ok([x["id"] for x in lines] == ["water", "missing", "refuse"], "results out of manifest order")
+    ok(s["answered"] == 1 and s["errors"] == 1 and s["refused"] == 1, f"counts {s}")
+    box = lines[0]["evidence"][0]["boxes"][0]
+    ok(box["pixel"] and box["geo"] and 78 < box["geo"][0] < 79, f"box lacks pixel+geo coordinates: {box}")
+    ok(lines[1]["error"]["code"] == "missing_file", f"bad item gave {lines[1]}")
+
+
 # ------------------------------------------------------------------- API #
 
 class _Api:
