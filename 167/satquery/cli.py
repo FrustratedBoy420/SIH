@@ -90,12 +90,32 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--adapters", default="adapters",
                     help="directory of adapter packs")
 
+    rp = sub.add_parser("replay", help="re-run a stored run and report any difference")
+    rp.add_argument("run_id")
+    rp.add_argument("--var", default=None, help="where rasters and runs are stored (default ./var)")
+
     rt = sub.add_parser("runtime", help="serve adapter packs over HTTP (the venue model runtime)")
     rt.add_argument("--port", type=int, default=8100)
     rt.add_argument("--host", default="127.0.0.1")
     rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "replay":
+        from pathlib import Path
+        from .replay import replay
+        from .server import resolve_inputs
+        from .store import RasterStore, RunStore
+        root = Path(args.var) if args.var else None
+        rasters = RasterStore(root / "rasters" if root else None)
+        runs = RunStore(root / "runs" if root else None)
+        pipe = Pipeline()
+        out = replay(runs.get(args.run_id), runs.request(args.run_id),
+                     lambda q, spec, thr: pipe.run(q, resolve_inputs(spec, rasters), thr).to_dict())
+        print(f"  {args.run_id}: {'identical' if out['identical'] else 'DIFFERS'}")
+        for d in out["differences"]:
+            print(f"    - {d}")
+        return 0 if out["identical"] else 1
 
     if args.cmd == "runtime":
         from .runtime import serve_runtime

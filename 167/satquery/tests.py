@@ -554,6 +554,60 @@ def _():
     ok(r.engine == "classical" and r.evidence["items"], "an unreachable runtime broke the query")
 
 
+# ------------------------------------------------------------------- API #
+
+class _Api:
+    """The real app under uvicorn on a free loopback port, with a throwaway var/."""
+
+    def __enter__(self):
+        import socket
+        import tempfile
+        import threading
+        import uvicorn
+        from .server import build_app
+        with socket.socket() as sk:
+            sk.bind(("127.0.0.1", 0))
+            port = sk.getsockname()[1]
+        self.var = tempfile.mkdtemp(prefix="satquery-var-")
+        self.server = uvicorn.Server(uvicorn.Config(build_app(self.var, adapters=tempfile.mkdtemp()),
+                                                    host="127.0.0.1", port=port, log_level="error"))
+        threading.Thread(target=self.server.run, daemon=True).start()
+        self.base = f"http://127.0.0.1:{port}"
+        for _ in range(100):
+            if self.server.started:
+                break
+            time.sleep(0.05)
+        return self
+
+    def __exit__(self, *exc):
+        self.server.should_exit = True
+
+    def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
+        import urllib.error
+        import urllib.request
+        req = urllib.request.Request(self.base + path, method=method,
+                                     data=json.dumps(body).encode() if body is not None else None,
+                                     headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+
+@check("OPS-01 — a stored run replays from its record and comes out identical")
+def _():
+    with _Api() as api:
+        code, r = api.call("POST", "/api/query", {"query": "Highlight the water body referred to in the query.",
+                                                  "inputs": {"optical": "demo:t2"}})
+        ok(code == 200 and not r["refused"], f"query failed: {code} {str(r)[:120]}")
+        code, rp = api.call("POST", f"/api/runs/{r['run_id']}/replay")
+        ok(code == 200, f"replay returned {code}: {str(rp)[:160]}")
+        ok(rp["identical"], f"replay differs: {rp['differences'][:3]}")
+        code, missing = api.call("POST", "/api/runs/run-nope/replay")
+        ok(code == 404 and "error" in missing, f"unknown run gave {code}")
+
+
 # ---------------------------------------------------------------- pytest #
 #
 # `satquery selftest` needs nothing but the package. When pytest is installed

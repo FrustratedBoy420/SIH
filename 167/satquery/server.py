@@ -243,8 +243,18 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
         result: Result = pipeline.run(body.query, inputs, body.threshold)
         payload = result.to_dict()
         if body.save:
-            runs.save(payload, seed=DEMO_SEED)
+            runs.save(payload, seed=DEMO_SEED,
+                      request={"query": body.query, "inputs": body.inputs, "threshold": body.threshold})
         return payload
+
+    @app.post("/api/runs/{run_id}/replay")
+    def run_replay(run_id: str) -> dict[str, Any]:
+        """Re-run a stored run from its request and report any difference (OPS-01/02)."""
+        from .replay import replay
+
+        def again(q: str, spec: dict[str, str], thr: float | None) -> dict[str, Any]:
+            return pipeline.run(q, resolve_inputs(spec, rasters), thr).to_dict()
+        return replay(runs.get(run_id), runs.request(run_id), again)
 
     # -- runs and exports (API-03, API-04) -------------------------------- #
     @app.get("/api/runs")
