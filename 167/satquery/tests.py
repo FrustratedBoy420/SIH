@@ -554,6 +554,16 @@ def _():
     ok(r.engine == "classical" and r.evidence["items"], "an unreachable runtime broke the query")
 
 
+@check("NFR-06 — the shipped calibration study meets the 200-record floor and states its rules")
+def _():
+    c = evaluate.stored_calibration()
+    ok(c is not None, "web/public/calibration.json is missing — run `satquery calibrate`")
+    ok(c["n"] >= evaluate.CALIBRATION_N, f"only {c['n']} records")
+    ok(c["ece"] is not None and 0 <= c["ece"] <= 1, f"ECE {c['ece']!r}")
+    ok("correct_if" in c.get("design", {}), "the study does not state what counts as correct")
+    ok(sum(b["n"] for b in c["reliability"]) == c["n"], "reliability bins do not account for every record")
+
+
 # ------------------------------------------------------------------- API #
 
 class _Api:

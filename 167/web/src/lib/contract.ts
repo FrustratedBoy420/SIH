@@ -183,7 +183,13 @@ export interface Evaluation {
   adaptation: { zero_shot: number | null; adapted: number | null; gain: number | null; split: string }
   /** optical-only / SAR-only / both. null until measured. */
   cross_modal: { optical: number | null; sar: number | null; both: number | null; metric: string }
-  calibration: { ece: number | null; n: number; bins: number; required_n: number }
+  calibration: {
+    ece: number | null; n: number; bins: number; required_n: number
+    accuracy?: number | null; mean_confidence?: number | null; measured_at?: string; version?: string
+    reliability?: { lo: number; hi: number; n: number; confidence: number; accuracy: number }[]
+    by_kind?: Record<string, { n: number; accuracy: number; mean_confidence: number }>
+    design?: { scenes: number; seeds: number[]; noise_sd: number[]; size_px: number; correct_if: string }
+  }
   router_heldout: { accuracy: number | null; n: number }
   note: string
 }

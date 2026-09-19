@@ -36,7 +36,8 @@ function pack(r: Raster): WorkerRaster {
 
 interface SceneManifest { scenes: Record<string, { file: string; product: string; platform: string; acquired: string; bands: string[]; attribution: string; cloud_pct?: number; orbit?: string }> }
 let manifest: Promise<SceneManifest> | null = null
-const sceneUrl = (f: string) => new URL(`${import.meta.env.BASE_URL}scenes/${f}`, self.location.origin).href
+const publicUrl = (f: string) => new URL(`${import.meta.env.BASE_URL}${f}`, self.location.origin).href
+const sceneUrl = (f: string) => publicUrl(`scenes/${f}`)
 
 /**
  * The built-in scenes: real Sentinel-2 L2A and Sentinel-1 RTC crops over west
@@ -119,7 +120,17 @@ async function handle(m: Msg): Promise<unknown> {
       }
       return run(m.query, i, m.threshold)
     }
-    case 'evaluate': return evaluate(m.size)
+    case 'evaluate': {
+      // Calibration needs >= 200 judged records; it is measured once by the
+      // API (`satquery calibrate`) and shipped as a file, and reported here
+      // as that recorded study — never recomputed or estimated in the browser.
+      const ev = evaluate(m.size)
+      try {
+        const r = await fetch(publicUrl('calibration.json'))
+        if (r.ok) ev.calibration = await r.json()
+      } catch { /* no recorded study in this build: calibration stays null */ }
+      return ev
+    }
     case 'stats': return stats(get(m.optical)!, get(m.sar)!)
   }
 }

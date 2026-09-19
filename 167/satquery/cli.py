@@ -90,6 +90,9 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--adapters", default="adapters",
                     help="directory of adapter packs")
 
+    cb = sub.add_parser("calibrate", help="per-record calibration study (>= 200 predictions), written for the Results page")
+    cb.add_argument("--out", default=None, help="default: web/public/calibration.json in the repo")
+
     rp = sub.add_parser("replay", help="re-run a stored run and report any difference")
     rp.add_argument("run_id")
     rp.add_argument("--var", default=None, help="where rasters and runs are stored (default ./var)")
@@ -100,6 +103,18 @@ def main(argv: list[str] | None = None) -> int:
     rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "calibrate":
+        import json
+        from pathlib import Path
+        from . import evaluate
+        r = evaluate.calibration_study()
+        args.out = args.out or str(evaluate.CALIBRATION_PATH)
+        Path(args.out).write_text(json.dumps(r, indent=2) + "\n", encoding="utf-8")
+        print(f"  ECE {r['ece']} over n = {r['n']} records ({r['design']['scenes']} scenes) -> {args.out}")
+        for k, v in r["by_kind"].items():
+            print(f"    {k:22s} n {v['n']:3d}  accuracy {v['accuracy']:.3f}  mean confidence {v['mean_confidence']:.3f}")
+        return 0
 
     if args.cmd == "replay":
         from pathlib import Path
