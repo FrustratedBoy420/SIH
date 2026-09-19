@@ -537,15 +537,23 @@ def heldout_router(path: str | Path = HELDOUT_PATH) -> dict[str, Any]:
 
     hits = 0
     confusion: dict[str, dict[str, int]] = {}
+    misses: list[dict[str, str]] = []
     for q, want in cases:
-        got = classify(q)[0]
+        task, _conf, rule = classify(q)
+        # the router's fallback is VQA with 'no rule matched': it recognised
+        # nothing, which is what the 'unknown' label asks for
+        got = "unknown" if "no rule matched" in rule else task
         confusion.setdefault(want, {}).setdefault(got, 0)
         confusion[want][got] += 1
         hits += got == want
+        if got != want:
+            misses.append({"query": q, "want": want, "got": got})
     return {
         "accuracy": round(hits / len(cases), 4) if cases else None,
         "n": len(cases),
         "confusion": confusion,
+        "misses": misses,
+        "required_n": 200,
         "note": f"{hits}/{len(cases)} on paraphrases held out of development.",
     }
 
@@ -641,7 +649,8 @@ def contract_report(size: int = 256, seed: int = 7,
         "calibration": stored_calibration() or {"ece": None, "n": cal["n"],
                                                 "bins": CALIBRATION_BINS,
                                                 "required_n": CALIBRATION_N},
-        "router_heldout": {"accuracy": heldout["accuracy"], "n": heldout["n"]},
+        "router_heldout": {"accuracy": heldout["accuracy"], "n": heldout["n"],
+                           "confusion": heldout["confusion"], "note": heldout["note"]},
         "stress": _stress(),
         "note": base["note"],
     }

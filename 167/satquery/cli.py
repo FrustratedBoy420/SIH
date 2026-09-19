@@ -92,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--build", action="store_true",
                     help="build the web interface first if web/dist is missing (needs npm)")
 
+    ho = sub.add_parser("heldout", help="router accuracy on the blind held-out set (RTR-07)")
+    ho.add_argument("--path", default=None, help="default: reference/router_heldout.jsonl")
+
     bt = sub.add_parser("batch", help="run a manifest of queries offline; write results.jsonl")
     bt.add_argument("manifest", nargs="?", help="JSON or JSON Lines manifest (paths relative to it)")
     bt.add_argument("--out", default="batch-results", help="output directory")
@@ -114,6 +117,23 @@ def main(argv: list[str] | None = None) -> int:
     rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "heldout":
+        from . import evaluate
+        r = evaluate.heldout_router(args.path or evaluate.HELDOUT_PATH)
+        if not r["n"]:
+            print(f"  {r['note']}\n  See reference/README.md for how to write it (blind to the rules).")
+            return 1
+        short = "" if r["n"] >= 200 else "  (below the 200 the TRD asks for)"
+        print(f"  accuracy {r['accuracy']:.3f} on n = {r['n']}{short}\n")
+        tasks = sorted({*r["confusion"], *(g for row in r["confusion"].values() for g in row)})
+        print("  want \\ got".ljust(22) + "".join(t[:12].rjust(13) for t in tasks))
+        for w in tasks:
+            if w in r["confusion"]:
+                print(f"  {w:20s}" + "".join(str(r["confusion"][w].get(g, 0)).rjust(13) for g in tasks))
+        for m in r["misses"][:40]:
+            print(f"  ✗ {m['want']} -> {m['got']}: {m['query']}")
+        return 0
 
     if args.cmd == "batch":
         from pathlib import Path
