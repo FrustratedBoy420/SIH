@@ -1,0 +1,124 @@
+{
+  "passed": 16,
+  "total": 16,
+  "cases": [
+    {
+      "name": "misregistration",
+      "condition": "SAR shifted 6 px east of the optical plate",
+      "expect": "co-registration flagged and aggregate confidence lowered",
+      "ok": true,
+      "observed": "flagged True; confidence 0.82 -> 0.34"
+    },
+    {
+      "name": "mismatched pair",
+      "condition": "T1 and T2 of different extents and sizes",
+      "expect": "refused or abstained \u2014 no change area claimed",
+      "ok": true,
+      "observed": "refused False, abstained True, confidence 0.00"
+    },
+    {
+      "name": "haze",
+      "condition": "optical brightened and flattened (x0.8 + 0.12)",
+      "expect": "water area still within \u00b130% of truth",
+      "ok": true,
+      "observed": "water 1178.736 ha vs truth 1178.7 ha"
+    },
+    {
+      "name": "low contrast",
+      "condition": "optical scaled to 30 % brightness",
+      "expect": "water area still within \u00b130% of truth (indices are ratios)",
+      "ok": true,
+      "observed": "water 1178.736 ha vs truth 1178.7 ha"
+    },
+    {
+      "name": "total cloud",
+      "condition": "optical plate entirely cloud",
+      "expect": "no water claimed \u2014 abstains or reports ~none",
+      "ok": true,
+      "observed": "abstained True; water claimed 40150.5 ha"
+    },
+    {
+      "name": "single-look speckle",
+      "condition": "SAR multiplied by 1-look gamma speckle",
+      "expect": "still answers (Lee filter), with records",
+      "ok": true,
+      "observed": "confidence 0.88, 5 records"
+    },
+    {
+      "name": "change on one image",
+      "condition": "a change question with a single optical image",
+      "expect": "refused before any model runs",
+      "ok": true,
+      "observed": "refused True; executed steps 0"
+    },
+    {
+      "name": "implicit temporal (RQ-5)",
+      "condition": "no temporal keyword, one image",
+      "expect": "recognised as change and refused",
+      "ok": true,
+      "observed": "refused True: This question needs a bi-temporal pair, but one image was supplied. Up"
+    },
+    {
+      "name": "SAR only, optical question",
+      "condition": "water via NDWI asked of a SAR image",
+      "expect": "refused or answered as not possible \u2014 no wrong band substituted",
+      "ok": true,
+      "observed": "refused False, abstained True: I cannot answer that from this imagery: water needs green and nir; gre"
+    },
+    {
+      "name": "cross-modal, one sensor",
+      "condition": "cross-modal question with optical only",
+      "expect": "refused with a remedy naming SAR",
+      "ok": true,
+      "observed": "refused True: This question needs a co-registered optical and SAR pair, but one imag"
+    },
+    {
+      "name": "tiny change",
+      "condition": "urban growth 0.4% between dates",
+      "expect": "no large change invented (detects it or says none)",
+      "ok": true,
+      "observed": "'no significant change' True; claimed None ha vs truth 174.0 ha (0.43% of the scene)"
+    },
+    {
+      "name": "large change",
+      "condition": "urban growth 25.0% between dates",
+      "expect": "changed area within \u00b150 % of truth",
+      "ok": true,
+      "observed": "claimed 10204.276 ha vs truth 15492.7 ha"
+    },
+    {
+      "name": "unintelligible query",
+      "condition": "'zxqv plorn'",
+      "expect": "refused, abstained, or says the question was not recognised",
+      "ok": true,
+      "observed": "No specific question was recognised, so this is a general description of the scene. Domina"
+    },
+    {
+      "name": "out of vocabulary",
+      "condition": "'Highlight the unicorn.'",
+      "expect": "abstains \u2014 nothing is invented",
+      "ok": true,
+      "observed": "abstained True: I am not sufficiently confident to answer that from this ima"
+    },
+    {
+      "name": "malformed file",
+      "condition": "text saved as .tif, uploaded",
+      "expect": "a typed error with a remedy \u2014 no stack trace, no server path",
+      "ok": true,
+      "observed": "unreadable: That file could not be read as imagery (UnidentifiedImageError): the header is n"
+    },
+    {
+      "name": "no CRS",
+      "condition": "optical with no georeferencing",
+      "expect": "answers in pixel coordinates \u2014 no lat/lon, no hectares",
+      "ok": true,
+      "observed": "1 boxes, 0 with coordinates; area 0.0"
+    }
+  ],
+  "measured_at": "2026-09-19T16:28:07Z",
+  "version": "0.4.0",
+  "scene": {
+    "size": 128,
+    "seed": 7
+  }
+}

@@ -129,6 +129,10 @@ async function handle(m: Msg): Promise<unknown> {
         const r = await fetch(publicUrl('calibration.json'))
         if (r.ok) ev.calibration = await r.json()
       } catch { /* no recorded study in this build: calibration stays null */ }
+      try {
+        const r = await fetch(publicUrl('stress.json'))
+        if (r.ok) ev.stress = await r.json()
+      } catch { /* no recorded stress run in this build */ }
       return ev
     }
     case 'stats': return stats(get(m.optical)!, get(m.sar)!)

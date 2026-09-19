@@ -90,6 +90,10 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--adapters", default="adapters",
                     help="directory of adapter packs")
 
+    st = sub.add_parser("stress", help="EVL-08 stress suite: behaviour under bad input")
+    st.add_argument("--out", default=None, help="also record it (default web/public/stress.json with --record)")
+    st.add_argument("--record", action="store_true", help="write web/public/stress.json for the Results page")
+
     cb = sub.add_parser("calibrate", help="per-record calibration study (>= 200 predictions), written for the Results page")
     cb.add_argument("--out", default=None, help="default: web/public/calibration.json in the repo")
 
@@ -103,6 +107,20 @@ def main(argv: list[str] | None = None) -> int:
     rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "stress":
+        import json
+        from pathlib import Path
+        from . import stress
+        cases = stress.run_suite()
+        for c in cases:
+            print(f"  {'✓' if c.ok else '✗'} {c.name:28s} {c.expect}")
+            print(f"      {c.observed}")
+        out = stress.summary(cases)
+        print(f"\n  {out['passed']}/{out['total']} behave as expected")
+        if args.out or args.record:
+            Path(args.out or stress.STRESS_PATH).write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+        return 0 if out["passed"] == out["total"] else 1
 
     if args.cmd == "calibrate":
         import json

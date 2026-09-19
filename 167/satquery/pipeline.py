@@ -284,6 +284,11 @@ class Pipeline:
 
         # 7 — phrase (evidence only — no pixels)
         text = answer(p.task, es, query)
+        if "no rule matched" in p.rule:
+            # The router did not recognise the question. Say so before the
+            # description it fell back to, rather than answer as if it had.
+            text = ("No specific question was recognised, so this is a general "
+                    "description of the scene. " + text)
         gj = es.geojson()
         tr.add("Evidence returned",
                f"{len(gj['features'])} georeferenced feature(s) · {es.crs}",
@@ -441,9 +446,16 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
             parts.append(f"{n} region{'s' if n != 1 else ''} matched, covering "
                          f"{g.mask_area_ha:.2f} ha.")
             if g.boxes:
-                lat, lon = g.boxes[0].centre()
-                parts.append(f"The largest is centred at {lat:.4f} N {lon:.4f} E "
-                             f"and covers {g.boxes[0].area_ha:.2f} ha.")
+                b = g.boxes[0]
+                c = b.centre()
+                if c is not None:
+                    parts.append(f"The largest is centred at {c[0]:.4f} N {c[1]:.4f} E "
+                                 f"and covers {b.area_ha:.2f} ha.")
+                else:
+                    # not georeferenced: place it in the image, never on the ground
+                    parts.append(f"The largest is centred at pixel ({(b.x0 + b.x1) / 2:.0f}, "
+                                 f"{(b.y0 + b.y1) / 2:.0f}) and covers {b.area_px} px; "
+                                 "the image has no coordinate system, so no ground area is stated.")
         else:
             parts.append("Nothing matching that description was located in this scene.")
 

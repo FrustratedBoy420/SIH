@@ -564,6 +564,13 @@ def _():
     ok(sum(b["n"] for b in c["reliability"]) == c["n"], "reliability bins do not account for every record")
 
 
+@check("EVL-08 — every stress case behaves as its expectation states")
+def _():
+    from . import stress
+    bad = [f"{c.name}: {c.observed}" for c in stress.run_suite() if not c.ok]
+    ok(not bad, f"{len(bad)} case(s) misbehave: {bad[:3]}")
+
+
 # ------------------------------------------------------------------- API #
 
 class _Api:

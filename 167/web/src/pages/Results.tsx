@@ -187,6 +187,32 @@ export default function Results() {
         {!(ev?.calibration.n && ev.calibration.n >= (ev.calibration.required_n ?? 200)) && <Pending owner="Shreyash" what="≥ 200 labelled predictions across tasks" />}
       </Section>
 
+      <Section n="07" title="Stress" req="EVL-08 · behaviour under bad input"
+        lede="Accuracy on a clean scene says little about trust. Each case breaks the scene one specific way and checks what a trustworthy system owes the user: refuse what it cannot answer, abstain when nothing clears the gate, flag and pay for doubt, stay within tolerance when the damage is mild.">
+        {ev?.stress ? (
+          <div data-testid="stress">
+            <p className="mb-4 text-[15px]"><b className="font-semibold">{ev.stress.passed} of {ev.stress.total}</b> cases behave as their expectation states.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] border-collapse text-left text-[12.5px]">
+                <thead><tr className="border-b border-ink">{['', 'Case', 'Condition', 'Expected', 'Observed'].map((h) => <th key={h} className="label py-2 pr-3 font-medium">{h}</th>)}</tr></thead>
+                <tbody>
+                  {ev.stress.cases.map((c) => (
+                    <tr key={c.name} className="border-b border-rule align-top">
+                      <td className={cn('py-2 pr-2 font-semibold', c.ok ? 'text-good' : 'text-nir')} aria-label={c.ok ? 'as expected' : 'not as expected'}>{c.ok ? '✓' : '✕'}</td>
+                      <td className="py-2 pr-3 font-medium">{c.name}</td>
+                      <td className="py-2 pr-3 text-ink-2">{c.condition}</td>
+                      <td className="py-2 pr-3">{c.expect}</td>
+                      <td className="mono py-2 text-[11.5px] text-ink-2">{c.observed}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-[13px] text-ink-2">Recorded {ev.stress.measured_at.slice(0, 10)} by <span className="mono">satquery stress</span> {ev.stress.version}; the API runs it live on every request.</p>
+          </div>
+        ) : <Pending owner="Shreyash" what="stress suite not recorded in this build" />}
+      </Section>
+
       <p className="mt-6 max-w-[900px] text-[13px] text-ink-2">{ev?.note} Engine: {mode === 'http' ? 'API' : 'browser preview'}. Percentages here are fractions of one unless marked; {pct(0.5)} means 0.50.</p>
     </div>
   )

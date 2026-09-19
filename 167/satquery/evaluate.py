@@ -596,6 +596,12 @@ def cross_modal_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
     }
 
 
+def _stress() -> dict[str, Any]:
+    """EVL-08, run live — the suite takes under a second."""
+    from . import stress
+    return stress.summary(stress.run_suite())
+
+
 def contract_report(size: int = 256, seed: int = 7,
                     source: str = "api") -> dict[str, Any]:
     """`GET /api/evaluation` — API-08.
@@ -636,5 +642,6 @@ def contract_report(size: int = 256, seed: int = 7,
                                                 "bins": CALIBRATION_BINS,
                                                 "required_n": CALIBRATION_N},
         "router_heldout": {"accuracy": heldout["accuracy"], "n": heldout["n"]},
+        "stress": _stress(),
         "note": base["note"],
     }

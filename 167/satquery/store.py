@@ -116,8 +116,12 @@ class RasterStore:
             raise
         except Exception as exc:                                  # noqa: BLE001
             self.forget(raster_id)
+            # The decoder's own message names the server-side path; the user
+            # gets what kind of failure it was, never where the file sits (API-13).
+            kind = type(exc).__name__
             raise SatQueryError(
-                "unreadable", f"That file could not be read as imagery ({exc}).",
+                "unreadable", f"That file could not be read as imagery ({kind}): the "
+                "header is not a TIFF, PNG or JPEG the reader recognises.",
                 "Check that it is a valid GeoTIFF, PNG or JPEG and not "
                 "truncated.") from exc
 

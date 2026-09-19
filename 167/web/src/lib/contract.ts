@@ -190,6 +190,10 @@ export interface Evaluation {
     by_kind?: Record<string, { n: number; accuracy: number; mean_confidence: number }>
     design?: { scenes: number; seeds: number[]; noise_sd: number[]; size_px: number; correct_if: string }
   }
+  stress?: {
+    passed: number; total: number; measured_at: string; version: string
+    cases: { name: string; condition: string; expect: string; ok: boolean; observed: string }[]
+  }
   router_heldout: { accuracy: number | null; n: number }
   note: string
 }
