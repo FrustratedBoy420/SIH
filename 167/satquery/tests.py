@@ -291,7 +291,9 @@ def _():
                        Inputs(optical=sc.optical(5), sar=sc.sar(5)))
     allowed = {"Input validated", "Task identified", "Compatibility check",
                "Tool selected", "Parameters", "Confidence", "Conflicts recorded",
-               "Evidence returned", "Refused", "Confidence gate"}
+               "Evidence returned", "Refused", "Confidence gate",
+               "Co-registration checked", "Co-registration penalty",
+               "Adapted model"}
     for s in r.trace:
         ok(s["step"] in allowed or s["step"].startswith("Executed "),
            f"unexpected trace step {s['step']!r} — is this reasoning?")
@@ -407,19 +409,47 @@ def _():
 # not what breaks first.
 
 
-class _StubPack:
-    """Stands in for a loaded LoRA pack. Truthiness is all the seam inspects."""
+def _stub_runtime(adapter: str = "adapter_B_grounding"):
+    """A real InProcessRuntime over a temporary pack directory holding one stub pack."""
+    import tempfile
+    from pathlib import Path
+    from .runtime import InProcessRuntime
+    d = Path(tempfile.mkdtemp(prefix="satquery-packs-")) / "stub"
+    d.mkdir()
+    (d / "pack.json").write_text(json.dumps({
+        "pack_id": "stub-0", "component": "M2", "adapter": adapter,
+        "base_model": "none", "stub": True}))
+    return InProcessRuntime(d.parent)
 
-    def __init__(self, name: str = "stub") -> None:
-        self.name = name
+
+class _FakeRuntime:
+    """A runtime that answers with fixed claims, or fails — the seam's two outcomes."""
+
+    transport = "fake"
+
+    def __init__(self, adapter: str, claims: list[dict] | None = None, fail: bool = False) -> None:
+        self.adapter, self.claims, self.fail, self.calls = adapter, claims or [], fail, 0
+
+    def packs(self) -> dict:
+        return {self.adapter: object()}
+
+    def available(self, adapter: str) -> bool:
+        return adapter == self.adapter
+
+    def infer(self, adapter: str, task: str, payload: dict) -> dict:
+        self.calls += 1
+        if self.fail:
+            from .errors import SatQueryError
+            raise SatQueryError("runtime_unreachable", "The model runtime did not answer.", "-", 503)
+        ok("images" in payload and payload["images"], "the runtime was shown no imagery")
+        return {"engine": "neural+classical", "pack": "fake-1", "claims": self.claims}
 
 
 @check("adapter socket — a pack flips exactly its own specialist to neural")
 def _():
-    pipe = Pipeline(adapters={"adapter_B_grounding": _StubPack()})
+    pipe = Pipeline(runtime=_stub_runtime("adapter_B_grounding"))
     ok(pipe.grounding.adapter_loaded, "the pack did not reach the grounding specialist")
-    ok(pipe.grounding.path == "neural+classical",
-       f"grounding reports {pipe.grounding.path!r}")
+    ok(pipe.grounding.path == "neural+classical", f"grounding reports {pipe.grounding.path!r}")
     for spec in (pipe.vqa, pipe.change, pipe.fusion):
         ok(not spec.adapter_loaded, f"{spec.name} claims a pack it was not given")
         ok(spec.path == "classical", f"{spec.name} reports {spec.path!r}")
@@ -428,32 +458,116 @@ def _():
 @check("adapter socket — a loaded pack reaches Result.engine and the trace")
 def _():
     sc = scenes.build(size=96, seed=5)
-    pipe = Pipeline(adapters={"adapter_B_grounding": _StubPack()})
-    r = pipe.run("highlight the water body", Inputs(optical=sc.optical(5)))
+    r = Pipeline(runtime=_stub_runtime()).run("highlight the water body", Inputs(optical=sc.optical(5)))
     ok(not r.refused, f"grounding refused: {r.answer[:80]}")
     ok(r.engine == "neural+classical", f"engine reported {r.engine!r}")
+    ok(any(s["step"] == "Adapted model" and "stub" in s["detail"] for s in r.trace),
+       "the trace does not show the adapted model being asked")
     executed = [s for s in r.trace if s["step"].startswith("Executed")]
-    ok(executed, "no execution step in the trace")
     ok(any("path neural+classical" in s["detail"] for s in executed),
        f"trace does not name the neural path: {[s['detail'] for s in executed]}")
 
 
 @check("adapter socket — with no pack, nothing anywhere claims to be neural")
 def _():
+    from .runtime import InProcessRuntime
+    import tempfile
     sc = scenes.build(size=96, seed=5)
-    r = Pipeline().run("highlight the water body", Inputs(optical=sc.optical(5)))
+    r = Pipeline(runtime=InProcessRuntime(tempfile.mkdtemp())).run(
+        "highlight the water body", Inputs(optical=sc.optical(5)))
     ok(r.engine == "classical", f"engine claims {r.engine!r} with no pack loaded")
-    ok("neural" not in json.dumps(r.trace),
-       "the trace claims a neural path that no pack provides")
+    ok("neural" not in json.dumps(r.trace), "the trace claims a neural path that no pack provides")
 
 
 @check("adapter socket — an unrecognised pack key marks nothing loaded")
 def _():
     # A typo in a pack name must not silently load nothing while the system
     # reports success. The failure has to be visible as "still classical".
-    pipe = Pipeline(adapters={"adapter_Z_does_not_exist": _StubPack()})
+    pipe = Pipeline(runtime=_stub_runtime("adapter_Z_does_not_exist"))
     for spec in (pipe.grounding, pipe.vqa, pipe.change, pipe.fusion):
         ok(not spec.adapter_loaded, f"{spec.name} loaded from an unknown key")
+
+
+@check("audit A3 — a model number that disagrees with the measurement is a conflict")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    measured = Pipeline(runtime=_FakeRuntime("none")).run("highlight the water body", Inputs(optical=opt))
+    water = next(i for i in measured.evidence["items"] if i["value"] is not None)
+    rt = _FakeRuntime("adapter_B_grounding", claims=[
+        {"claim": water["claim"], "value": float(water["value"]) * 3, "unit": water["unit"], "confidence": 0.9}])
+    r = Pipeline(runtime=rt).run("highlight the water body", Inputs(optical=opt))
+    ok(rt.calls == 1, f"runtime called {rt.calls} times")
+    mine = [i for i in r.evidence["items"] if i["source_model"] == "fake-1"]
+    ok(mine, "the adapted claim did not become evidence")
+    ok(mine[0]["conflicts"], "a 3x disagreement was not recorded as a conflict")
+    ok(mine[0]["confidence"] < 0.9, "the disagreeing claim kept its confidence")
+    ok(any(i["conflicts"] for i in r.evidence["items"] if i["source_model"] != "fake-1"),
+       "the measured record does not know it was contradicted")
+
+
+@check("ADP-09 — a runtime that fails degrades to classical, visibly, without raising")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    rt = _FakeRuntime("adapter_B_grounding", fail=True)
+    r = Pipeline(runtime=rt).run("highlight the water body", Inputs(optical=sc.optical(5)))
+    ok(not r.refused and r.evidence["items"], "the classical measurement did not serve")
+    ok(r.engine == "classical", f"engine claims {r.engine!r} although the runtime failed")
+    step = next((s for s in r.trace if s["step"] == "Adapted model"), None)
+    ok(step is not None and not step["ok"], "the failure is not in the trace")
+
+
+@check("ADR-007 — the runtime's free text never becomes the answer")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    rt = _FakeRuntime("adapter_B_grounding")
+    rt_reply = rt.infer
+    rt.infer = lambda a, t, p: {**rt_reply(a, t, p), "answer": "UNVERIFIED MODEL PROSE"}
+    r = Pipeline(runtime=rt).run("highlight the water body", Inputs(optical=sc.optical(5)))
+    ok("UNVERIFIED" not in r.answer, "model prose reached the answer without evidence")
+
+
+@check("ARC-01 — the HTTP transport carries a stub pack end to end")
+def _():
+    import threading
+    from .runtime import HttpRuntime, serve_runtime
+    pack_dir = _stub_runtime().directory
+    srv = serve_runtime("127.0.0.1", 0, pack_dir, quiet=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        rt = HttpRuntime(f"http://127.0.0.1:{srv.server_address[1]}", timeout=5)
+        ok(rt.available("adapter_B_grounding"), "the pack is not listed over HTTP")
+        sc = scenes.build(size=96, seed=5)
+        r = Pipeline(runtime=rt).run("highlight the water body", Inputs(optical=sc.optical(5)))
+        ok(r.engine == "neural+classical", f"engine over HTTP is {r.engine!r}")
+        ok(any(s["step"] == "Adapted model" and s["ok"] for s in r.trace), "the HTTP call is not in the trace")
+    finally:
+        srv.shutdown()
+
+
+@check("ADP-09 — a runtime that is down never hangs or breaks a query")
+def _():
+    from .runtime import HttpRuntime
+    rt = HttpRuntime("http://127.0.0.1:9", timeout=1)          # nothing listens on port 9
+    sc = scenes.build(size=96, seed=5)
+    r = Pipeline(runtime=rt).run("highlight the water body", Inputs(optical=sc.optical(5)))
+    ok(r.engine == "classical" and r.evidence["items"], "an unreachable runtime broke the query")
+
+
+# ---------------------------------------------------------------- pytest #
+#
+# `satquery selftest` needs nothing but the package. When pytest is installed
+# (the `dev` extra), every check above is also one pytest case, so CI and an
+# IDE see them individually.
+
+try:                                            # pragma: no cover - optional
+    import pytest
+
+    @pytest.mark.parametrize("name,fn", _CHECKS, ids=[n for n, _ in _CHECKS])
+    def test_check(name: str, fn: Callable[[], None]) -> None:
+        fn()
+except ImportError:                             # pragma: no cover
+    pass
 
 
 # ---------------------------------------------------------------- runner #

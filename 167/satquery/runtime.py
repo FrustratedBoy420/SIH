@@ -214,6 +214,14 @@ class HttpRuntime:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:
                 return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            # the runtime answered with a typed error — pass it on as it was said
+            try:
+                err = json.loads(exc.read().decode("utf-8"))["error"]
+                raise SatQueryError(err["code"], err["message"], err["remedy"], status=exc.code) from exc
+            except (KeyError, ValueError, TypeError):
+                raise SatQueryError("runtime_error", f"The model runtime returned HTTP {exc.code}.",
+                                    "The classical path still serves this query.", status=503) from exc
         except (urllib.error.URLError, OSError) as exc:
             raise SatQueryError(
                 "runtime_unreachable",
@@ -222,11 +230,68 @@ class HttpRuntime:
                 "model runtime to restore the adapted path.", status=503) from exc
 
 
+def serve_runtime(host: str = "127.0.0.1", port: int = 8100,
+                  directory: str | Path = "adapters", quiet: bool = False):
+    """Serve an InProcessRuntime over HTTP — the venue transport's other end.
+
+    Two routes, the ones HttpRuntime calls:
+
+        GET  /packs    {"packs": [AdapterPack, ...]}
+        POST /infer    {"adapter", "task", "query", "images"} -> runtime reply
+
+    Stdlib only, loopback by default, so it runs on the venue laptop with no
+    extra install. Real inference lands in InProcessRuntime.infer; this
+    server does not change when it does. Returns the server; call
+    `serve_forever()` on it, or run it in a thread for tests.
+    """
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    runtime = InProcessRuntime(directory)
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, status: int, body: dict[str, Any]) -> None:
+            data = json.dumps(body).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self) -> None:                               # noqa: N802
+            if self.path == "/packs":
+                self._send(200, {"packs": [p.to_dict() for p in runtime.packs().values()]})
+            elif self.path == "/health":
+                self._send(200, {"ok": True, **describe(runtime)})
+            else:
+                self._send(404, {"error": {"code": "not_found", "message": self.path, "remedy": "GET /packs or POST /infer"}})
+
+        def do_POST(self) -> None:                              # noqa: N802
+            if self.path != "/infer":
+                self._send(404, {"error": {"code": "not_found", "message": self.path, "remedy": "POST /infer"}})
+                return
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                reply = runtime.infer(str(body.get("adapter", "")), str(body.get("task", "")),
+                                      {k: v for k, v in body.items() if k not in ("adapter", "task")})
+                self._send(200, reply)
+            except SatQueryError as exc:
+                self._send(exc.status, exc.payload())
+            except (ValueError, json.JSONDecodeError):
+                self._send(400, {"error": {"code": "bad_request", "message": "Body is not JSON.", "remedy": "Send application/json."}})
+
+        def log_message(self, fmt: str, *args: Any) -> None:
+            if not quiet:
+                super().log_message(fmt, *args)
+
+    return ThreadingHTTPServer((host, port), Handler)
+
+
 def load_runtime(spec: str | None = None, directory: str | Path = "adapters") -> ModelRuntime:
     """Build the runtime named by `spec` or by SATQUERY_RUNTIME."""
     spec = spec or os.environ.get("SATQUERY_RUNTIME", "inproc")
     if spec.startswith("http://") or spec.startswith("https://"):
-        return HttpRuntime(spec)
+        from .adapted import timeout
+        return HttpRuntime(spec, timeout=timeout())
     return InProcessRuntime(directory)
 
 

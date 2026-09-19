@@ -29,7 +29,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
-from . import __version__, validate
+from . import __version__, adapted, validate
 from .evidence import Evidence, EvidenceSet
 from .raster import Raster
 from .router import Inputs, Plan, REGISTRY, plan as make_plan
@@ -204,13 +204,34 @@ class Pipeline:
         engine = "classical"
         for tool in p.tools:
             sub = self._execute(tool, query, inputs, p.params["threshold"])
+            spec = self._spec_for(tool)
+            # The classical measurement always runs. If a pack is loaded for
+            # this tool's adapter the runtime is asked as well, and its claims
+            # join as evidence — reconciled against the measurement, never in
+            # place of it (CON-01, audit A3). `engine` reports what ran.
+            path = "classical"
+            if spec and spec.adapter_loaded:
+                extra, outcome = adapted.consult(
+                    self.runtime, REGISTRY[tool]["adapter"], tool, query,
+                    self._rasters_for(tool, inputs), sub, self._reference(tool, inputs))
+                if outcome["ran"]:
+                    path = "neural+classical"
+                    engine = "neural+classical"
+                    for item in extra:
+                        sub.add(item)
+                    tr.add("Adapted model",
+                           f"{outcome['pack']}{' (stub)' if outcome['stub'] else ''} · "
+                           f"{outcome['claims']} claim(s)",
+                           pack=outcome["pack"], stub=outcome["stub"])
+                else:
+                    tr.add("Adapted model",
+                           f"{REGISTRY[tool]['adapter']} unavailable — {outcome['reason']}; "
+                           "the classical measurement serves this tool", ok=False,
+                           code=outcome["code"])
             for item in sub.items:
                 es.add(item)
-            spec = self._spec_for(tool)
-            if spec and spec.adapter_loaded:
-                engine = "neural+classical"
             tr.add(f"Executed {tool}",
-                   f"{len(sub.items)} evidence item(s) · path {spec.path if spec else 'n/a'}",
+                   f"{len(sub.items)} evidence item(s) · path {path}",
                    items=[{"claim": i.claim, "value": i.value,
                            "confidence": round(i.confidence, 3),
                            "modality": i.modality} for i in sub.items])
@@ -277,6 +298,20 @@ class Pipeline:
     # -- helpers ----------------------------------------------------------- #
     def _spec_for(self, tool: str):
         return self._tools().get(tool)
+
+    def _rasters_for(self, tool: str, i: Inputs) -> dict[str, Raster]:
+        """The inputs a tool reads, by role — what the runtime is shown."""
+        if tool == "change_vqa":
+            return {k: r for k, r in (("t1", i.t1), ("t2", i.t2)) if r is not None}
+        if tool == "optical_sar":
+            return {k: r for k, r in (("optical", i.optical), ("sar", i.sar)) if r is not None}
+        o, s = self._single(i)
+        return {k: r for k, r in (("optical", o), ("sar", s)) if r is not None}
+
+    def _reference(self, tool: str, i: Inputs) -> Raster | None:
+        """The raster whose pixel grid the runtime's boxes are in."""
+        rs = list(self._rasters_for(tool, i).values())
+        return (i.t2 if tool == "change_vqa" else None) or (rs[0] if rs else None)
 
     @staticmethod
     def _single(i: Inputs) -> tuple[Raster | None, Raster | None]:

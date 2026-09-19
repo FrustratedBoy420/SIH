@@ -90,7 +90,23 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("--adapters", default="adapters",
                     help="directory of adapter packs")
 
+    rt = sub.add_parser("runtime", help="serve adapter packs over HTTP (the venue model runtime)")
+    rt.add_argument("--port", type=int, default=8100)
+    rt.add_argument("--host", default="127.0.0.1")
+    rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
+
     args = ap.parse_args(argv)
+
+    if args.cmd == "runtime":
+        from .runtime import serve_runtime
+        srv = serve_runtime(args.host, args.port, args.adapters)
+        print(f"  model runtime -> http://{args.host}:{args.port}  (packs from {args.adapters}/)")
+        print(f"  point the API at it:  SATQUERY_RUNTIME=http://{args.host}:{args.port} satquery serve")
+        try:
+            srv.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        return 0
 
     if args.cmd == "selftest":
         from . import tests
