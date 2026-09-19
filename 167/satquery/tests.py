@@ -630,6 +630,29 @@ def _():
     ok(fit_for_analysis(o, max_side=512) is o, "a raster under the limit was touched")
 
 
+@check("CLI — no command shadows a module-level import, and the commands run")
+def _():
+    # A function-level `import X` makes X local to the whole of main(), which
+    # broke `satquery eval` and `satquery scenes` once. Caught here, not by a judge.
+    import ast
+    import contextlib
+    import io
+    import tempfile
+    from pathlib import Path
+    from . import cli
+    tree = ast.parse(Path(cli.__file__).read_text(encoding="utf-8"))
+    top = {a.asname or a.name.split(".")[0] for n in tree.body
+           if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names}
+    main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "main")
+    inner = {a.asname or a.name.split(".")[0] for n in ast.walk(main)
+             if isinstance(n, (ast.Import, ast.ImportFrom)) for a in n.names}
+    ok(not (top & inner), f"main() re-imports {sorted(top & inner)}")
+    d = tempfile.mkdtemp()
+    with contextlib.redirect_stdout(io.StringIO()):
+        ok(cli.main(["scenes", "--out", d, "--size", "48"]) == 0, "satquery scenes failed")
+        ok(cli.main(["eval", "--size", "48", "--json"]) == 0, "satquery eval failed")
+
+
 # ------------------------------------------------------------------- API #
 
 class _Api:

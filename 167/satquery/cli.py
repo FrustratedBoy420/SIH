@@ -153,7 +153,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if worst else 1
 
     if args.cmd == "heldout":
-        from . import evaluate
         r = evaluate.heldout_router(args.path or evaluate.HELDOUT_PATH)
         if not r["n"]:
             print(f"  {r['note']}\n  See reference/README.md for how to write it (blind to the rules).")
@@ -170,7 +169,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "batch":
-        from pathlib import Path
         from . import batch
         if args.example:
             from .paths import scenes as scenes_path
@@ -187,8 +185,6 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if s["errors"] else 0
 
     if args.cmd == "stress":
-        import json
-        from pathlib import Path
         from . import stress
         cases = stress.run_suite()
         for c in cases:
@@ -201,9 +197,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if out["passed"] == out["total"] else 1
 
     if args.cmd == "calibrate":
-        import json
-        from pathlib import Path
-        from . import evaluate
         r = evaluate.calibration_study()
         args.out = args.out or str(evaluate.CALIBRATION_PATH)
         Path(args.out).write_text(json.dumps(r, indent=2) + "\n", encoding="utf-8")
@@ -213,7 +206,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "replay":
-        from pathlib import Path
         from .replay import replay
         from .server import resolve_inputs
         from .store import RasterStore, RunStore
