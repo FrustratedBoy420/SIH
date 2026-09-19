@@ -56,7 +56,8 @@ LAYERS = ("optical", "sar", "fusion", "t1", "t2")
 # Real Sentinel imagery, baked by tools/fetch_scenes.mjs + tools/bake_scenes.py.
 # The same files the browser engine fetches from /scenes/, read here through
 # the same reader an upload goes through.
-SCENES_DIR = Path(__file__).resolve().parent.parent / "web" / "public" / "scenes"
+from .paths import dist as _dist, scenes as _scenes, web as _web
+SCENES_DIR = _scenes()
 _SENSOR = {"optical": "optical", "sar": "sar", "t1": "optical", "t2": "optical"}
 
 _CACHE: dict[str, Any] = {}
@@ -362,7 +363,7 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
 
 def _mount_web(app) -> None:
     """Serve the built frontend from the same origin (NFR-14)."""
-    dist = Path(__file__).resolve().parent.parent / "web" / "dist"
+    dist = _dist()
     if not (dist / "index.html").exists():
         # A clean clone has no build. Say so at "/" instead of a blank page or
         # a JSON 404 — the first thing a judge following the README opens.
@@ -407,7 +408,7 @@ def build_web(force: bool = False) -> bool:
     """Build web/dist with npm if it is missing (or `force`). True if a build exists after."""
     import shutil
     import subprocess
-    web = Path(__file__).resolve().parent.parent / "web"
+    web = _web()
     if (web / "dist" / "index.html").exists() and not force:
         return True
     npm = shutil.which("npm")
@@ -429,7 +430,7 @@ def serve(host: str = "127.0.0.1", port: int = 8000,
     if build:
         build_web()
     app = build_app(var=var, adapters=adapters)
-    dist = Path(__file__).resolve().parent.parent / "web" / "dist"
+    dist = _dist()
     print(f"\n  SatQuery {__version__}  ->  http://{host}:{port}")
     print(f"  API docs               ->  http://{host}:{port}/docs")
     print("  web/dist               ->  " +

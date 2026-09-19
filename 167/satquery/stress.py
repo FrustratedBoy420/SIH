@@ -221,4 +221,5 @@ def summary(cases: list[Case]) -> dict[str, Any]:
             "version": __version__, "scene": {"size": SIZE, "seed": SEED}}
 
 
-STRESS_PATH = Path(__file__).resolve().parent.parent / "web" / "public" / "stress.json"
+from .paths import public as _public
+STRESS_PATH = _public() / "stress.json"

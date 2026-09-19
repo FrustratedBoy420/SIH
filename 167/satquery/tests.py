@@ -576,7 +576,8 @@ def _():
     import tempfile
     from pathlib import Path
     from . import batch
-    scenes_dir = Path(__file__).resolve().parent.parent / "web" / "public" / "scenes"
+    from .paths import scenes as scenes_path
+    scenes_dir = scenes_path()
     d = Path(tempfile.mkdtemp(prefix="satquery-batch-"))
     (d / "m.jsonl").write_text("\n".join(json.dumps(x) for x in [
         {"id": "water", "query": "Highlight the water body referred to in the query.",

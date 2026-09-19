@@ -400,8 +400,8 @@ CAL_AREA_TOL = 0.30
 CAL_CLOUD_TOL_PTS = 5.0
 CAL_CLOUD_OPACITY = 0.15
 #: Anchored to the package, not the working directory, so the API finds it wherever it is started.
-_HERE = Path(__file__).resolve().parent.parent
-CALIBRATION_PATH = _HERE / "web" / "public" / "calibration.json"
+from .paths import home as _home, public as _public
+CALIBRATION_PATH = _public() / "calibration.json"
 
 
 def calibration_study(seeds: range = range(1, 13), noise: tuple[float, ...] = (0.0, 0.03, 0.06),
@@ -505,7 +505,7 @@ def stored_calibration(path: str | Path = CALIBRATION_PATH) -> dict[str, Any] | 
         return None
 
 
-HELDOUT_PATH = _HERE / "reference" / "router_heldout.jsonl"
+HELDOUT_PATH = _home() / "reference" / "router_heldout.jsonl"
 
 
 def heldout_router(path: str | Path = HELDOUT_PATH) -> dict[str, Any]:

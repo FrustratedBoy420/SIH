@@ -119,7 +119,8 @@ def main(argv: list[str] | None = None) -> int:
         from pathlib import Path
         from . import batch
         if args.example:
-            scenes_dir = Path(__file__).resolve().parent.parent / "web" / "public" / "scenes"
+            from .paths import scenes as scenes_path
+            scenes_dir = scenes_path()
             p = batch.write_example(args.example, Path(scenes_dir).resolve())
             print(f"  example manifest -> {p}")
             return 0
