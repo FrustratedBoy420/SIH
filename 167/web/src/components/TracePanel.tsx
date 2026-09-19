@@ -31,7 +31,7 @@ export default function TracePanel({ steps, runKey, compact = false }: { steps: 
             className="relative grid grid-cols-[16px_1fr_auto] gap-x-2.5 py-1.5"
             data-testid="trace-step" data-ok={s.ok}
           >
-            <span className={cn('relative z-[1] mt-[3px] grid size-[15px] place-items-center rounded-full border text-[9px] font-bold leading-none',
+            <span className={cn('relative z-[1] mt-[3px] grid size-[15px] place-items-center border text-[9px] font-bold leading-none',
               s.ok ? 'border-good bg-good-bg text-good' : 'border-nir bg-nir text-white')} aria-label={s.ok ? 'ok' : 'failed'}>
               {s.ok ? '✓' : '✕'}
             </span>

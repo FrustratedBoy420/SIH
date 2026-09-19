@@ -24,7 +24,7 @@ export default function EngineBadge({ className }: { className?: string }) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 border border-ink/25 px-2.5 py-1.5 text-left hover:border-ink"
       >
-        <span className="inline-block size-1.5 rounded-full" style={{ background: preview ? 'var(--color-warn)' : 'var(--color-good)' }} />
+        <span className="inline-block size-2" style={{ background: preview ? 'var(--color-warn)' : 'var(--color-good)' }} />
         <span className="text-[13px] font-medium">{preview ? 'Preview engine' : 'API'}</span>
         <span className="mono hidden text-[11px] text-ink-2 sm:inline">{health?.version ?? '…'}</span>
       </button>

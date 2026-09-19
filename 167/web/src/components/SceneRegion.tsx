@@ -113,7 +113,7 @@ export default function SceneRegion({ items, onLoadCrossModal }: { items: Eviden
                 </Suspense>
               </ErrorBoundary>
             ) : <StackFallback urls={urls} subs={subs} separation={separation} />}
-            {/* The toolbar floating over the scene — one of the two places glass is allowed. */}
+            {/* The toolbar floating over the scene — floating over the scene. */}
             <div className="glass absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 px-4 py-2">
               <span className="label !text-ink">Separation</span>
               <input type="range" min={0} max={1} step={0.01} value={separation} onChange={(e) => setSeparation(Number(e.target.value))} className="instrument w-44" aria-label="Separate the planes" data-testid="separation" />
@@ -133,12 +133,12 @@ export default function SceneRegion({ items, onLoadCrossModal }: { items: Eviden
 
         {view === 'compare' && (pair ? (
           <div className="flex h-full items-center justify-center p-4">
-            <ImageComparison className="crop h-full max-h-full max-w-full" testId="compare" label={`Divider between ${pair.la} and ${pair.lb}`}>
+            <ImageComparison className="frame h-full max-h-full max-w-full" testId="compare" label={`Divider between ${pair.la} and ${pair.lb}`}>
               <div style={{ aspectRatio: `${pair.a.summary.width} / ${pair.a.summary.height}` }} className="relative h-full max-w-full">
                 <ImageComparisonImage src={pair.a.layers.base} alt={`${pair.la} image`} position="right" />
                 <ImageComparisonImage src={pair.b.layers.base} alt={`${pair.lb} image`} position="left" />
                 <ImageComparisonSlider className="bg-paper">
-                  <div className="absolute left-1/2 top-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-ink bg-paper text-[12px]">⇆</div>
+                  <div className="absolute left-1/2 top-1/2 grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center border border-ink bg-paper text-[12px]">⇆</div>
                 </ImageComparisonSlider>
                 <span className="mono absolute left-2 top-2 z-10 bg-paper px-1.5 py-0.5 text-[11px]" style={{ borderLeft: '3px solid var(--color-optical)' }}>{pair.la}</span>
                 <span className="mono absolute right-2 top-2 z-10 bg-paper px-1.5 py-0.5 text-[11px]" style={{ borderRight: '3px solid var(--color-sar)' }}>{pair.lb}</span>

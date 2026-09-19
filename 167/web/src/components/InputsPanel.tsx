@@ -77,7 +77,7 @@ function Slot({ role, r, loading, error, onFile, onRemove, reading }: {
   return (
     <div
       data-testid={`slot-${role}`}
-      className={cn('border-b border-rule py-3 transition-colors duration-200', (over || reading) && 'bg-accent-bg/50')}
+      className={cn('border-b border-rule py-3 transition-colors duration-200', (over || reading) && 'bg-sun/20')}
       onDragOver={(e) => { e.preventDefault(); setOver(true) }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) onFile(f) }}
@@ -89,7 +89,7 @@ function Slot({ role, r, loading, error, onFile, onRemove, reading }: {
         {r && !loading && <button type="button" aria-label={`Remove ${ROLE_LABEL[role]}`} onClick={onRemove} className="mono px-1 text-[12px] text-ink-2 hover:text-nir">✕</button>}
       </div>
 
-      {loading && <div className="relative mt-2 h-14 overflow-hidden bg-surface-2"><div className="animate-sweep absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-accent-bg to-transparent" /></div>}
+      {loading && <div className="relative mt-2 h-14 overflow-hidden bg-surface-2"><div className="animate-sweep absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-sun/50 to-transparent" /></div>}
 
       {!loading && r && (
         <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="flex gap-2.5">

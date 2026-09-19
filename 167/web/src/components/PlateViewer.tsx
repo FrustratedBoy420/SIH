@@ -155,7 +155,7 @@ export default function PlateViewer({
             data-testid="plate"
             tabIndex={0}
             aria-label={`${alt}. Scroll or use + and − to zoom, arrow keys to pan.`}
-            className="crop relative cursor-crosshair overflow-hidden bg-surface-2 outline-offset-4"
+            className="frame relative cursor-crosshair overflow-hidden bg-surface-2 outline-offset-4"
             style={fit}
             onWheel={onWheel}
             onPointerDown={(e) => { if (view.k > 1) { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y } } }}
@@ -286,7 +286,7 @@ export function OverlayLegend({ items, overlays, onToggle }: { items: EvidenceIt
       {mods.map((m) => (
         <button key={m} type="button" aria-pressed={overlays[m]} onClick={() => onToggle(m)}
           className={cn('flex items-center gap-1.5 border px-2 py-0.5 text-[12px]', overlays[m] ? 'border-ink-3 bg-surface text-ink' : 'border-rule text-ink-3 line-through')}>
-          <span className="inline-block size-1.5 rounded-full" style={{ background: MODALITY_VAR[m] }} />{MODALITY_LABEL[m]}
+          <span className="inline-block size-2" style={{ background: MODALITY_VAR[m] }} />{MODALITY_LABEL[m]}
         </button>
       ))}
     </div>

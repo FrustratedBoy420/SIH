@@ -27,12 +27,12 @@ export default function AnswerBlock({ result, running, replaying = false, remedi
   if (running || (replaying && result)) {
     const route = result?.tools.join(' → ')
     return (
-      <div className="relative h-[112px] overflow-hidden border-l-[3px] border-accent bg-surface px-4 py-3" role="status" aria-live="polite" data-testid="answer-pending">
+      <div className="relative h-[112px] overflow-hidden border border-rule bg-paper px-4 py-3" role="status" aria-live="polite" data-testid="answer-pending">
         <p className="label">{replaying ? 'Executing' : 'Running'}</p>
         <p className="mt-2 text-ink-2">{replaying && result
           ? <>{result.task ? <>Task <span className="mono text-ink">{result.task}</span>{route ? <> · route <span className="mono text-ink">{route}</span></> : null}.</> : 'Checking the inputs.'} The trace below is the run, step by step.</>
           : 'Validating inputs, routing, measuring…'}</p>
-        <div className="animate-sweep absolute inset-x-0 bottom-0 h-[2px] bg-accent" />
+        <div className="animate-sweep absolute bottom-0 left-0 h-[2px] w-1/3 bg-sun" />
       </div>
     )
   }

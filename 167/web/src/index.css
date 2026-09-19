@@ -48,6 +48,12 @@
 
   --ease-instrument: cubic-bezier(0.2, 0.7, 0.3, 1);
 
+  /* the one loading motion: a band crossing, meaning data is arriving */
+  --animate-sweep: sweep 1.6s var(--ease-instrument) infinite;
+  @keyframes sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+  }
 }
 
 /* Fixed chrome: the 64 px masthead (+1 px rule) and the 32 px disclosure bar.
@@ -114,6 +120,12 @@ body {
 }
 
 /* ------------------------------------------------------------- surfaces */
+
+/* A faint dot grid: the map table under a plate. */
+.graticule {
+  background-image: radial-gradient(rgb(14 33 41 / 0.14) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+}
 
 /* The frame: one pixel of ink, square corners. Cards, plates, panels. */
 .frame { border: 1px solid var(--color-ink); }

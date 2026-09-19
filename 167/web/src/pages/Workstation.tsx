@@ -1,7 +1,7 @@
 /**
- * The workstation — the instrument (06 §5, bento). Imagery is the largest
+ * The workstation. Framed cards on a map table: imagery is the largest
  * region; evidence sits above the trace and both are always visible
- * (UI-03, UI-04); the query is a bar along the bottom.
+ * (UI-03, UI-04); the query is a bar floating under the scene.
  *
  * Deep links survive a refresh: `?scene=crossmodal|bitemporal|optical|full|none`
  * chooses the built-in scene and `?q=` re-asks a question.
@@ -179,65 +179,70 @@ export default function Workstation() {
     items: EXAMPLES.filter((e) => e.group === g).map((e) => ({ id: e.id, label: e.q, meta: `${e.rq ? e.rq + ' · ' : ''}${e.needs}`, onSelect: () => run(e.q) })),
   }))
 
+  // the imagery evidence thumbnails are cropped from: the after-date for change, else the first plate
+  const plateRaster = result?.task === 'temporal_change' ? s.inputs.t2 ?? first : first
+  const plate = plateRaster ? { src: plateRaster.layers.base, width: plateRaster.summary.width, height: plateRaster.summary.height } : undefined
+  const card = 'frame bg-surface'
+
   return (
-    <div className="lg:grid lg:h-[calc(100dvh-89px)] lg:grid-cols-[288px_minmax(0,1fr)_392px] lg:grid-rows-[auto_minmax(0,1fr)_auto]" data-testid="workstation">
-      {/* instrument header */}
-      <div className="col-span-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-rule bg-surface px-4 py-2 text-[11.5px]">
-        <h1 className="font-display text-[17px] font-extrabold tracking-[-0.03em]">Workstation</h1>
-        <span className="mono text-ink-2">{inputsLabel}</span>
+    <div className="bg-surface-2 lg:grid lg:h-[calc(100dvh-var(--chrome))] lg:grid-cols-[292px_minmax(0,1fr)_404px] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-3 lg:p-3" data-testid="workstation">
+      {/* scene header */}
+      <div className={cn(card, 'col-span-3 flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 text-[12px]')}>
+        <h1 className="t-display text-[20px]">Workstation</h1>
+        <span className="bg-sun px-2 py-0.5 text-[12.5px] font-medium">{inputsLabel}</span>
         {first?.summary.georeferenced && <span className="mono">{lat(first.summary.centre[0])} {lon(first.summary.centre[1])}</span>}
         {first && <span className="mono text-ink-2">{first.summary.crs}</span>}
         {first?.summary.gsd_m ? <span className="mono text-ink-2">GSD {first.summary.gsd_m.toFixed(1)} m</span> : null}
         <span className="mono text-ink-2">{loaded.length} raster{loaded.length === 1 ? '' : 's'}</span>
         <span className="ml-auto flex items-center gap-3">
-          <Link to="/results" className="text-accent underline-offset-2 hover:underline">Results →</Link>
+          <Link to="/results" className="text-[13.5px] font-medium underline decoration-sun decoration-2 underline-offset-4 hover:decoration-ink">Results →</Link>
           <EngineBadge className="md:hidden" />
         </span>
       </div>
 
-      <aside className="border-rule bg-surface lg:row-start-2 lg:min-h-0 lg:border-r" aria-label="Inputs">
+      <aside className={cn(card, 'lg:row-span-2 lg:row-start-2 lg:min-h-0 lg:overflow-hidden')} aria-label="Inputs">
         <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo} onScenario={scenario}
           reading={s.replaying && result ? result.manifest.rasters.map((r) => r.role).filter((r): r is Role => !!r && (ROLES as string[]).includes(r)) : []} />
       </aside>
 
-      <section className="h-[64vh] min-h-0 lg:row-start-2 lg:h-auto" aria-label="Scene">
+      <section className={cn(card, 'h-[64vh] min-h-0 overflow-hidden lg:row-start-2 lg:h-auto')} aria-label="Scene">
         <SceneRegion items={items} onLoadCrossModal={() => loadDemo('crossmodal')} />
       </section>
 
-      <aside className="flex min-h-0 flex-col border-rule bg-surface lg:row-start-2 lg:border-l" aria-label="Evidence and trace">
-        <section className="flex min-h-0 flex-[1.25] flex-col overflow-hidden border-b border-ink" aria-labelledby="ev-h">
-          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-4 pb-2 pt-3">
-            <h2 id="ev-h" className="label !text-ink">Evidence</h2>
+      <aside className="flex min-h-0 flex-col gap-3 lg:row-span-2 lg:row-start-2" aria-label="Evidence and trace">
+        <section className={cn(card, 'flex min-h-0 flex-[1.4] flex-col overflow-hidden')} aria-labelledby="ev-h">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-rule px-4 pb-2.5 pt-3">
+            <h2 id="ev-h" className="label">Answer & evidence</h2>
             {result && <span className="mono whitespace-nowrap text-[11px] text-ink-2">{result.evidence.passing}/{result.evidence.count} pass · gate {result.evidence.threshold.toFixed(2)}</span>}
             <span className="ml-auto flex shrink-0 gap-1.5 whitespace-nowrap">
               <button type="button" disabled={!result || result.refused} onClick={exportGeojson} data-testid="export-geojson"
-                className="mono border border-rule px-2 py-0.5 text-[11px] hover:border-ink disabled:opacity-40">GeoJSON ↓</button>
+                className="btn btn-line btn-sm !px-2.5 !py-1 !text-[12px] disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink">GeoJSON ↓</button>
               {result
-                ? <Link to={`/report/${result.run_id}`} data-testid="export-report" className="mono border border-rule px-2 py-0.5 text-[11px] hover:border-ink">Report →</Link>
-                : <span className="mono border border-rule px-2 py-0.5 text-[11px] opacity-40">Report →</span>}
+                ? <Link to={`/report/${result.run_id}`} data-testid="export-report" className="btn btn-ink btn-sm !px-2.5 !py-1 !text-[12px]">Report →</Link>
+                : <span className="btn btn-ink btn-sm !px-2.5 !py-1 !text-[12px] opacity-40">Report →</span>}
             </span>
           </div>
           {/* one scroll container: the answer and its evidence move together */}
-          <div className="scroll-thin min-h-[180px] flex-1 overflow-y-auto px-4 pb-3">
+          <div className="scroll-thin min-h-[180px] flex-1 overflow-y-auto px-4 pb-3 pt-3">
             <AnswerBlock result={result} running={s.running} replaying={s.replaying} remedies={remedies} preview={preview} />
-            {queryError && <p role="alert" className="mt-2 border-l-2 border-nir px-2 text-[12.5px] text-nir">{queryError.message} <span className="text-ink-2">{queryError.remedy}</span></p>}
-            <div className={cn('mt-2', (s.replaying || !result) && 'hidden')}>
-              <EvidenceList items={items} threshold={result?.evidence.threshold ?? s.threshold} selected={s.selected} onSelect={s.select} runKey={result?.run_id ?? ''} />
+            {queryError && <p role="alert" className="mt-2 border border-nir bg-nir-bg px-3 py-2 text-[13px] text-nir">{queryError.message} <span className="text-ink-2">{queryError.remedy}</span></p>}
+            <div className={cn('mt-3', (s.replaying || !result) && 'hidden')}>
+              <EvidenceList items={items} threshold={result?.evidence.threshold ?? s.threshold} selected={s.selected} onSelect={s.select} runKey={result?.run_id ?? ''} plate={plate} />
             </div>
           </div>
         </section>
-        <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="tr-h">
-          <div className="flex items-center gap-2 px-4 pb-1 pt-3">
-            <h2 id="tr-h" className="label !text-ink">Execution trace</h2>
+        <section className={cn(card, 'flex min-h-0 flex-1 flex-col overflow-hidden')} aria-labelledby="tr-h">
+          <div className="flex items-center gap-2 border-b border-rule px-4 pb-2.5 pt-3">
+            <h2 id="tr-h" className="label">Execution trace</h2>
             {result && <span className="mono ml-auto text-[10.5px] text-ink-2">router rules · engine {result.engine}</span>}
           </div>
-          <div className="scroll-thin min-h-[160px] flex-1 overflow-y-auto px-4 pb-3">
+          <div className="scroll-thin min-h-[160px] flex-1 overflow-y-auto px-4 pb-3 pt-2">
             <TracePanel steps={result?.trace ?? []} runKey={result?.run_id ?? ''} />
           </div>
         </section>
       </aside>
 
-      <div className="sticky bottom-8 z-40 col-span-3 lg:static">
+      <div className="sticky bottom-8 z-40 px-2 pb-2 lg:static lg:col-start-2 lg:row-start-3 lg:p-0">
         <QueryBar ref={input} value={query} onChange={setQuery} onSubmit={() => run(query)} running={s.running || s.replaying || reading} busy={reading && !s.running ? 'Reading inputs…' : undefined}
           threshold={s.threshold} onThreshold={s.setThreshold} onPalette={() => setPalette(true)} inputsLabel={inputsLabel} />
       </div>
