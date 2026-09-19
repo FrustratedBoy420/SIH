@@ -1,411 +1,248 @@
 /**
- * The workstation.
+ * The workstation — the instrument (06 §5, bento). Imagery is the largest
+ * region; evidence sits above the trace and both are always visible
+ * (UI-03, UI-04); the query is a bar along the bottom.
  *
- * Cleaned up from the earlier single-screen version. Three changes, all aimed
- * at the same problem — the first version put everything on screen at once and
- * read as clutter rather than density:
- *
- *   - Data and Evaluation moved out to their own pages. They were never part of
- *     an analysis session; they were reference material squeezed into a sidebar.
- *   - Scene metadata collapsed behind a summary line. The CRS and band count
- *     matter, but not enough to occupy a permanent column.
- *   - The honesty notice reduced to one line with an expander, instead of a
- *     paragraph across the top of every screen.
- *
- * What is left is the analysis loop: layers, the scene, the answer, the
- * evidence, the trace.
+ * Deep links survive a refresh: `?scene=crossmodal|bitemporal|optical|full|none`
+ * chooses the built-in scene and `?q=` re-asks a question.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  ChevronDown, Download, Eye, EyeOff, Info, Loader2, RotateCcw, Send,
-} from 'lucide-react'
-import ModalityStack, { type LayerKey } from '@/components/ModalityStack'
-import { Masthead } from '@/components/Shell'
-import { Answer, Empty, Evidence, Panel, Trace } from '@/components/panels'
-import { api, type QueryResult, type ScenePayload } from '@/lib/api'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { api, asApiError, type DemoKind } from '@/lib/api'
+import type { ApiError, Role } from '@/lib/contract'
+import { ROLES } from '@/lib/contract'
+import { EXAMPLES, type Scenario } from '@/lib/examples'
+import { lat, lon } from '@/lib/format'
+import { useEngineMode } from '@/lib/hooks'
+import { useStation } from '@/lib/store'
+import { cn, download } from '@/lib/utils'
+import AnswerBlock, { type Remedy } from '@/components/AnswerBlock'
+import EvidenceList from '@/components/EvidenceList'
+import InputsPanel from '@/components/InputsPanel'
+import QueryBar from '@/components/QueryBar'
+import SceneRegion, { layerOptions } from '@/components/SceneRegion'
+import TracePanel from '@/components/TracePanel'
+import { CommandPalette } from '@/components/ui/CommandPalette'
+import EngineBadge from '@/components/EngineBadge'
 
-const EXAMPLES: { q: string; mode: string; note?: string }[] = [
-  { q: 'Use the optical and SAR images together to identify built-up regions', mode: 'optical_sar' },
-  { q: 'Highlight the water body', mode: 'optical_sar' },
-  { q: 'How many built-up areas are visible?', mode: 'optical_sar' },
-  { q: 'What changed between these two dates?', mode: 'bi_temporal' },
-  { q: 'What changed between these two dates?', mode: 'optical_sar', note: 'refuses' },
-  { q: 'Highlight the unicorn', mode: 'optical_sar', note: 'abstains' },
-]
-
-const LAYER_KEYS: LayerKey[] = ['optical', 'fusion', 'sar']
-// Labels are written out rather than produced by `capitalize`, which renders
-// the SAR layer as "Sar".
-const LAYER_META: Record<LayerKey, { tone: string; label: string; sub: string }> = {
-  optical: { tone: 'var(--color-optical)', label: 'Optical', sub: 'Sentinel-2 · R,G,B,NIR' },
-  fusion: { tone: 'var(--color-fusion)', label: 'Fusion', sub: 'derived overlay' },
-  sar: { tone: 'var(--color-sar)', label: 'SAR', sub: 'Sentinel-1 · VV,VH' },
+const DEMO_ROLES: Record<DemoKind, Role[]> = {
+  crossmodal: ['optical', 'sar'], bitemporal: ['t1', 't2'], optical: ['optical'], sar: ['sar'], full: ['optical', 'sar', 't1', 't2'],
 }
+const st = useStation.getState
 
 export default function Workstation() {
-  const [separation, setSeparation] = useState(0.48)
-  const [hidden, setHidden] = useState<Set<LayerKey>>(new Set())
-  const [focus, setFocus] = useState<LayerKey | null>(null)
-  const [metaOpen, setMetaOpen] = useState(false)
-  const [noteOpen, setNoteOpen] = useState(false)
-  const [traceOpen, setTraceOpen] = useState(true)
+  const s = useStation()
+  const { data: mode } = useEngineMode()
+  const preview = mode !== 'http'
+  const [params, setParams] = useSearchParams()
+  const [query, setQuery] = useState(params.get('q') ?? '')
+  const [palette, setPalette] = useState(false)
+  const [errors, setErrors] = useState<Partial<Record<Role, ApiError>>>({})
+  const [queryError, setQueryError] = useState<ApiError | null>(null)
+  const input = useRef<HTMLInputElement>(null)
+  const booted = useRef(false)
 
-  const [query, setQuery] = useState('')
-  const [mode, setMode] = useState('optical_sar')
-  const [busy, setBusy] = useState(false)
-  const [result, setResult] = useState<QueryResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [scene, setScene] = useState<ScenePayload | null>(null)
+  /* ------------------------------------------------------------- inputs */
 
-  useEffect(() => {
-    api.scene().then(setScene).catch(() => setError('backend unreachable'))
+  const loadDemo = useCallback(async (kind: DemoKind) => {
+    const roles = DEMO_ROLES[kind]
+    roles.forEach((r) => st().setLoading(r, true))
+    try {
+      const list = await api.demo(kind, 512)
+      list.forEach((r) => st().setInput(r.role, r))
+      setErrors((e) => { const n = { ...e }; roles.forEach((r) => delete n[r]); return n })
+    } finally { roles.forEach((r) => st().setLoading(r, false)) }
   }, [])
 
-  const run = useCallback(async (q: string, m: string) => {
-    if (!q.trim() || busy) return
-    setBusy(true); setError(null)
+  const onFile = useCallback(async (role: Role, f: File) => {
+    st().setLoading(role, true)
+    setErrors((e) => ({ ...e, [role]: undefined }))
     try {
-      const r = await api.query(q, m)
-      setResult(r)
-      setFocus(null)
-      // Open the stack rather than close it. Evidence geometry is drawn on the
-      // fusion plane, so a collapsed stack hides it behind the optical plane --
-      // the header would announce "7 evidence boxes" with none on screen.
-      if (!r.refused && r.evidence.passing > 0) setSeparation(0.62)
+      const prev = st().inputs[role]
+      const r = await api.upload(role, f)
+      if (prev && !prev.summary.synthetic) api.remove(prev.local_id)
+      st().setInput(role, r)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'query failed')
-    } finally {
-      setBusy(false)
+      setErrors((x) => ({ ...x, [role]: asApiError(e) }))
+    } finally { st().setLoading(role, false) }
+  }, [])
+
+  const onRemove = useCallback((role: Role) => {
+    const r = st().inputs[role]
+    if (r && !r.summary.synthetic) api.remove(r.local_id)
+    st().setInput(role, undefined)
+  }, [])
+
+  // derived layers follow the pairs
+  const o = s.inputs.optical?.local_id, sa = s.inputs.sar?.local_id, t1 = s.inputs.t1?.local_id, t2 = s.inputs.t2?.local_id
+  useEffect(() => {
+    let live = true
+    Promise.all([
+      o && sa ? api.derived('fusion', o, sa).catch(() => undefined) : undefined,
+      t1 && t2 ? api.derived('change', t1, t2).catch(() => undefined) : undefined,
+    ]).then(([fusion, change]) => { if (live) st().setDerived({ fusion, change }) })
+    return () => { live = false }
+  }, [o, sa, t1, t2])
+
+  /* -------------------------------------------------------------- query */
+
+  const run = useCallback(async (q: string) => {
+    const text = q.trim()
+    setQuery(text)
+    setQueryError(null)
+    st().setRunning(true)
+    const inputs = st().inputs
+    const ids: Partial<Record<Role, string>> = {}, local: Partial<Record<Role, string>> = {}
+    for (const role of ROLES) { const r = inputs[role]; if (r) { ids[role] = r.raster_id; local[role] = r.local_id } }
+    try {
+      const r = await api.query({ query: text, inputs: ids, threshold: st().threshold }, local)
+      st().setResult(r)
+      // pick the plate that shows this answer best
+      const pick = r.task === 'temporal_change' ? 'derived:change' : r.task === 'cross_modal' ? 'optical:base' : null
+      const opts = layerOptions(st().inputs, st().derived).map((x) => x.value)
+      if (pick && opts.includes(pick)) st().setBase(pick)
+      else if (!opts.includes(st().base) && opts[0]) st().setBase(opts[0])
+      if (st().view !== 'map' && r.evidence.items.some((i) => i.boxes.length) && r.task !== 'cross_modal') st().setView('map')
+      setParams((p) => { const n = new URLSearchParams(p); if (text) n.set('q', text); else n.delete('q'); return n }, { replace: true })
+    } catch (e) {
+      setQueryError(asApiError(e))
+    } finally { st().setRunning(false) }
+  }, [setParams])
+
+  // first visit: a built-in scene, then any deep-linked question
+  useEffect(() => {
+    if (booted.current) return
+    booted.current = true
+    const scene = (params.get('scene') ?? 'crossmodal') as DemoKind | 'none'
+    const q = params.get('q')
+    const has = Object.keys(st().inputs).length > 0
+    const ready = scene !== 'none' && !has ? loadDemo(scene in DEMO_ROLES ? scene as DemoKind : 'crossmodal') : Promise.resolve()
+    ready.then(() => { if (q) run(q) })
+  }, [loadDemo, run, params])
+
+  // keyboard: ⌘K / Ctrl+K palette, "/" focuses the bar
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((v) => !v) }
+      else if (e.key === '/' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)) { e.preventDefault(); input.current?.focus() }
     }
-  }, [busy])
+    window.addEventListener('keydown', on)
+    return () => window.removeEventListener('keydown', on)
+  }, [])
 
-  const boxes = useMemo(
-    () => result && !result.refused
-      ? result.evidence.items
-          .filter((i) => i.confidence >= result.evidence.threshold)
-          .flatMap((i) => i.boxes)
-      : [],
-    [result],
-  )
+  // A scenario is a clean slate: roles its scene does not use are cleared, so
+  // a leftover T1/T2 cannot change what the router sees.
+  const scenario = useCallback(async (sc: Scenario) => {
+    ROLES.filter((r) => !DEMO_ROLES[sc.scene].includes(r)).forEach((r) => onRemove(r))
+    await loadDemo(sc.scene)
+    run(sc.q)
+  }, [loadDemo, onRemove, run])
 
-  const reset = () => {
-    setSeparation(0.48); setFocus(null); setHidden(new Set())
-    setResult(null); setQuery('')
-  }
+  /* ---------------------------------------------------------- remedies */
 
-  const toggle = (k: LayerKey) => {
-    const next = new Set(hidden)
-    next.has(k) ? next.delete(k) : next.add(k)
-    setHidden(next)
-  }
+  const result = s.result
+  const remedies: Remedy[] = useMemo(() => {
+    if (!result) return []
+    const again = (kind: DemoKind) => async () => { await loadDemo(kind); run(result.query) }
+    if (result.refused) {
+      const a = result.answer
+      if (/T1|bi-temporal/.test(a)) return [{ label: 'Load the bi-temporal pair and re-ask', run: again('bitemporal') }]
+      if (/SAR/.test(a)) return [{ label: 'Load the cross-modal pair and re-ask', run: again('crossmodal') }]
+      if (/No imagery|at least one/.test(a)) return [{ label: 'Load the cross-modal pair and re-ask', run: again('crossmodal') }]
+      if (/No query/.test(a)) return [{ label: 'Ask RQ-4', run: () => run(EXAMPLES[3].q) }]
+    }
+    if (result.abstained) return [{ label: 'Ask about the water instead', run: () => run('Highlight the water body') }]
+    return []
+  }, [result, loadDemo, run])
 
-  const exportGeoJSON = () => {
+  /* ------------------------------------------------------------ exports */
+
+  const exportGeojson = async () => {
     if (!result) return
-    const blob = new Blob([JSON.stringify(result.geojson, null, 2)],
-      { type: 'application/geo+json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `satquery_${result.task || 'evidence'}.geojson`
-    a.click()
-    URL.revokeObjectURL(a.href)
+    const href = (await api.exportHrefs(result.run_id)).geojson
+    if (href) { location.href = href; return }
+    download(`satquery-${result.run_id}.geojson`, JSON.stringify(result.geojson, null, 2), 'application/geo+json')
   }
+
+  /* ------------------------------------------------------------- header */
+
+  // a question asked while a scene is still being read would be refused for want of it
+  const reading = Object.values(s.loading).some(Boolean)
+  const loaded = ROLES.filter((r) => s.inputs[r])
+  const first = loaded.map((r) => s.inputs[r]!)[0]
+  const inputsLabel = s.inputs.t1 && s.inputs.t2 ? 'bi-temporal pair' : s.inputs.optical && s.inputs.sar ? 'optical + SAR pair' : loaded.length ? `single · ${loaded[0]}` : 'no imagery'
+  // evidence is drawn once the trace has replayed — what the run produced last appears last
+  const items = s.replaying ? [] : result?.evidence.items ?? []
+  const groups = [...new Set(EXAMPLES.map((e) => e.group))].map((g) => ({
+    heading: g,
+    items: EXAMPLES.filter((e) => e.group === g).map((e) => ({ id: e.id, label: e.q, meta: `${e.rq ? e.rq + ' · ' : ''}${e.needs}`, onSelect: () => run(e.q) })),
+  }))
 
   return (
-    <div className="grid h-full grid-rows-[auto_1fr_auto] overflow-hidden">
-      <Masthead dense />
+    <div className="lg:grid lg:h-[calc(100dvh-89px)] lg:grid-cols-[288px_minmax(0,1fr)_392px] lg:grid-rows-[auto_minmax(0,1fr)_auto]" data-testid="workstation">
+      {/* instrument header */}
+      <div className="col-span-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-rule bg-surface px-4 py-2 text-[11.5px]">
+        <h1 className="font-display text-[17px] font-extrabold tracking-[-0.03em]">Workstation</h1>
+        <span className="mono text-ink-2">{inputsLabel}</span>
+        {first?.summary.georeferenced && <span className="mono">{lat(first.summary.centre[0])} {lon(first.summary.centre[1])}</span>}
+        {first && <span className="mono text-ink-2">{first.summary.crs}</span>}
+        {first?.summary.gsd_m ? <span className="mono text-ink-2">GSD {first.summary.gsd_m.toFixed(1)} m</span> : null}
+        <span className="mono text-ink-2">{loaded.length} raster{loaded.length === 1 ? '' : 's'}</span>
+        <span className="ml-auto flex items-center gap-3">
+          <Link to="/results" className="text-accent underline-offset-2 hover:underline">Results →</Link>
+          <EngineBadge className="md:hidden" />
+        </span>
+      </div>
 
-      <main className="grid min-h-0 grid-cols-[240px_1fr_340px]">
+      <aside className="border-rule bg-surface lg:row-start-2 lg:min-h-0 lg:border-r" aria-label="Inputs">
+        <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo} onScenario={scenario}
+          reading={s.replaying && result ? result.manifest.rasters.map((r) => r.role).filter((r): r is Role => !!r && (ROLES as string[]).includes(r)) : []} />
+      </aside>
 
-        {/* ───────────────────────── layers ───────────────────────── */}
-        <aside className="min-h-0 overflow-y-auto border-r border-rule bg-abyss">
-          <Panel title="Layers">
-            <div className="flex flex-col gap-1.5">
-              {LAYER_KEYS.map((k) => {
-                const off = hidden.has(k)
-                const isFocus = focus === k
-                return (
-                  <div
-                    key={k}
-                    className="flex items-center gap-2 border border-rule bg-surface px-2.5 py-2 transition-colors"
-                    style={{
-                      borderLeft: `3px solid ${LAYER_META[k].tone}`,
-                      opacity: off ? 0.4 : 1,
-                      background: isFocus
-                        ? 'color-mix(in oklab, var(--color-sar) 8%, var(--color-surface))'
-                        : undefined,
-                    }}
-                  >
-                    <button
-                      onClick={() => setFocus(isFocus ? null : k)}
-                      className="min-w-0 flex-1 text-left"
-                      title={isFocus ? 'release isolation' : 'isolate this layer'}
-                    >
-                      <span className="block text-[12.5px] font-medium">{LAYER_META[k].label}</span>
-                      <span className="mono block text-[9.5px] text-ink-3">
-                        {LAYER_META[k].sub}
-                      </span>
-                    </button>
-                    <button onClick={() => toggle(k)} aria-label={`toggle ${k}`}>
-                      {off
-                        ? <EyeOff size={13} className="text-ink-3" />
-                        : <Eye size={13} style={{ color: LAYER_META[k].tone }} />}
-                    </button>
-                  </div>
-                )
-              })}
+      <section className="h-[64vh] min-h-0 lg:row-start-2 lg:h-auto" aria-label="Scene">
+        <SceneRegion items={items} onLoadCrossModal={() => loadDemo('crossmodal')} />
+      </section>
+
+      <aside className="flex min-h-0 flex-col border-rule bg-surface lg:row-start-2 lg:border-l" aria-label="Evidence and trace">
+        <section className="flex min-h-0 flex-[1.25] flex-col overflow-hidden border-b border-ink" aria-labelledby="ev-h">
+          <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 px-4 pb-2 pt-3">
+            <h2 id="ev-h" className="label !text-ink">Evidence</h2>
+            {result && <span className="mono whitespace-nowrap text-[11px] text-ink-2">{result.evidence.passing}/{result.evidence.count} pass · gate {result.evidence.threshold.toFixed(2)}</span>}
+            <span className="ml-auto flex shrink-0 gap-1.5 whitespace-nowrap">
+              <button type="button" disabled={!result || result.refused} onClick={exportGeojson} data-testid="export-geojson"
+                className="mono border border-rule px-2 py-0.5 text-[11px] hover:border-ink disabled:opacity-40">GeoJSON ↓</button>
+              {result
+                ? <Link to={`/report/${result.run_id}`} data-testid="export-report" className="mono border border-rule px-2 py-0.5 text-[11px] hover:border-ink">Report →</Link>
+                : <span className="mono border border-rule px-2 py-0.5 text-[11px] opacity-40">Report →</span>}
+            </span>
+          </div>
+          {/* one scroll container: the answer and its evidence move together */}
+          <div className="scroll-thin min-h-[180px] flex-1 overflow-y-auto px-4 pb-3">
+            <AnswerBlock result={result} running={s.running} replaying={s.replaying} remedies={remedies} preview={preview} />
+            {queryError && <p role="alert" className="mt-2 border-l-2 border-nir px-2 text-[12.5px] text-nir">{queryError.message} <span className="text-ink-2">{queryError.remedy}</span></p>}
+            <div className={cn('mt-2', (s.replaying || !result) && 'hidden')}>
+              <EvidenceList items={items} threshold={result?.evidence.threshold ?? s.threshold} selected={s.selected} onSelect={s.select} runKey={result?.run_id ?? ''} />
             </div>
-            <p className="mono mt-2.5 text-[9.5px] leading-relaxed text-ink-3">
-              {focus
-                ? `isolating ${focus} — click the name again to release`
-                : 'click a name to isolate it · the eye hides it'}
-            </p>
-          </Panel>
-
-          {/* metadata behind a summary — it matters, but not permanently */}
-          {scene && (
-            <section className="border-b border-rule">
-              <button
-                onClick={() => setMetaOpen((v) => !v)}
-                className="flex w-full items-center gap-2 px-4 py-3 text-left"
-              >
-                <span className="label">Scene</span>
-                <span className="mono ml-auto text-[10px] text-ink-3">
-                  {scene.optical.crs} · {scene.optical.gsd_m.toFixed(0)} m
-                </span>
-                <ChevronDown
-                  size={12}
-                  className="text-ink-3 transition-transform"
-                  style={{ transform: metaOpen ? 'rotate(180deg)' : undefined }}
-                />
-              </button>
-              {metaOpen && (
-                <dl className="px-4 pb-4">
-                  {[
-                    ['acquired', scene.optical.acquired.slice(0, 16).replace('T', ' ')],
-                    ['platform', String(scene.optical.platform ?? '—')],
-                    ['bands', `${scene.optical.bands} optical + ${scene.sar.bands} SAR`],
-                    ['cloud', `${scene.optical.cloud_pct ?? '—'} %`],
-                    ['sar looks', String(scene.sar.looks ?? '—')],
-                    ['centre', `${scene.optical.centre[0].toFixed(3)}N ${scene.optical.centre[1].toFixed(3)}E`],
-                    ['extent', `${(scene.optical.bounds[2] - scene.optical.bounds[0]).toFixed(3)}°`],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex justify-between gap-2 border-b border-rule/50 py-1 last:border-0">
-                      <dt className="text-[11px] text-ink-3">{k}</dt>
-                      <dd className="mono text-[11px]">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-            </section>
-          )}
-
-          <Panel title="Why two sensors">
-            <p className="text-[11.5px] leading-relaxed text-ink-2">
-              Cloud covers the north-east of the optical scene. Radar passes
-              through it, and built structures return strongly from corner
-              reflection — so SAR recovers what optical cannot see.
-            </p>
-            <p className="mt-2 text-[11.5px] text-nir">Pull the stack apart to compare.</p>
-          </Panel>
-        </aside>
-
-        {/* ───────────────────────── the scene ───────────────────────── */}
-        <section className="graticule relative min-h-0 bg-void">
-          <div className="pointer-events-none absolute inset-0 overflow-hidden">
-            <div
-              className="sweep absolute inset-y-0 w-1/3"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(53,224,232,0.03), transparent)' }}
-            />
-          </div>
-
-          {scene ? (
-            <ModalityStack
-              separation={separation}
-              layerUrl={api.layerUrl}
-              hidden={hidden}
-              focus={focus}
-              onSelect={(k) => setFocus(focus === k ? null : k)}
-              boxes={boxes}
-              scene={scene.optical}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="mono text-[12px] text-ink-3">{error ?? 'loading scene…'}</p>
-            </div>
-          )}
-
-          <div className="pointer-events-none absolute left-4 top-3 flex flex-col gap-1">
-            <span className="mono text-[10px] text-ink-3">drag to orbit · scroll to zoom</span>
-            {boxes.length > 0 && (
-              <span className="mono text-[10px] text-nir">
-                {boxes.length} evidence {boxes.length === 1 ? 'box' : 'boxes'}
-              </span>
-            )}
-          </div>
-
-          {/* one-line disclosure, expandable — not a paragraph on every screen */}
-          <div className="absolute right-4 top-3 max-w-[380px]">
-            <button
-              onClick={() => setNoteOpen((v) => !v)}
-              className="mono ml-auto flex items-center gap-1.5 border border-[#4a3d18] bg-[#141005]/90 px-2 py-1 text-[10px] text-[#d9b26a] backdrop-blur"
-            >
-              <Info size={10} /> synthetic imagery
-            </button>
-            {noteOpen && (
-              <p className="mt-1.5 border border-[#4a3d18] bg-[#141005]/95 p-2.5 text-[11px] leading-relaxed text-ink-2 backdrop-blur">
-                Cartosat-2S and RISAT data cannot be obtained and the ISRO/SAC
-                evaluation set is undisclosed, so the pixels are generated. They
-                are real GeoTIFFs with a correct geotransform, and every algorithm
-                here — Lee speckle filtering, multi-level Otsu, connected
-                components, change vector analysis, co-registration, the router
-                and the confidence gate — is a real implementation measured
-                against ground truth it never sees.
-              </p>
-            )}
-          </div>
-
-          {/* the one place glass is permitted: floating over the scene */}
-          <div
-            className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-4 border px-3.5 py-2"
-            style={{
-              background: 'rgba(8,14,16,0.55)',
-              backdropFilter: 'blur(14px) saturate(1.4)',
-              WebkitBackdropFilter: 'blur(14px) saturate(1.4)',
-              borderColor: 'rgba(53,224,232,0.22)',
-            }}
-          >
-            <span className="label">separation</span>
-            <input
-              type="range" min={0} max={100}
-              value={Math.round(separation * 100)}
-              onChange={(e) => setSeparation(Number(e.target.value) / 100)}
-              className="w-36" aria-label="layer separation"
-            />
-            <button
-              onClick={reset}
-              className="flex items-center gap-1 border border-rule-2 px-2 py-1 text-[11px] text-ink-2 transition-colors hover:text-ink"
-            >
-              <RotateCcw size={11} /> reset
-            </button>
           </div>
         </section>
-
-        {/* ───────────────────────── results ───────────────────────── */}
-        <aside className="min-h-0 overflow-y-auto border-l border-rule bg-abyss">
-          {result ? <Answer r={result} /> : (
-            <div className="border-b border-rule px-4 py-5">
-              <p className="text-[12.5px] leading-relaxed text-ink-3">
-                Ask a question below, or pick one of the examples. The answer,
-                its evidence and the execution trace appear here.
-              </p>
-            </div>
-          )}
-
-          <Panel
-            title="Evidence"
-            count={result ? `${result.evidence.passing}/${result.evidence.count}` : undefined}
-            right={result && !result.refused && result.geojson.features.length > 0 ? (
-              <button
-                onClick={exportGeoJSON}
-                className="flex items-center gap-1 text-[10px] text-ink-3 transition-colors hover:text-sar"
-              >
-                <Download size={10} /> geojson
-              </button>
-            ) : undefined}
-          >
-            {result
-              ? <Evidence items={result.evidence.items} threshold={result.evidence.threshold} />
-              : <Empty>No evidence yet.</Empty>}
-          </Panel>
-
-          <Panel
-            title="Execution trace"
-            count={result?.trace.length}
-            right={result ? (
-              <button
-                onClick={() => setTraceOpen((v) => !v)}
-                className="text-[10px] text-ink-3 transition-colors hover:text-sar"
-              >
-                {traceOpen ? 'collapse' : 'expand'}
-              </button>
-            ) : undefined}
-          >
-            {traceOpen || !result
-              ? <Trace steps={result?.trace ?? []} />
-              : (
-                <p className="mono text-[11px] text-ink-3">
-                  {result.trace.length} steps ·{' '}
-                  {result.trace.filter((s) => !s.ok).length} failed
-                </p>
-              )}
-          </Panel>
-
-          <div className="px-4 py-4">
-            <Link to="/evaluation" className="text-[12px] text-sar transition-opacity hover:opacity-80">
-              How accurate is this? →
-            </Link>
+        <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="tr-h">
+          <div className="flex items-center gap-2 px-4 pb-1 pt-3">
+            <h2 id="tr-h" className="label !text-ink">Execution trace</h2>
+            {result && <span className="mono ml-auto text-[10.5px] text-ink-2">router rules · engine {result.engine}</span>}
           </div>
-        </aside>
-      </main>
-
-      {/* ───────────────────────── query ───────────────────────── */}
-      <footer className="border-t border-rule bg-abyss px-6 py-3">
-        <div className="flex gap-2">
-          <div className="flex overflow-hidden border border-rule">
-            {['optical_sar', 'bi_temporal'].map((m) => (
-              <button
-                key={m} onClick={() => setMode(m)}
-                className="mono px-3 py-2 text-[10px] transition-colors"
-                style={{
-                  background: mode === m
-                    ? 'color-mix(in oklab, var(--color-sar) 14%, transparent)' : 'transparent',
-                  color: mode === m ? 'var(--color-sar)' : 'var(--color-ink-3)',
-                }}
-              >
-                {m === 'optical_sar' ? 'optical + SAR' : 'bi-temporal'}
-              </button>
-            ))}
+          <div className="scroll-thin min-h-[160px] flex-1 overflow-y-auto px-4 pb-3">
+            <TracePanel steps={result?.trace ?? []} runKey={result?.run_id ?? ''} />
           </div>
+        </section>
+      </aside>
 
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && run(query, mode)}
-            placeholder="Ask about this imagery…"
-            className="flex-1 border border-rule bg-surface px-3.5 py-2 text-[13.5px] outline-none placeholder:text-ink-3 focus:border-sar"
-          />
+      <div className="sticky bottom-8 z-40 col-span-3 lg:static">
+        <QueryBar ref={input} value={query} onChange={setQuery} onSubmit={() => run(query)} running={s.running || s.replaying || reading} busy={reading && !s.running ? 'Reading inputs…' : undefined}
+          threshold={s.threshold} onThreshold={s.setThreshold} onPalette={() => setPalette(true)} inputsLabel={inputsLabel} />
+      </div>
 
-          <button
-            onClick={() => run(query, mode)}
-            disabled={busy || !query.trim()}
-            className="flex items-center gap-1.5 px-5 py-2 text-[13px] font-medium transition-opacity disabled:opacity-40"
-            style={{ background: 'var(--color-sar)', color: 'var(--color-void)' }}
-          >
-            {busy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-            Analyse
-          </button>
-        </div>
-
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {EXAMPLES.map((ex, i) => (
-            <button
-              key={i}
-              onClick={() => { setQuery(ex.q); setMode(ex.mode); run(ex.q, ex.mode) }}
-              className="border px-2 py-1 text-[10.5px] transition-colors"
-              style={{
-                borderColor: ex.note ? 'var(--color-nir-dim)' : 'var(--color-rule)',
-                borderStyle: ex.note ? 'dashed' : 'solid',
-                color: ex.note ? 'var(--color-nir)' : 'var(--color-ink-2)',
-              }}
-            >
-              {ex.note && '⚠ '}{ex.q}
-              {ex.note && <span className="ml-1 opacity-70">· {ex.note}</span>}
-            </button>
-          ))}
-        </div>
-      </footer>
+      <CommandPalette open={palette} onOpenChange={setPalette} groups={groups} />
     </div>
   )
 }

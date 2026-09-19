@@ -1,187 +1,196 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   SatQuery AI — design tokens
-   See ../../docs/06_Design_System.md
+   SatQuery AI — "Editorial Instrument"
+   docs/06_Design_System.md §2–§4 and web/BUILD_PLAN.md §2.
 
-   REVISION 2. The first palette gave every concept its own hue: cyan for
-   radar, amber for optical, violet for fusion, crimson for change, plus green
-   and yellow for semantics. Six accents were on screen at once and the result
-   read as noise -- a legend rather than an interface. Colour is a scarce
-   resource and that version spent all of it at once.
-
-   The rule now:
-
-     - The interface is neutral. Near-black ground, grey ink, grey rules.
-     - ONE accent (aqua) carries interaction: links, focus, the primary action.
-     - Modality hues survive ONLY as identity marks -- a 6 px dot, a label --
-       never as fills, never as a stripe down the side of every card.
-     - Semantics reuse the same three: positive, caution, negative.
-
-   The aqua is still taken from the subject. On a SAR amplitude image calm
-   water is near-black and structures return bright; the interface ground is
-   that water, and the accent is the return.
+   Light, always. Colour is taken from remote sensing, not from a UI trend:
+   the accent is the SAR/water signature and carries interaction only; the
+   modality hues are marks, never fills; red means change or refusal and
+   nothing else.
    ========================================================================== */
 
 @theme {
-  /* ---------------------------------------------------------------- ground
-     Neutral, very slightly cool. The previous ramp was tinted teal, which
-     made every neutral surface read as "coloured" and left the actual accent
-     nothing to contrast against. */
-  --color-void: #0a0b0d;
-  --color-abyss: #0e1014;
-  --color-surface: #14171c;
-  --color-raised: #1a1e24;
+  --color-paper: #f3f5f4;
+  --color-surface: #ffffff;
+  --color-surface-2: #e9edeb;
+  --color-rule: #d3dad7;
+  --color-rule-2: #b9c3bf;
 
-  /* Rules sit close to their surface on purpose. A border should separate,
-     not draw a line. */
-  --color-rule: #1e222a;
-  --color-rule-2: #2a2f39;
+  --color-ink: #0f1613;
+  --color-ink-2: #4a5551;
+  --color-ink-3: #7c8783;
 
-  /* ------------------------------------------------------------------ ink */
-  --color-ink: #eceef2;
-  --color-ink-2: #9aa3b0;
-  --color-ink-3: #656d7a;
+  --color-accent: #0e7c86;
+  --color-accent-2: #0a5c64;
+  --color-accent-bg: #ddeef0;
 
-  /* --------------------------------------------------------------- accent
-     One hue for everything interactive. */
-  --color-accent: #4fd1e0;
-  --color-accent-soft: #1d3d44;
-  --color-accent-ink: #06222a;
+  --color-optical: #b8763a;
+  --color-sar: #2c7a8c;
+  --color-fusion: #6b5ca5;
 
-  /* ------------------------------------------------------- modality marks
-     Desaturated from the originals. These now appear as dots and small caps
-     text on a neutral card, so they need to read at 6 px against near-black
-     rather than survive being used as a 3 px bar. */
-  --color-sar: #4fd1e0;
-  --color-optical: #e0a95c;
-  --color-fusion: #a78bfa;
-  --color-nir: #ef6a55;
-  --color-nir-dim: #4a2019;
+  --color-nir: #c4342a;
+  --color-nir-bg: #f7e4e1;
+  --color-good: #2f7d5a;
+  --color-good-bg: #e0efe7;
+  --color-warn: #a1740f;
+  --color-warn-bg: #f5ecd6;
 
-  /* ------------------------------------------------------------ semantic */
-  --color-good: #56c98d;
-  --color-warn: #e0b356;
-  --color-bad: #ef6a55;
+  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
-  /* ------------------------------------------------------------- radius
-     The single largest change to how finished the product looks. Sharp
-     corners everywhere read as a wireframe; these are restrained enough to
-     stay technical. */
-  --radius-panel: 14px;
-  --radius-card: 10px;
-  --radius-control: 8px;
-  --radius-pill: 999px;
+  --ease-instrument: cubic-bezier(0.2, 0.7, 0.3, 1);
 
-  --font-display: "Bricolage Grotesque", "Segoe UI", Georgia, sans-serif;
-  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --animate-marquee: marquee var(--duration) linear infinite;
+  --animate-sweep: sweep 2.8s var(--ease-instrument) infinite;
 
-  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-100% - var(--gap))); }
+  }
+  @keyframes sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
 }
 
-@font-face { font-family: "Bricolage Grotesque"; src: local("Bricolage Grotesque"); font-display: swap; }
-
-html, body, #root { height: 100%; }
-
+html { background: var(--color-paper); }
 body {
-  margin: 0;
-  background: var(--color-void);
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  /* 15 px, not 14. The previous build ran 10-13 px almost everywhere, so
-     nothing was large and nothing was small -- there was no hierarchy to
-     read, only uniform density. */
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--color-accent-bg); color: var(--color-ink); }
+
+/* ----------------------------------------------------------------- type */
+
+/* The campaign headline. Set straight across the imagery. */
+.t-hero {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(56px, 11vw, 200px);
+  letter-spacing: -0.045em;
+  line-height: 0.84;
+  font-variation-settings: "opsz" 96;
+}
+.t-section {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(36px, 6vw, 96px);
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  font-variation-settings: "opsz" 96;
+}
+.t-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  font-variation-settings: "opsz" 48;
 }
 
-/* Every VALUE is set as data -- coordinates, dB figures, confidences, band
-   counts, EPSG codes. This does more for the instrument feel than any
-   background effect. */
+/* The rule that matters more than the typeface: every value is data. */
 .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* Telemetry at display scale — the signature move. */
+.t-telemetry {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
+}
 
 .label {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-ink-3);
+  color: var(--color-ink-2);
 }
 
-/* A 6 px identity dot. This is the entire remaining role of the modality
-   hues in the interface chrome. */
-.dot {
-  width: 6px; height: 6px;
-  border-radius: 999px;
-  flex: none;
-  display: inline-block;
-}
+/* ------------------------------------------------------ cartographic furniture */
 
-/* The graticule -- a lat/lon grid. Kept, but only behind the 3D stage where
-   it is map furniture, and at roughly half its former contrast so it stops
-   competing with the imagery. */
 .graticule {
   background-image:
-    linear-gradient(rgba(120, 200, 210, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(120, 200, 210, 0.028) 1px, transparent 1px);
-  background-size: 128px 128px, 128px 128px;
+    linear-gradient(to right, rgb(15 22 19 / 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(15 22 19 / 0.055) 1px, transparent 1px);
+  background-size: 64px 64px;
 }
+
+/* Registration marks at the corners of a plate — survey-office, not SaaS. */
+.crop { position: relative; }
+.crop::before, .crop::after {
+  content: "";
+  position: absolute;
+  width: 14px; height: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+.crop::before { top: -7px; left: -7px; border-top: 1px solid var(--color-ink); border-left: 1px solid var(--color-ink); }
+.crop::after { bottom: -7px; right: -7px; border-bottom: 1px solid var(--color-ink); border-right: 1px solid var(--color-ink); }
+
+.raised { box-shadow: 0 1px 2px rgb(15 22 19 / 0.04), 0 8px 24px rgb(15 22 19 / 0.06); }
+
+/* Glass is permitted exactly twice: the toolbar floating over the scene, and
+   the command palette. Nowhere else. (06 §4) */
+.glass {
+  background: rgb(255 255 255 / 0.74);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid rgb(15 22 19 / 0.08);
+}
+
+/* ------------------------------------------------------------ controls */
 
 *:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--color-rule-2);
-  border-radius: 999px;
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-::-webkit-scrollbar-thumb:hover { background-color: var(--color-ink-3); }
-
-input[type="range"] {
+input[type="range"].instrument {
   appearance: none;
-  height: 3px;
+  height: 2px;
   background: var(--color-rule-2);
-  border-radius: 999px;
+  cursor: pointer;
 }
-input[type="range"]::-webkit-slider-thumb {
+input[type="range"].instrument::-webkit-slider-thumb {
   appearance: none;
   width: 14px; height: 14px;
   border-radius: 50%;
-  background: var(--color-accent);
-  border: 3px solid var(--color-void);
-  box-shadow: 0 0 0 1px var(--color-accent);
-  cursor: grab;
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
 }
-input[type="range"]::-moz-range-thumb {
-  width: 14px; height: 14px;
+input[type="range"].instrument::-moz-range-thumb {
+  width: 12px; height: 12px;
   border-radius: 50%;
-  background: var(--color-accent);
-  border: 3px solid var(--color-void);
-  cursor: grab;
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
 }
 
-@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise 0.22s var(--ease-out) both; }
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-rule-2) transparent; }
 
-/* A slow radar sweep across the scene. One ambient motion, taken from the
-   subject rather than from a template -- and it stops entirely under
-   prefers-reduced-motion. */
-@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(200%); } }
-.sweep { animation: sweep 9s linear infinite; }
+/* --------------------------------------------------------------- motion */
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+/* ---------------------------------------------------------------- print */
+
+@media print {
+  @page { size: A4; margin: 16mm 14mm; }
+  html, body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .print-break { break-before: page; }
+  a { color: inherit; text-decoration: none; }
 }

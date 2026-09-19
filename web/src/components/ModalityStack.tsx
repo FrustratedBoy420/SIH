@@ -1,317 +1,209 @@
 /**
- * The modality stack — the one place three dimensions carry information.
+ * The modality stack — the one place three dimensions carry information
+ * (06 §7). Optical above, fusion between, SAR below; pull them apart and the
+ * complementarity the PS asks for (R4) is seen rather than claimed:
  *
- * Three textured planes floating in space: OPTICAL on top, FUSION between,
- * SAR below. Drag the separation slider and they pull apart.
+ *   OPTICAL  cloud over the main town, and nothing visible beneath it
+ *   SAR      no cloud — radar passes through it — and structures bright
+ *   FUSION   what SAR recovered from beneath that cloud, in the change hue
  *
- * This is not decoration. Requirement 5.4 of the problem statement asks the
- * system to demonstrate that optical and SAR carry *complementary* information.
- * Most implementations show that as a table of numbers. Here a judge separates
- * the planes and sees it directly:
+ * Written against three.js directly, with named imports, rather than through
+ * react-three-fiber: r3f registers the whole THREE namespace, which defeats
+ * tree-shaking and alone put the bundle over NFR-13. The scene is small
+ * enough that the imperative version is also the clearer one.
  *
- *   - the OPTICAL plane carries a cloud deck over the north-east, and under it,
- *     nothing is visible
- *   - the SAR plane has no cloud at all, because radar passes through it, and
- *     the built-up areas are bright because corners reflect straight back
- *   - the FUSION plane marks in crimson exactly what SAR recovered from
- *     beneath that cloud
- *
- * The requirement becomes a gesture rather than a claim.
- *
- * Evidence boxes are projected onto the fusion plane in real geographic
- * coordinates, converted from the raster's affine geotransform on the server.
+ * Idle drift until first touch; none under reduced motion. Labels are DOM,
+ * projected each frame, so they are real text. Everything here is also in the
+ * evidence and trace panels — the canvas is never the only path (UI-13).
  */
 
-import { useMemo, useRef, useState, useEffect } from 'react'
-import { Canvas, useFrame, useLoader, type ThreeEvent } from '@react-three/fiber'
-import { OrbitControls, Html } from '@react-three/drei'
-import * as THREE from 'three'
-import type { GeoBox, RasterSummary } from '@/lib/api'
+import { useEffect, useRef } from 'react'
+import {
+  Color, EdgesGeometry, Group, LineBasicMaterial, LineSegments, Mesh, MeshBasicMaterial, PerspectiveCamera,
+  PlaneGeometry, Raycaster, Scene, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer, DoubleSide,
+  type Texture,
+} from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import type { GeoBox } from '@/lib/contract'
 
 const PLANE_W = 3.2
+export type LayerKey = 'optical' | 'fusion' | 'sar'
 
-type LayerKey = 'optical' | 'fusion' | 'sar'
-
-interface LayerDef {
-  key: LayerKey
-  y: number
-  label: string
-  sub: string
-  colour: string
-}
-
-const LAYERS: LayerDef[] = [
-  { key: 'optical', y: 1, label: 'OPTICAL', sub: 'S2 · 4 bands · cloud 6%', colour: '#ffb454' },
-  { key: 'fusion', y: 0, label: 'FUSION', sub: 'derived · recovery in crimson', colour: '#b48cff' },
-  { key: 'sar', y: -1, label: 'SAR', sub: 'S1 · VV/VH · cloud-free', colour: '#35e0e8' },
+const LAYERS: { key: LayerKey; y: number; label: string; colour: string }[] = [
+  { key: 'optical', y: 1, label: 'OPTICAL', colour: '#b8763a' },
+  { key: 'fusion', y: 0, label: 'FUSION', colour: '#6b5ca5' },
+  { key: 'sar', y: -1, label: 'SAR', colour: '#2c7a8c' },
 ]
 
-function Plane({
-  def, url, separation, visible, dimmed, onSelect, aspect,
-}: {
-  def: LayerDef
-  url: string
+interface Props {
+  urls: Record<LayerKey, string>
+  subs: Record<LayerKey, string>
   separation: number
-  visible: boolean
-  dimmed: boolean
-  onSelect: (k: LayerKey) => void
-  aspect: number
-}) {
-  const texture = useLoader(THREE.TextureLoader, url)
-  const group = useRef<THREE.Group>(null)
-  const [hovered, setHovered] = useState(false)
+  boxes: GeoBox[]
+  bounds?: number[]
+  aspect?: number
+  interactive?: boolean
+  fit?: number
+  onError?: () => void
+}
+
+export default function ModalityStack({ urls, subs, separation, boxes, bounds, aspect = 1, interactive = true, fit = 1, onError }: Props) {
+  const host = useRef<HTMLDivElement>(null)
+  const labels = useRef<(HTMLDivElement | null)[]>([])
+  const sep = useRef(separation)
+  sep.current = separation
+  const api = useRef<{ setBoxes: (b: GeoBox[], bounds?: number[]) => void } | null>(null)
 
   useEffect(() => {
-    texture.colorSpace = THREE.SRGBColorSpace
-    texture.anisotropy = 8
-    texture.needsUpdate = true
-  }, [texture])
+    const el = host.current
+    if (!el) return
+    let renderer: WebGLRenderer
+    try {
+      renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' })
+    } catch { onError?.(); return }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.outputColorSpace = SRGBColorSpace
+    el.appendChild(renderer.domElement)
+    renderer.domElement.style.display = 'block'
+    renderer.domElement.addEventListener('webglcontextlost', () => onError?.())
 
-  useFrame((_, dt) => {
-    if (!group.current) return
-    // 1.35 keeps all three plates inside the frustum at full separation;
-    // 2.2 pushed the outer two off-screen and left only fusion visible
-    const target = def.y * separation * 1.35
-    // frame-rate independent easing, so the motion feels the same on a
-    // 60 Hz venue laptop and a 144 Hz dev machine
-    group.current.position.y += (target - group.current.position.y) * (1 - Math.exp(-9 * dt))
-  })
+    const scene = new Scene()
+    const camera = new PerspectiveCamera(40, 1, 0.1, 100)
+    camera.position.set(3.9 * fit, 3.4 * fit, 5.3 * fit)
+    const controls = new OrbitControls(camera, renderer.domElement)
+    Object.assign(controls, { enableDamping: true, dampingFactor: 0.07, enableZoom: interactive, enablePan: false, minDistance: 3, maxDistance: 14, maxPolarAngle: Math.PI * 0.87 })
 
-  const h = PLANE_W / aspect
-
-  return (
-    <group ref={group} visible={visible}>
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        onPointerOver={(e: ThreeEvent<PointerEvent>) => { e.stopPropagation(); setHovered(true) }}
-        onPointerOut={() => setHovered(false)}
-        onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onSelect(def.key) }}
-      >
-        <planeGeometry args={[PLANE_W, h]} />
-        <meshBasicMaterial
-          map={texture}
-          transparent
-          opacity={dimmed ? 0.12 : 1}
-          side={THREE.DoubleSide}
-          toneMapped={false}
-        />
-      </mesh>
-
-      {/* a plate border rather than a card border — cartographic furniture */}
-      <lineSegments rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
-        <edgesGeometry args={[new THREE.PlaneGeometry(PLANE_W, h)]} />
-        <lineBasicMaterial color={def.colour} transparent opacity={hovered ? 1 : 0.75} />
-      </lineSegments>
-
-      {/* Label sits off the plate's left edge and is rendered in SCREEN space:
-          no distanceFactor, so it stays a constant readable size instead of
-          growing to fill the viewport as the camera moves in. */}
-      <Html position={[-PLANE_W / 2 - 0.1, 0.04, 0]} center zIndexRange={[10, 0]}>
-        <div
-          className="mono pointer-events-none translate-x-[-100%] select-none whitespace-nowrap px-1.5 py-0.5 text-right"
-          style={{
-            background: 'rgba(5,9,10,0.9)',
-            border: `1px solid ${def.colour}`,
-            borderRightWidth: 2,
-            color: '#e8f2f0',
-            fontSize: 9,
-            lineHeight: 1.35,
-          }}
-        >
-          <b style={{ color: def.colour, letterSpacing: '0.08em' }}>{def.label}</b>
-          <span className="block opacity-60" style={{ fontSize: 7.5 }}>{def.sub}</span>
-        </div>
-      </Html>
-    </group>
-  )
-}
-
-/**
- * Evidence boxes, in real geographic coordinates, on the fusion plane.
- *
- * Drawn as a translucent fill plus an outline rather than an outline alone. A
- * 1.6 px line seen at this camera angle is close to invisible against a busy
- * false-colour scene -- the geometry was being rendered and still failing to
- * communicate, which is the same as not rendering it.
- *
- * The fill is depthWrite={false} so overlapping detections do not punch holes
- * in each other, and each quad is lifted a hair above the plane by its index so
- * coincident boxes (the SAR detection and the under-cloud recovery cover almost
- * the same ground) do not z-fight.
- */
-function EvidenceBoxes({
-  boxes, bounds, aspect,
-}: {
-  boxes: GeoBox[]
-  bounds: number[] | undefined
-  aspect: number
-}) {
-  const group = useRef<THREE.Group>(null)
-  useFrame((_, dt) => {
-    if (group.current) {
-      group.current.position.y += (0.012 - group.current.position.y) * (1 - Math.exp(-9 * dt))
-    }
-  })
-
-  const h = PLANE_W / aspect
-  const quads = useMemo(() => {
-    if (!bounds || boxes.length === 0) return []
-    const [minx, miny, maxx, maxy] = bounds
-    const spanX = maxx - minx || 1
-    const spanY = maxy - miny || 1
-    return boxes.slice(0, 40).map((b) => {
-      // geographic -> plane-local. Latitude increases north and the plane's
-      // local +z runs south, hence the sign flip on the z term. The API does
-      // not guarantee lat0 < lat1, so take absolute extents rather than
-      // assuming an ordering -- a negative width renders as nothing at all.
-      const x0 = ((b.lon0 - minx) / spanX - 0.5) * PLANE_W
-      const x1 = ((b.lon1 - minx) / spanX - 0.5) * PLANE_W
-      const z0 = -((b.lat0 - miny) / spanY - 0.5) * h
-      const z1 = -((b.lat1 - miny) / spanY - 0.5) * h
-      return {
-        cx: (x0 + x1) / 2,
-        cz: (z0 + z1) / 2,
-        w: Math.max(Math.abs(x1 - x0), 0.012),
-        d: Math.max(Math.abs(z1 - z0), 0.012),
-      }
+    const h = PLANE_W / aspect
+    const loader = new TextureLoader()
+    const disposables: { dispose: () => void }[] = []
+    const planes = LAYERS.map((def) => {
+      const g = new Group()
+      const geo = new PlaneGeometry(PLANE_W, h)
+      const mat = new MeshBasicMaterial({ transparent: true, side: DoubleSide, toneMapped: false, color: new Color('#e9edeb') })
+      const tex: Texture = loader.load(urls[def.key], (t) => { t.colorSpace = SRGBColorSpace; mat.color.set('#ffffff'); mat.needsUpdate = true })
+      tex.anisotropy = 8
+      mat.map = tex
+      const mesh = new Mesh(geo, mat)
+      mesh.rotation.x = -Math.PI / 2
+      mesh.userData.key = def.key
+      const edges = new LineSegments(new EdgesGeometry(geo), new LineBasicMaterial({ color: def.colour }))
+      edges.rotation.x = -Math.PI / 2
+      edges.position.y = 0.002
+      g.add(mesh, edges)
+      scene.add(g)
+      disposables.push(geo, mat, tex, edges.geometry, edges.material as LineBasicMaterial)
+      return { def, g, mesh, mat }
     })
-  }, [boxes, bounds, aspect, h])
+
+    const boxGroup = new Group()
+    planes[1].g.add(boxGroup)
+    const setBoxes = (bs: GeoBox[], bd?: number[]) => {
+      boxGroup.children.slice().forEach((c) => { boxGroup.remove(c); (c as Mesh).geometry?.dispose() })
+      if (!bd) return
+      const [minx, miny, maxx, maxy] = bd
+      bs.slice(0, 40).forEach((b, i) => {
+        if (b.lon0 === null || b.lon1 === null || b.lat0 === null || b.lat1 === null) return
+        const x0 = ((b.lon0 - minx) / (maxx - minx || 1) - 0.5) * PLANE_W
+        const x1 = ((b.lon1 - minx) / (maxx - minx || 1) - 0.5) * PLANE_W
+        const z0 = -((b.lat0 - miny) / (maxy - miny || 1) - 0.5) * h
+        const z1 = -((b.lat1 - miny) / (maxy - miny || 1) - 0.5) * h
+        const geo = new PlaneGeometry(Math.max(Math.abs(x1 - x0), 0.012), Math.max(Math.abs(z1 - z0), 0.012))
+        const fill = new Mesh(geo, new MeshBasicMaterial({ color: '#c4342a', transparent: true, opacity: 0.3, depthWrite: false, side: DoubleSide }))
+        const line = new LineSegments(new EdgesGeometry(geo), new LineBasicMaterial({ color: '#c4342a' }))
+        for (const o of [fill, line]) { o.rotation.x = -Math.PI / 2; o.position.set((x0 + x1) / 2, 0.012 + i * 0.0012, (z0 + z1) / 2) }
+        boxGroup.add(fill, line)
+      })
+    }
+    api.current = { setBoxes }
+
+    // focus: click a plate to isolate it
+    let focus: LayerKey | null = null
+    const ray = new Raycaster(), ptr = new Vector2()
+    let downAt = 0
+    const onDown = () => { downAt = performance.now(); idle = false }
+    const onUp = (e: PointerEvent) => {
+      if (performance.now() - downAt > 250) return
+      const r = renderer.domElement.getBoundingClientRect()
+      ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
+      ray.setFromCamera(ptr, camera)
+      const hit = ray.intersectObjects(planes.map((p) => p.mesh))[0]
+      const k = (hit?.object.userData.key as LayerKey | undefined) ?? null
+      focus = k && k !== focus ? k : null
+      planes.forEach((p) => { p.mat.opacity = focus && focus !== p.def.key ? 0.14 : 1 })
+    }
+    renderer.domElement.addEventListener('pointerdown', onDown)
+    renderer.domElement.addEventListener('pointerup', onUp)
+
+    const resize = () => {
+      const w = el.clientWidth, hh = el.clientHeight
+      renderer.setSize(w, hh, false)
+      renderer.domElement.style.width = '100%'
+      renderer.domElement.style.height = '100%'
+      camera.aspect = w / Math.max(hh, 1)
+      camera.updateProjectionMatrix()
+    }
+    const ro = new ResizeObserver(resize)
+    ro.observe(el)
+    resize()
+
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+    let idle = true, raf = 0, last = performance.now()
+    const v = new Vector3()
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      for (const p of planes) {
+        const target = p.def.y * sep.current * 1.35
+        // frame-rate independent easing, same feel at 60 Hz and 144 Hz
+        p.g.position.y += (target - p.g.position.y) * (1 - Math.exp(-9 * dt))
+      }
+      if (idle && !reduce) {
+        const a = 0.07 * dt, x = camera.position.x, z = camera.position.z
+        camera.position.x = x * Math.cos(a) - z * Math.sin(a)
+        camera.position.z = x * Math.sin(a) + z * Math.cos(a)
+      }
+      controls.update()
+      renderer.render(scene, camera)
+      // project each plate's left edge to place its DOM label
+      const w = el.clientWidth, hh = el.clientHeight
+      planes.forEach((p, i) => {
+        const lab = labels.current[i]
+        if (!lab) return
+        v.set(-PLANE_W / 2, p.g.position.y, 0).project(camera)
+        // keep the label inside the canvas when the orbit swings the plate's edge out of view
+        const x = Math.max(lab.offsetWidth + 14, ((v.x + 1) / 2) * w)
+        lab.style.transform = `translate(${x}px, ${((1 - v.y) / 2) * hh}px) translate(calc(-100% - 10px), -50%)`
+        lab.style.opacity = focus && focus !== p.def.key ? '0.4' : '1'
+      })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+      controls.dispose()
+      boxGroup.children.forEach((c) => (c as Mesh).geometry?.dispose())
+      disposables.forEach((d) => d.dispose())
+      renderer.dispose()
+      renderer.domElement.remove()
+      api.current = null
+    }
+    // the scene is rebuilt only when its imagery or geometry changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urls.optical, urls.fusion, urls.sar, aspect, interactive, fit])
+
+  useEffect(() => { api.current?.setBoxes(boxes, bounds) }, [boxes, bounds, urls.optical])
 
   return (
-    <group ref={group} position={[0, 0.012, 0]}>
-      {quads.map((q, i) => (
-        <group key={i} position={[q.cx, i * 0.0012, q.cz]} rotation={[-Math.PI / 2, 0, 0]}>
-          <mesh>
-            <planeGeometry args={[q.w, q.d]} />
-            <meshBasicMaterial
-              color="#ff4d3d" transparent opacity={0.24}
-              depthWrite={false} side={THREE.DoubleSide}
-            />
-          </mesh>
-          <lineSegments>
-            <edgesGeometry args={[new THREE.PlaneGeometry(q.w, q.d)]} />
-            <lineBasicMaterial color="#ff8a7a" transparent opacity={0.95} />
-          </lineSegments>
-        </group>
+    <div className="relative h-full w-full overflow-hidden" data-testid="stack-canvas">
+      <div ref={host} className="absolute inset-0" />
+      {LAYERS.map((l, i) => (
+        <div key={l.key} ref={(d) => { labels.current[i] = d }} className="pointer-events-none absolute left-0 top-0 whitespace-nowrap border border-rule bg-surface px-2 py-1 text-right" style={{ borderRight: `3px solid ${l.colour}` }}>
+          <b className="mono block text-[10.5px] tracking-[0.08em] text-ink">{l.label}</b>
+          <span className="mono block text-[9.5px] text-ink-2">{subs[l.key]}</span>
+        </div>
       ))}
-    </group>
+    </div>
   )
 }
-
-function Scene({
-  separation, layerUrl, hidden, focus, onSelect, boxes, bounds, aspect, interactive,
-}: {
-  separation: number
-  layerUrl: (k: string) => string
-  hidden: Set<LayerKey>
-  focus: LayerKey | null
-  onSelect: (k: LayerKey) => void
-  boxes: GeoBox[]
-  bounds: number[] | undefined
-  aspect: number
-  interactive: boolean
-}) {
-  const [idle, setIdle] = useState(true)
-
-  useFrame((state, dt) => {
-    if (!idle) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    // slow orbit until the first interaction, so the stack reads as three
-    // separate planes at a glance rather than one flat image
-    const a = 0.07 * dt
-    const c = state.camera
-    const x = c.position.x, z = c.position.z
-    c.position.x = x * Math.cos(a) - z * Math.sin(a)
-    c.position.z = x * Math.sin(a) + z * Math.cos(a)
-    c.lookAt(0, 0, 0)
-  })
-
-  return (
-    <>
-      <ambientLight intensity={1.6} />
-      <directionalLight position={[4, 8, 5]} intensity={1.2} />
-
-      {LAYERS.map((d) => (
-        <Plane
-          key={d.key}
-          def={d}
-          url={layerUrl(d.key)}
-          separation={separation}
-          visible={!hidden.has(d.key)}
-          dimmed={focus !== null && focus !== d.key}
-          onSelect={onSelect}
-          aspect={aspect}
-        />
-      ))}
-
-      <EvidenceBoxes boxes={boxes} bounds={bounds} aspect={aspect} />
-
-      {/* Zoom is disabled outside the workstation. A canvas that swallows the
-          scroll wheel on a landing page traps the reader on the hero -- the
-          gesture they expect to move the page instead moves the camera. */}
-      <OrbitControls
-        enableDamping
-        dampingFactor={0.07}
-        enableZoom={interactive}
-        enablePan={interactive}
-        minDistance={3}
-        maxDistance={14}
-        maxPolarAngle={Math.PI * 0.87}
-        onStart={() => setIdle(false)}
-      />
-    </>
-  )
-}
-
-/** Camera distance tuned for the workstation's large viewport. */
-const CAMERA: [number, number, number] = [3.9, 3.4, 5.3]
-
-export default function ModalityStack({
-  separation, layerUrl, hidden, focus, onSelect, boxes, scene,
-  fit = 1, interactive = true,
-}: {
-  separation: number
-  layerUrl: (k: string) => string
-  hidden: Set<LayerKey>
-  focus: LayerKey | null
-  onSelect: (k: LayerKey) => void
-  boxes: GeoBox[]
-  scene: RasterSummary | undefined
-  /**
-   * Scales the camera distance. The default position is framed for the
-   * workstation, which is roughly 1100 px wide; dropped into the landing
-   * hero at half that width the same framing leaves the stack small with
-   * dead space around it, because the vertical field of view is fixed and
-   * the horizontal one narrows with the panel. Pass fit < 1 to move in.
-   */
-  fit?: number
-  /** False on marketing surfaces: orbit still works, zoom and pan do not. */
-  interactive?: boolean
-}) {
-  const aspect = scene ? scene.width / scene.height : 1
-  const bounds = scene?.bounds
-  const camera = CAMERA.map((v) => v * fit) as [number, number, number]
-
-  return (
-    <Canvas
-      dpr={[1, 2]}
-      camera={{ position: camera, fov: 40 }}
-      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-      style={{ background: 'transparent' }}
-    >
-      <Scene
-        separation={separation}
-        layerUrl={layerUrl}
-        hidden={hidden}
-        focus={focus}
-        onSelect={onSelect}
-        boxes={boxes}
-        bounds={bounds}
-        aspect={aspect}
-        interactive={interactive}
-      />
-    </Canvas>
-  )
-}
-
-export type { LayerKey }
