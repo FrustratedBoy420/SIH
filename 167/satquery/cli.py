@@ -7,7 +7,14 @@
     python -m satquery.cli datasets       what data is staged on this machine
     python -m satquery.cli models         the model registry and weight status
     python -m satquery.cli eval           metrics and the A-E ablation
-    python -m satquery.cli serve          the HTTP API on :8000
+    python -m satquery.cli serve          the HTTP API on :8000 (--build builds the UI)
+    python -m satquery.cli batch M.json   a manifest of queries, offline -> results.jsonl
+    python -m satquery.cli stress         EVL-08: behaviour under bad input
+    python -m satquery.cli calibrate      NFR-06: per-record calibration, >= 200 records
+    python -m satquery.cli heldout        RTR-07: router accuracy on the blind set
+    python -m satquery.cli bench          NFR-01/02: latency p50/p95
+    python -m satquery.cli replay RUN_ID  re-run a stored run and diff it
+    python -m satquery.cli runtime        serve adapter packs over HTTP (venue)
 """
 
 from __future__ import annotations
@@ -303,8 +310,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n  Task metrics\n")
         for t in rep["tasks"]:
             print(f"    {t['task']:<24} {t['metric']:<10} {t['value']:.4f}")
-        print(f"\n    calibration ECE       {rep['calibration']['ece']:.4f}"
-              f"  (n={rep['calibration']['n']})")
+        cal = evaluate.stored_calibration()
+        if cal and cal.get("ece") is not None:
+            print(f"\n    calibration ECE       {cal['ece']:.4f}  (n={cal['n']}, recorded "
+                  f"{cal['measured_at'][:10]} by `satquery calibrate`)")
+        else:
+            print("\n    calibration ECE       not measured — run `satquery calibrate` (needs >= 200 records)")
         print(f"\n  Ablation — same scene, layers added in turn\n")
         print(f"    {'':<4}{'configuration':<34}{'seg F1':>8}{'router':>8}"
               f"{'x-modal':>9}{'capability':>12}{'Δ vs A':>9}")

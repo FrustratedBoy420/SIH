@@ -213,13 +213,23 @@ Errors: `{error: {code, message, remedy}}` — typed, readable, no stack traces 
 
 ## 6. Definition of done — backend
 
-- [ ] Clean clone → one command → UI + API (NFR-14)
-- [ ] Upload with roles; readable errors; limits enforced
-- [ ] Refusal < 1 s, no model invoked, visible in the trace
-- [ ] RQ-1–RQ-5 route correctly; held-out router accuracy reported
-- [ ] Stub pack and real M1 pack load through one interface; engine reported
-- [ ] Answer layer provably pixel-free; every answer number in the evidence
-- [ ] GeoJSON opens in QGIS; report downloads and stands alone
-- [ ] Both ablations and calibration served with formulas and anchors
-- [ ] Every run replayable from its record
-- [ ] (Build) batch mode; (Finale) offline docker compose with labelled fallback
+Status 19 Sep 2026 (`satquery selftest`: 46/46; `web/verify.mjs`: 39/39).
+
+- [x] Clean clone → one command → UI + API (NFR-14) — `satquery serve --build`, or `docker compose up`; verified from a fresh clone and a non-editable `pip install .`
+- [x] Upload with roles; readable errors; limits enforced — errors never carry server paths; rasters over `SATQUERY_ANALYSIS_MAX_SIDE` are block-averaged and say so (ING-06)
+- [x] Refusal < 1 s, no model invoked, visible in the trace — < 1 ms (`satquery bench`)
+- [~] RQ-1–RQ-5 route correctly; held-out router accuracy reported — RQs pass; `satquery heldout` scores the set, but `reference/router_heldout.jsonl` must be **written by a person blind to the rules** (`reference/README.md`)
+- [~] Stub pack and real M1 pack load through one interface; engine reported — seam wired end to end, in process and over HTTP, with degradation and A3 conflicts; **M1's GPU inference inside `InProcessRuntime.infer` is the one open piece** (the runtime side of the seam)
+- [x] Answer layer provably pixel-free; every answer number in the evidence — plus: model prose never becomes the answer (tested)
+- [x] GeoJSON opens in QGIS; report downloads and stands alone
+- [x] Both ablations and calibration served with formulas and anchors — calibration: ECE 0.051 over 216 judged records (`satquery calibrate`)
+- [x] Every run replayable from its record — `satquery replay`, `POST /api/runs/{id}/replay`
+- [x] (Build) batch mode — `satquery batch`
+- [x] (Finale) offline docker compose — verified with `--network none`; model profile verified with a stub pack across containers
+- [x] Stress suite (EVL-08) — 16/16 (`satquery stress`)
+- [ ] Latency on the **venue laptop** — `satquery bench` there; dev machine p95 185 ms cross-modal
+- [ ] Full-resolution tile-and-stitch for sub-metre scenes — open: the classical thresholds are global
+
+**Changed from this plan:** the venue fallback when the model runtime is down is
+the live classical measurement, not pre-computed results — see
+`docs/10_Decision_Record.md`.
