@@ -425,6 +425,44 @@ def normalise(arr: np.ndarray, sensor: str, dtype: str = "") -> tuple[np.ndarray
     return np.clip(arr / div, 0.0, 1.0).astype(np.float32), f"digital numbers divided by {div:g}"
 
 
+def analysis_max_side() -> int:
+    """Longest side the API analyses at (SATQUERY_ANALYSIS_MAX_SIDE, default 2048)."""
+    import os
+    try:
+        return max(256, int(os.environ.get("SATQUERY_ANALYSIS_MAX_SIDE", "2048")))
+    except ValueError:
+        return 2048
+
+
+def fit_for_analysis(r: Raster, max_side: int | None = None) -> Raster:
+    """Block-average a large raster down to the analysis size, and say so (ING-06).
+
+    A full Sentinel-2 tile is ~120 MP; analysed at full size it is gigabytes
+    of float32 and minutes of filtering on a venue laptop. The factor is an
+    integer, so the geotransform stays exact — each output pixel is the mean
+    of a k x k block and its pixel size is k times the original. The result
+    carries `analysed_at` and `original_size`, as the browser engine's do.
+    Full-resolution tiling with stitching is not done: the classical
+    thresholds are global, and tiling would change them.
+    """
+    limit = max_side or analysis_max_side()
+    side = max(r.width, r.height)
+    if side <= limit:
+        return r
+    k = -(-side // limit)                                   # ceil division
+    h, w = (r.height // k) * k, (r.width // k) * k
+    data = r.data[:, :h, :w].reshape(r.bands, h // k, k, w // k, k).mean(axis=(2, 4)).astype(np.float32)
+    t = r.transform
+    transform = GeoTransform(t.origin_x, t.pixel_width * k, t.row_rotation * k,
+                             t.origin_y, t.col_rotation * k, t.pixel_height * k, crs=t.crs)
+    meta = dict(r.meta, original_size=f"{r.width}x{r.height}",
+                analysed_at=f"{w // k}x{h // k} px (block mean {k}x{k} of {r.width}x{r.height}; "
+                            f"SATQUERY_ANALYSIS_MAX_SIDE={limit})")
+    return Raster(data=data, transform=transform, crs=r.crs, georeferenced=r.georeferenced,
+                  sensor=r.sensor, band_names=list(r.band_names), source=r.source,
+                  acquired=r.acquired, meta=meta)
+
+
 def write_geotiff(raster: Raster, path: str | Path) -> Path:
     """Write a single-band or RGB GeoTIFF carrying the geotransform tags.
 

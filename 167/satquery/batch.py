@@ -36,7 +36,7 @@ from typing import Any, Iterable
 from . import __version__
 from .errors import SatQueryError
 from .pipeline import Pipeline
-from .raster import read as read_raster
+from .raster import fit_for_analysis, read as read_raster
 from .router import Inputs
 from .store import ROLES
 
@@ -67,7 +67,7 @@ def _inputs(spec: dict[str, str], base: Path) -> Inputs:
         if not f.exists():
             raise SatQueryError("missing_file", f"{rel} does not exist.", "Check the path; it is relative to the manifest.")
         try:
-            got[role] = read_raster(f, sensor=SENSOR[role])
+            got[role] = fit_for_analysis(read_raster(f, sensor=SENSOR[role]))
         except SatQueryError:
             raise
         except Exception as exc:                                  # noqa: BLE001

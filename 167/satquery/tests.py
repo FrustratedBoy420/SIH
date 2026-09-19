@@ -617,6 +617,19 @@ def _():
     ok(lines[1]["error"]["code"] == "missing_file", f"bad item gave {lines[1]}")
 
 
+@check("ING-06 — a raster over the analysis size is block-averaged, geography exact, and says so")
+def _():
+    from .raster import fit_for_analysis
+    sc = scenes.build(size=300, seed=5)
+    o = sc.optical(5, with_cloud=False)
+    f = fit_for_analysis(o, max_side=128)                        # 300 px -> factor 3 -> 100 px
+    ok(f.width == 100 and f.height == 100, f"{f.width}x{f.height}")
+    ok(abs(f.transform.ground_sample_distance - 3 * o.transform.ground_sample_distance) < 1e-6, "pixel size not scaled")
+    ok(f.bounds()[0] == o.bounds()[0] and abs(f.bounds()[3] - o.bounds()[3]) < 1e-9, "origin moved")
+    ok("block mean 3x3" in f.meta.get("analysed_at", ""), f"not stated: {f.meta}")
+    ok(fit_for_analysis(o, max_side=512) is o, "a raster under the limit was touched")
+
+
 # ------------------------------------------------------------------- API #
 
 class _Api:

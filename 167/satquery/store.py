@@ -29,7 +29,7 @@ from typing import Any, Iterator
 
 from . import __version__
 from .errors import SatQueryError, not_found, too_large, unsupported
-from .raster import Raster, read as read_raster
+from .raster import Raster, fit_for_analysis, read as read_raster
 
 # --------------------------------------------------------------------------- #
 # limits — declared here, enforced at the door, reported in the error
@@ -111,7 +111,7 @@ class RasterStore:
             sensor = "sar" if role == "sar" else ("optical" if role == "optical" else "")
 
         try:
-            raster = read_raster(path, sensor=sensor)
+            raster = fit_for_analysis(read_raster(path, sensor=sensor))
         except SatQueryError:
             raise
         except Exception as exc:                                  # noqa: BLE001
@@ -167,7 +167,7 @@ class RasterStore:
         if not candidates:
             raise not_found("raster")
         meta = self.summary(raster_id)
-        raster = read_raster(candidates[0], sensor=str(meta.get("sensor", "")))
+        raster = fit_for_analysis(read_raster(candidates[0], sensor=str(meta.get("sensor", ""))))
         self._remember(raster_id, raster)
         return raster
 
