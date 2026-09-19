@@ -104,12 +104,12 @@ try {
   await check('nav → workstation', async () => {
     await page.locator('nav a', { hasText: 'Workstation' }).click()
     await page.locator(tid('workstation')).waitFor()
-    await page.locator(tid('slot-optical')).getByText('built-in · synthetic').waitFor({ timeout: 20000 })
+    await page.locator(tid('slot-optical')).getByText('built-in · Sentinel').waitFor({ timeout: 20000 })
     return page.url()
   })
   await check('metadata shown for every raster', async () => {
     const t = await page.locator(tid('slot-sar')).innerText()
-    for (const k of ['EPSG:4326', 'GSD', 'vv, vh']) if (!t.includes(k)) throw new Error(`missing ${k}`)
+    for (const k of ['EPSG:32644', 'GSD', 'vv, vh', 'Sentinel-1A']) if (!t.includes(k)) throw new Error(`missing ${k}`)
     return 'CRS · bands · GSD · sensor · acquired'
   })
 
@@ -203,7 +203,9 @@ try {
   await page.locator(tid('view-map')).click()
 
   /* ------------------------------------------------------------ uploads */
-  const gt = path.join(FIX, 'optical_utm.tif')
+  // Fixtures dir first; otherwise the built-in T2 scene, which is itself a real
+  // Sentinel-2 L2A GeoTIFF in EPSG:32644 — uploaded through the upload path.
+  const gt = [path.join(FIX, 'optical_utm.tif'), 'public/scenes/t2.tif'].find((f) => existsSync(f)) ?? path.join(FIX, 'optical_utm.tif')
   if (existsSync(gt)) {
     await check('upload a real GeoTIFF (UTM) as optical', async () => {
       await page.locator(tid('file-optical')).setInputFiles(gt)
@@ -220,7 +222,8 @@ try {
     await page.screenshot({ path: `${SHOTS}/16-ws-upload.png` })
   } else fail('upload a real GeoTIFF (UTM) as optical', `fixture missing: ${gt}`)
 
-  const bad = path.join(FIX, 'not_a_tiff.tif')
+  const bad = existsSync(path.join(FIX, 'not_a_tiff.tif')) ? path.join(FIX, 'not_a_tiff.tif') : path.join(SHOTS, 'not_a_tiff.tif')
+  if (!existsSync(bad)) writeFileSync(bad, 'this is plain text with a .tif extension')
   if (existsSync(bad)) {
     await check('malformed file gives a readable error', async () => {
       await page.locator(tid('file-sar')).setInputFiles(bad)
@@ -228,7 +231,8 @@ try {
       return t.replace(/\s+/g, ' ').slice(0, 100)
     })
   }
-  const png = path.join(FIX, 'benchmark.png')
+  // any PNG is non-georeferenced benchmark imagery; a screenshot taken above will do
+  const png = [path.join(FIX, 'benchmark.png'), path.join(SHOTS, '01-hero.png')].find((f) => existsSync(f)) ?? path.join(FIX, 'benchmark.png')
   if (existsSync(png)) {
     await check('PNG accepted as non-georeferenced benchmark imagery', async () => {
       await page.locator(tid('file-t1')).setInputFiles(png)
@@ -311,7 +315,7 @@ try {
   const p = await c.newPage(); watch(p)
   await check('no WebGL: stack degrades to 2D', async () => {
     await p.goto(`${BASE}/workstation?nowebgl`)
-    await p.locator(tid('slot-sar')).getByText('built-in · synthetic').waitFor({ timeout: 20000 })
+    await p.locator(tid('slot-sar')).getByText('built-in · Sentinel').waitFor({ timeout: 20000 })
     await p.locator(tid('view-stack')).click()
     await p.locator(tid('stack-fallback')).waitFor({ timeout: 10000 })
     await p.screenshot({ path: `${SHOTS}/31-no-webgl.png` })

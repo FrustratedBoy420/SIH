@@ -39,7 +39,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 
-from . import __version__, datasets, evaluate, report as reports, runtime as rt, scene as scenes
+from . import __version__, datasets, evaluate, report as reports, runtime as rt
 from .errors import SatQueryError, not_found
 from .pipeline import Pipeline, Result
 from .router import Inputs, REGISTRY
@@ -49,28 +49,41 @@ from .store import ACCEPTED, MAX_BYTES, MAX_PIXELS, RasterStore, RunStore, ROLES
 # built-in scenes
 # --------------------------------------------------------------------------- #
 
-DEMO_SEED = 7
+DEMO_SEED = 7          # the synthetic evaluation scene's seed (/api/evaluation)
 DEMO_SIZE = 512
 LAYERS = ("optical", "sar", "fusion", "t1", "t2")
+
+# Real Sentinel imagery, baked by tools/fetch_scenes.mjs + tools/bake_scenes.py.
+# The same files the browser engine fetches from /scenes/, read here through
+# the same reader an upload goes through.
+SCENES_DIR = Path(__file__).resolve().parent.parent / "web" / "public" / "scenes"
+_SENSOR = {"optical": "optical", "sar": "sar", "t1": "optical", "t2": "optical"}
 
 _CACHE: dict[str, Any] = {}
 
 
 def scene_bundle(size: int = DEMO_SIZE, seed: int = DEMO_SEED) -> dict[str, Any]:
-    """The demo scene, built once. Generating 512 px costs ~0.4 s."""
-    key = f"{size}:{seed}"
-    if key not in _CACHE:
-        sc = scenes.build(size=size, seed=seed)
-        t1s, t2s, truth = scenes.bitemporal(size=size, seed=seed)
-        _CACHE[key] = {
-            "scene": sc,
-            "optical": sc.optical(seed),
-            "sar": sc.sar(seed),
-            "t1": t1s.optical(seed, with_cloud=False),
-            "t2": t2s.optical(seed, with_cloud=False),
-            "truth_change": truth,
-        }
-    return _CACHE[key]
+    """The built-in scenes, read once from web/public/scenes/.
+
+    `size` and `seed` are kept for the signature; the scenes are real 512 px
+    Sentinel crops and are not generated.
+    """
+    if "real" not in _CACHE:
+        import json
+        from . import raster
+        manifest = json.loads((SCENES_DIR / "scenes.json").read_text(encoding="utf-8"))
+        bundle: dict[str, Any] = {"manifest": manifest}
+        for role, sc in manifest["scenes"].items():
+            r = raster.read(SCENES_DIR / sc["file"], sensor=_SENSOR[role], band_names=list(sc["bands"]))
+            r.source = f"{sc['product']}.tif"
+            r.acquired = sc["acquired"]
+            r.meta.update({"platform": sc["platform"], "product": sc["product"], "builtin": True,
+                           "attribution": sc["attribution"],
+                           **({"cloud_pct": sc["cloud_pct"]} if "cloud_pct" in sc else {}),
+                           **({"orbit": sc["orbit"]} if "orbit" in sc else {})})
+            bundle[role] = r
+        _CACHE["real"] = bundle
+    return _CACHE["real"]
 
 
 def _png(arr: np.ndarray) -> bytes:
@@ -96,8 +109,8 @@ def layer_png(layer: str, size: int = DEMO_SIZE, seed: int = DEMO_SEED) -> bytes
         opt, sar = b["optical"], b["sar"]
         base = opt.rgb().copy()
         vv = cv.lee_filter(sar.named("vv"), 7, 4)
-        hard = cv.closing(cv.opening(vv >= cv.otsu_multi(vv, 3)[-1], 1), 1)
-        cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data), 1), 2)
+        hard = cv.closing(cv.opening(vv >= cv.otsu_multi(cv.tail_clip(vv), 3)[-1], 1), 1)
+        cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data, opt.meta.get("display_gain", 1.0)), 1), 2)
         crimson = np.array([0.77, 0.20, 0.16])     # recovered from under cloud
         cyan = np.array([0.21, 0.88, 0.91])        # seen by both
         recovered, clear = hard & cloud, hard & ~cloud
@@ -312,14 +325,11 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
         b = scene_bundle()
         return {"scenes": [{
             "id": "demo", "layers": list(LAYERS), "size": DEMO_SIZE,
-            "seed": DEMO_SEED,
             "rasters": {r: b[r].summary() for r in ("optical", "sar", "t1", "t2")},
-            "truth": b["scene"].truth,
-            "note": "Pixel values are generated — Cartosat-2S and RISAT "
-                    "imagery cannot be obtained and the ISRO/SAC evaluation "
-                    "set is undisclosed. The rasters are real GeoTIFFs with a "
-                    "correct affine geotransform, and every algorithm "
-                    "operating on them is a real implementation.",
+            "note": "Real Sentinel-2 L2A and Sentinel-1 RTC crops over west "
+                    "Hyderabad (EPSG:32644, 10 m). No ground truth exists for "
+                    "them; measured accuracy comes from the synthetic scene "
+                    "at /api/evaluation. " + b["manifest"]["scenes"]["optical"]["attribution"],
         }]}
 
     @app.get("/api/scenes/{scene_id}/{layer}.png")

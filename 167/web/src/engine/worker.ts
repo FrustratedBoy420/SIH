@@ -10,8 +10,7 @@ import { run } from './pipeline'
 import { EngineError, summary, type Raster } from './raster'
 import { changeLayer, cloudLayer, falseColour, fusionLayer, stats, trueColour, type Pixels } from './render'
 import type { Inputs } from './router'
-import * as scenes from './scene'
-import { parseUpload } from './upload'
+import { parseTiffBuffer, parseUpload } from './upload'
 
 const store = new Map<string, Raster>()
 
@@ -35,33 +34,47 @@ function pack(r: Raster): WorkerRaster {
   return { role: r.role ?? '', raster_id: r.id, summary: { ...summary(r), role: r.role }, layers: layersOf(r) }
 }
 
-function demo(kind: DemoKind, size: number): WorkerRaster[] {
-  const seed = 7
+interface SceneManifest { scenes: Record<string, { file: string; product: string; platform: string; acquired: string; bands: string[]; attribution: string; cloud_pct?: number; orbit?: string }> }
+let manifest: Promise<SceneManifest> | null = null
+const sceneUrl = (f: string) => new URL(`${import.meta.env.BASE_URL}scenes/${f}`, self.location.origin).href
+
+/**
+ * The built-in scenes: real Sentinel-2 L2A and Sentinel-1 RTC crops over west
+ * Hyderabad, baked by tools/fetch_scenes.mjs + tools/bake_scenes.py. They are
+ * fetched and read through the same parser an upload goes through, so the
+ * demo exercises exactly the path real input takes (VAL-07). `size` is kept
+ * for the message shape; the scenes are 512 px and are not generated.
+ */
+async function demo(kind: DemoKind, _size: number): Promise<WorkerRaster[]> {
   const want: Record<DemoKind, string[]> = {
     crossmodal: ['optical', 'sar'], bitemporal: ['t1', 't2'], optical: ['optical'], sar: ['sar'], full: ['optical', 'sar', 't1', 't2'],
   }
-  const roles = want[kind]
-  const out: WorkerRaster[] = []
-  let sc: scenes.Scene | null = null
-  let bt: ReturnType<typeof scenes.bitemporal> | null = null
-  for (const role of roles) {
-    const id = `demo-${size}-${role}`
+  manifest ??= fetch(sceneUrl('scenes.json')).then((r) => {
+    if (!r.ok) throw new EngineError('missing_scene', 'The built-in scenes are not in this build.', 'Run tools/fetch_scenes.mjs and tools/bake_scenes.py, then rebuild.')
+    return r.json() as Promise<SceneManifest>
+  }).catch((e) => { manifest = null; throw e })
+  const m = await manifest
+  return Promise.all(want[kind].map(async (role) => {
+    const id = `demo-${role}`
     let r = store.get(id)
     if (!r) {
-      if (role === 'optical' || role === 'sar') {
-        sc ??= scenes.build(size, seed)
-        r = role === 'optical' ? scenes.optical(sc, seed, true, id) : scenes.sar(sc, seed, id)
-      } else {
-        bt ??= scenes.bitemporal(size, seed)
-        r = scenes.optical(role === 't1' ? bt.t1 : bt.t2, seed, false, id)
-        r.source = `${role === 't1' ? 'kharagpur_2022' : 'kharagpur_2024'}_optical.tif`
-      }
+      const sc = m.scenes[role]
+      const res = await fetch(sceneUrl(sc.file))
+      if (!res.ok) throw new EngineError('missing_scene', `The built-in ${role} scene could not be loaded.`, 'Reload the page.')
+      r = await parseTiffBuffer(await res.arrayBuffer(), role, id, role === 'sar' ? 'sar' : 'optical', `${sc.product}.tif`)
+      r.bandNames = sc.bands
       r.role = role
+      r.acquired = sc.acquired
+      r.meta = {
+        ...r.meta, platform: sc.platform, product: sc.product, builtin: true, attribution: sc.attribution,
+        band_order: 'from the scene manifest',
+        ...(sc.cloud_pct !== undefined && { cloud_pct: sc.cloud_pct }), ...(sc.orbit && { orbit: sc.orbit }),
+      }
+      delete r.meta.note
       store.set(id, r)
     }
-    out.push(pack(r))
-  }
-  return out
+    return pack(r)
+  }))
 }
 
 function get(id: string | undefined): Raster | undefined {

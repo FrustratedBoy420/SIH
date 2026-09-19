@@ -61,6 +61,10 @@ export interface RasterSummary {
   looks?: number
   polarisation?: string
   synthetic?: boolean
+  /** a built-in scene: real Sentinel imagery shipped with the app, never deleted from the store */
+  builtin?: boolean
+  product?: string
+  attribution?: string
   band_order?: string
   normalisation?: string
   analysed_at?: string

@@ -1,0 +1,66 @@
+{
+  "epsg": 32644,
+  "resolution_m": 10,
+  "bbox": [
+    211310,
+    1923110,
+    216430,
+    1928230
+  ],
+  "scenes": {
+    "optical": {
+      "product": "S2B_44QKE_20240810_0_L2A",
+      "platform": "Sentinel-2B MSI L2A",
+      "acquired": "2024-08-10T05:24:06.584000Z",
+      "bands": [
+        "red",
+        "green",
+        "blue",
+        "nir"
+      ],
+      "cloud_pct": 52.5,
+      "file": "optical.tif",
+      "attribution": "Contains modified Copernicus Sentinel data 2024, processed by ESA; via Element84 Earth Search and Microsoft Planetary Computer."
+    },
+    "sar": {
+      "product": "S1A_IW_GRDH_1SDV_20240813T003913_20240813T003938_055187_06B9ED_rtc",
+      "platform": "Sentinel-1A IW GRD · RTC γ⁰",
+      "acquired": "2024-08-13T00:39:25.782873Z",
+      "bands": [
+        "vv",
+        "vh"
+      ],
+      "orbit": "descending",
+      "file": "sar.tif",
+      "attribution": "Contains modified Copernicus Sentinel data 2024, processed by ESA; via Element84 Earth Search and Microsoft Planetary Computer."
+    },
+    "t1": {
+      "product": "S2A_44QKE_20180519_0_L2A",
+      "platform": "Sentinel-2A MSI L2A",
+      "acquired": "2018-05-19T05:16:14.663000Z",
+      "bands": [
+        "red",
+        "green",
+        "blue",
+        "nir"
+      ],
+      "cloud_pct": 0.6,
+      "file": "t1.tif",
+      "attribution": "Contains modified Copernicus Sentinel data 2018, processed by ESA; via Element84 Earth Search and Microsoft Planetary Computer."
+    },
+    "t2": {
+      "product": "S2B_44QKE_20250328_0_L2A",
+      "platform": "Sentinel-2B MSI L2A",
+      "acquired": "2025-03-28T05:24:04.318000Z",
+      "bands": [
+        "red",
+        "green",
+        "blue",
+        "nir"
+      ],
+      "cloud_pct": 0,
+      "file": "t2.tif",
+      "attribution": "Contains modified Copernicus Sentinel data 2025, processed by ESA; via Element84 Earth Search and Microsoft Planetary Computer."
+    }
+  }
+}

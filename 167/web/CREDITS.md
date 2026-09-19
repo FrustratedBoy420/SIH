@@ -29,6 +29,7 @@ The rule was: **borrow interaction, author identity.** Every borrowed component 
 | Asset | Source | Licence | Where it is used |
 |---|---|---|---|
 | `public/landmask.png` (360 × 180, 1°/px) | [Natural Earth](https://www.naturalearthdata.com) 1:110m land, via `nvkelso/natural-earth-vector`; baked by `tools/make_landmask.py` | Public domain | Where the landing globe places its land dots |
+| `public/scenes/*.tif` — built-in scenes, 512 × 512 px at 10 m, EPSG:32644, west Hyderabad | Sentinel-2 L2A (S2A 2018-05-19, S2B 2024-08-10, S2B 2025-03-28) via [Element84 Earth Search](https://earth-search.aws.element84.com/v1); Sentinel-1 RTC (S1A 2024-08-13) via [Microsoft Planetary Computer](https://planetarycomputer.microsoft.com); fetched by `tools/fetch_scenes.mjs`, written by `tools/bake_scenes.py` | Copernicus Sentinel data terms — free use with attribution: *Contains modified Copernicus Sentinel data 2018, 2024, 2025* | The workstation's demo scenes and the landing page |
 
 ## Design references
 

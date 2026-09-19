@@ -18,6 +18,9 @@ export function cannotEstablish(r: QueryResult, preview: boolean): string[] {
   const out: string[] = []
   const rs = r.manifest.rasters
   if (rs.some((x) => x.synthetic)) out.push('The imagery is synthetic. The pixels were generated; the geotransform, band structure and radiometric behaviour are real. Nothing here is a statement about a real place.')
+  if (rs.some((x) => x.builtin)) out.push('The imagery is a real Sentinel scene with no ground truth. Areas and counts are measurements by the classical path, not results checked against labels; measured accuracy comes from the synthetic scene on the Results page.')
+  const dates = [...new Set(rs.map((x) => String(x.acquired ?? '').slice(0, 10)).filter(Boolean))]
+  if (rs.length > 1 && dates.length > 1 && !r.task.includes('change')) out.push(`The inputs were acquired on different days (${dates.join(', ')}). Anything that changed in between is attributed to neither sensor.`)
   if (r.engine === 'classical') out.push('No learned model served this run. Every value comes from the classical measurement path (spectral indices, backscatter thresholds, change vectors); the RS-adapted model (M1) is not yet serving.')
   if (preview) out.push('The run was made by the browser preview engine, a port of the API’s classical path, not by the API itself.')
   if (r.precomputed) out.push('This result was pre-computed for the venue fallback. It is not live inference.')

@@ -61,7 +61,7 @@ export default function Workstation() {
     try {
       const prev = st().inputs[role]
       const r = await api.upload(role, f)
-      if (prev && !prev.summary.synthetic) api.remove(prev.local_id)
+      if (prev && !prev.summary.synthetic && !prev.summary.builtin) api.remove(prev.local_id)
       st().setInput(role, r)
     } catch (e) {
       setErrors((x) => ({ ...x, [role]: asApiError(e) }))
@@ -70,7 +70,7 @@ export default function Workstation() {
 
   const onRemove = useCallback((role: Role) => {
     const r = st().inputs[role]
-    if (r && !r.summary.synthetic) api.remove(r.local_id)
+    if (r && !r.summary.synthetic && !r.summary.builtin) api.remove(r.local_id)
     st().setInput(role, undefined)
   }, [])
 
