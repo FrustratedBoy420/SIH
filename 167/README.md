@@ -11,7 +11,7 @@ evidence behind it.
 
 ```bash
 pip install -e .                     # Python 3.11+; pinned, no GDAL
-satquery selftest                    # 69 checks, ~5 s
+satquery selftest                    # 71 checks, ~5 s
 satquery serve --build               # UI + API on http://127.0.0.1:8000 (--build needs Node 20+)
 docker compose up                    # or: the same, containerised, offline once built
 ```

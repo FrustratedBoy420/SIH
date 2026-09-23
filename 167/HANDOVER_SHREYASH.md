@@ -110,30 +110,54 @@ includes `Co-registration checked` (it was red on `main` before this).
 
 **Needed**
 
-- [ ] **Review §1 and §2.** Anything you disagree with, change it — tell me so the tests move with it.
-- [ ] **Deck and docs:** replace any hectare figure computed before 23 Sep (≈ 9 % lower now), and any "M1 pending" wording. Measured: **52.7 → 66.0, +13.3 pts, McNemar p = 1.2e-35**.
+- [x] **Review §1 and §2.** Done in the merge (`b3668a6`). Two things for you in §5.
+- [ ] **Deck and docs:** *(docs done in `5370f89`: presentation guide, ADR-010. Deck slide 2 still open: its screenshot and figures are from the old synthetic scene, so it needs a new screenshot, not a number swap.)* replace any hectare figure computed before 23 Sep (≈ 9 % lower now), and any "M1 pending" wording. Measured: **52.7 → 66.0, +13.3 pts, McNemar p = 1.2e-35**.
 - [ ] **Router held-out paraphrase set** — still the one Results tile marked pending; your item per `ml/BUILD_PLAN.md` §1.
-- [ ] **Which UI mode ships.** A plain `npm run build` produces the preview engine, which never calls the API — no M1, no uploads to the backend. When the backend serves the UI, build with `VITE_ENGINE=http` (or make the served build default to `auto`).
+- [x] **Which UI mode ships.** *(`ca1300c`: the server marks every page it serves with `<meta name="sq-engine" content="http">`, which `api.ts` reads before `VITE_ENGINE`. Any build served by `satquery serve` or Docker now uses the API; a static host stays in preview.)* A plain `npm run build` produces the preview engine, which never calls the API — no M1, no uploads to the backend. When the backend serves the UI, build with `VITE_ENGINE=http` (or make the served build default to `auto`).
 
 **Worth doing**
 
-- [ ] **Browser engine areas** still ignore `cos(latitude)` (`engine/raster.ts:111`): preview mode shows hectares ~9 % above live mode for the same scene.
-- [ ] **Stale demo inputs:** uploading an optical photo leaves the demo SAR loaded, so the header says "optical + SAR pair". The penalty no longer punishes it, but clearing demo slots on the first upload (or saying so) would be clearer.
+- [x] **Browser engine areas** *(`892cde8`: `pixelAreaM2` mirrors `pixel_area_m2`; identical to 1e-12 on a 4326 scene)* still ignore `cos(latitude)` (`engine/raster.ts:111`): preview mode shows hectares ~9 % above live mode for the same scene.
+- [x] **Stale demo inputs:** *(`dc90af3`: the first upload of your own clears the demo slots)* uploading an optical photo leaves the demo SAR loaded, so the header says "optical + SAR pair". The penalty no longer punishes it, but clearing demo slots on the first upload (or saying so) would be clearer.
 - [ ] **Calibration tile** asks for ≥ 200 labelled predictions. M1 has **300** in `models/results/m1_calibration.jsonl` (answer, confidence, correct) — the audit B8 hand-over. Confidence is well ordered (0.9+ → 97 % right; < 0.4 → 8 %), over-stated between 0.4 and 0.6.
-- [ ] **Upload limit** is 200 MB; on a 512 MB free host (Render) that can kill the process. Lower it for any free deployment.
+- [x] **Upload limit** *(`63282af`: `SATQUERY_MAX_UPLOAD_MB`, and an oversize file is refused before it is read)* is 200 MB; on a 512 MB free host (Render) that can kill the process. Lower it for any free deployment.
 
 ---
 
 ## 4. How M1 behaves — for anyone presenting
 
 - On this laptop M1 serves **pre-computed** answers only (no GPU). Known images:
-  the 3 demo scenes and the VRSBench photos in `demo/real_vrsbench/` — see its
+  the VRSBench photos in `demo/real_vrsbench/` — see its
   `guide.md`. Any other image → classical path, and the trace says why.
 - On a CUDA GPU it runs **live** on anything, through the same code.
 - On the generated demo scenes M1 is weak and says so ("Space", "Map" at ~0.2
   confidence — gated). On real imagery it is ~68 % right. **Demonstrate M1 on
   the real photos; demonstrate the classical specialists on the demo scenes.**
-- Start: `python -m satquery.cli serve --adapters models/adapters`, UI built with
-  `VITE_ENGINE=http`, open `/workstation`, upload, then **Ctrl+K**.
+- Start: `python -m satquery.cli serve --adapters models/adapters`, open
+  `/workstation`, upload, then **Ctrl+K**. (Any build works now: the server tells
+  the page to use the API.)
 
 Numbers, caveats and the full record: `models/MANIFEST.md`.
+
+---
+
+## 5. Back to Mridul — from the merge (Shreyash, 23 Sep)
+
+- **Demo scenes lost their pre-computed answers.** The built-in scenes are now
+  real Sentinel crops over west Hyderabad (`web/public/scenes/`), not the
+  generator, so no key in `precomputed.jsonl` matches them. Re-run
+  `models/precompute_m1.py` on Kaggle; `demo_sources()` already reads the new
+  scenes through `scene_bundle`. The VRSBench photos still hit.
+- **What M1 is shown.** My branch gave `Raster.rgb()` a 2–98 % display
+  stretch; that changed the pixels your cache is keyed on, so M1 now reads
+  `rgb(stretch=False)` — your keys are intact. But unstretched Sentinel
+  reflectance (0–0.3) is a dark image. Before re-running the precompute,
+  decide whether M1 should see the stretched RGB instead; precompute and
+  serving must use the same one.
+- **EPSG:3857.** Your check treats it as unconvertible, so the API puts it in
+  pixel space; the browser engine reprojects it. I left yours. If you agree,
+  add a `mercator` kind to `crs_kind` (area = det · cos²lat) and flip the test.
+- **`adapted.py`** is my claims contract for M2–M4 and remote runtimes; M1
+  keeps your `_adapted()`. `pipeline.py` routes by adapter.
+- Selftest is 71/71 and `verify.mjs` 41/41 against the live backend, with your
+  palette check folded in.
