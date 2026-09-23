@@ -8,7 +8,7 @@
 import type { DatasetEntry, ModelEntry } from '@/lib/contract'
 
 export const STATE_SNAPSHOT =
-  'Snapshot of the repository checkout, 11 Sep 2026: data/ and adapters/ are absent — no corpus is staged and no adapter pack exists. The API reads this live from disk when it runs.'
+  'Snapshot of the repository checkout, 23 Sep 2026: no corpus is staged. The M1 pack manifest is in models/adapters/m1-rs-vqa/ — trained and measured (zero-shot 0.527 → adapted 0.660) — but its weights are gitignored, so a checkout does not carry them. The API reads this live from disk when it runs.'
 
 type Base = Omit<DatasetEntry, 'status' | 'present' | 'missing' | 'path'> & { expect: string[]; local_dir: string }
 
@@ -76,7 +76,7 @@ export function datasetsSnapshot(): DatasetEntry[] {
 export function modelsSnapshot(): ModelEntry[] {
   return [
     { id: 'M0', name: 'Base VLM', kind: 'frozen', trained: false, datasets: [], candidates: ['MBZUAI/geochat-7B', 'Qwen/Qwen2-VL-7B-Instruct'], note: 'Chosen by zero-shot VRSBench score, not reputation — ADR-010. ~15 GB fp16, ~6 GB at 4-bit.', weights_present: null, status: 'frozen' },
-    { id: 'M1', name: 'RS-adapted VQA', kind: 'lora', adapter: 'adapter_A_rs_general', trained: true, datasets: ['vrsbench'], requirement: 'R1 + R2', note: 'The mandatory adaptation. Target +10 to +20 points over zero-shot; GeoChat’s published gain was +19.8.', weights_present: false, weights_path: 'adapters/adapter_A_rs_general', status: 'not trained' },
+    { id: 'M1', name: 'RS-adapted VQA', kind: 'lora', adapter: 'adapter_A_rs_general', trained: true, datasets: ['vrsbench'], requirement: 'R1 + R2', note: 'The mandatory adaptation. QLoRA on Qwen2-VL-7B, 12,000 VRSBench samples: zero-shot 0.527 → adapted 0.660, +13.3 points on 2,000 held-out items (train/val overlap counted: 0). Not yet serving — the inference path is open.', weights_present: false, weights_path: 'models/adapters/m1-rs-vqa', status: 'trained' },
     { id: 'M2', name: 'Grounding', kind: 'lora', adapter: 'adapter_B_grounding', trained: true, datasets: ['vrsbench'], requirement: 'R2', note: 'Chosen over captioning — ADR-002. Target Acc@0.5 30–45 %. Build phase.', weights_present: false, weights_path: 'adapters/adapter_B_grounding', status: 'not trained' },
     { id: 'M3', name: 'Change / change-VQA', kind: 'lora', adapter: 'adapter_C_change', trained: true, datasets: ['cdvqa'], requirement: 'R3', note: 'Siamese encoding plus a difference head. Build phase.', weights_present: false, weights_path: 'adapters/adapter_C_change', status: 'not trained' },
     { id: 'M4', name: 'SAR encoder + fusion', kind: 'separate', adapter: 'fusion_late_v0', trained: true, datasets: ['bigearthnet'], requirement: 'R4', note: 'Outside the shared base — backscatter is not reflectance (ADR-003). Late fusion (ADR-005). Build phase.', weights_present: false, weights_path: 'adapters/fusion_late_v0', status: 'not trained' },

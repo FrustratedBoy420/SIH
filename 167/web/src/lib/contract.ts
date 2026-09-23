@@ -144,7 +144,14 @@ export interface ModelEntry {
   candidates?: string[]
   weights_present: boolean | null
   weights_path?: string
-  status: 'loaded' | 'not trained' | 'frozen' | 'rule-based'
+  /** true only when an inference path can run the pack — not when it merely loads */
+  serving?: boolean
+  /**
+   * trained  — a measured pack exists; its weights are not on this machine
+   * loaded   — weights on disk, nothing can run them yet
+   * serving  — answers queries
+   */
+  status: 'serving' | 'loaded' | 'trained' | 'not trained' | 'frozen' | 'rule-based'
 }
 
 export interface Catalog {

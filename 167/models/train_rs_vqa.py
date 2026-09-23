@@ -341,9 +341,16 @@ def main() -> int:
     if args.resume and not resume:
         print("  --resume given but no checkpoint found; starting from scratch\n")
 
+    resumed_from = (
+        max(int(p.name.split("-")[-1]) for p in out_dir.glob("checkpoint-*"))
+        if resume else None
+    )
+
     started = time.time()
     trainer.train(resume_from_checkpoint=resume)
     wall = time.time() - started
+    final_step = int(trainer.state.global_step)
+    max_steps = int(trainer.state.max_steps)
 
     pack_dir = out_dir / "adapter"
     model.save_pretrained(str(pack_dir))
@@ -363,7 +370,17 @@ def main() -> int:
         "effective_batch": args.grad_accum,
         "dtype": args.dtype,
         "load_in_4bit": True,
-        "wall_hours": round(wall / 3600, 2),
+        # Steps say how far training got; the clock only says how long THIS
+        # session ran. A run resumed at step 370 of 375 once recorded
+        # `wall_hours: 0.11` for roughly seven hours of training, because the
+        # timer starts when the process does. So the field is named for what
+        # it measures, and completion is judged by steps, which survive a
+        # resume and also reveal a stop by the wall-clock guard.
+        "final_step": final_step,
+        "max_steps": max_steps,
+        "completed": final_step >= max_steps,
+        "resumed_from_step": resumed_from,
+        "this_session_hours": round(wall / 3600, 2),
         "pack_mb": round(size_mb, 1),
         "zero_shot_reference": "see models/MANIFEST.md",
     }

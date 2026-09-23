@@ -215,7 +215,15 @@ try {
     await check('uploaded file routes like a built-in', async () => {
       await ask('Highlight the water body')
       await page.locator(tid('answer')).waitFor()
-      return (await page.locator(tid('answer-text')).innerText()).slice(0, 90)
+      const text = await page.locator(tid('answer-text')).innerText()
+      // An answer appearing is not the test; a possible answer is. This check
+      // once passed on "covering 48948962480.00 ha" for a 164 ha UTM image,
+      // because it only looked for text. No area may exceed the footprint.
+      const ha = [...text.matchAll(/([\d,]+(?:\.\d+)?)\s*ha\b/g)].map((m) => parseFloat(m[1].replace(/,/g, '')))
+      const footprint = 128 * 128 * 100 / 10_000          // fixture: 128 px at 10 m
+      const over = ha.filter((v) => v > footprint)
+      if (over.length) throw new Error(`area ${over[0]} ha exceeds the ${footprint} ha image: ${text.slice(0, 80)}`)
+      return text.slice(0, 90)
     })
     await page.screenshot({ path: `${SHOTS}/16-ws-upload.png` })
   } else fail('upload a real GeoTIFF (UTM) as optical', `fixture missing: ${gt}`)

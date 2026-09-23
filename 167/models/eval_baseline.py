@@ -331,12 +331,24 @@ def main() -> int:
     print(metrics.report(score, config.ANCHORS["vrsbench_vqa"]))
     print(f"\n  predictions  {jsonl_path}")
     print(f"  summary      {summary_path}")
-    print(
-        "\n  This is the BEFORE number. Put it in models/MANIFEST.md now,\n"
-        "  while it is measured rather than remembered. The adapted run goes\n"
-        "  in the column beside it, and the gain between them is what\n"
-        "  requirement 1 is evidenced by."
-    )
+    # The closing note used to say "This is the BEFORE number" on every run,
+    # adapted ones included — a label contradicting the `--adapter` two lines
+    # up. Which side of the comparison a number is on is the whole point of
+    # the comparison, so the note says the side it is on.
+    if args.adapter:
+        print(
+            "\n  This is an AFTER number — adapted, with the pack above. It is\n"
+            "  only evidence beside the zero-shot run on the same --limit,\n"
+            "  --split and --seed; record both, and the gain between them, in\n"
+            "  models/MANIFEST.md."
+        )
+    else:
+        print(
+            "\n  This is the BEFORE number. Put it in models/MANIFEST.md now,\n"
+            "  while it is measured rather than remembered. The adapted run goes\n"
+            "  in the column beside it, and the gain between them is what\n"
+            "  requirement 1 is evidenced by."
+        )
     return 0
 
 

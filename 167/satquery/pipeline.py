@@ -33,7 +33,8 @@ from . import __version__, validate
 from .evidence import Evidence, EvidenceSet
 from .raster import Raster
 from .router import Inputs, Plan, REGISTRY, plan as make_plan
-from .runtime import ModelRuntime, load_runtime
+from .errors import SatQueryError
+from .runtime import ModelRuntime, image_key, load_runtime, raster_rgb_u8
 from .specialists import Change, Fusion, Grounding, VQA
 
 # --------------------------------------------------------------------------- #
@@ -202,15 +203,25 @@ class Pipeline:
         # 5 — execute
         es = EvidenceSet(threshold=p.params["threshold"])
         engine = "classical"
+        staged = False
         for tool in p.tools:
             sub = self._execute(tool, query, inputs, p.params["threshold"])
+            ran, note = self._adapted(tool, query, inputs, sub)
             for item in sub.items:
                 es.add(item)
             spec = self._spec_for(tool)
-            if spec and spec.adapter_loaded:
+            # `engine` records what RAN for this query, not what is installed.
+            # A pack that is loaded but did not answer — a cache miss, SAR input,
+            # no GPU — leaves the result classical, and the trace says why.
+            path = "neural+classical" if ran else "classical"
+            if ran:
                 engine = "neural+classical"
+            # An answer served from pre-computed M1 output came from a staged
+            # run, not from this request — the flag the UI discloses (ADP-09).
+            staged = staged or note.startswith("M1 precomputed")
             tr.add(f"Executed {tool}",
-                   f"{len(sub.items)} evidence item(s) · path {spec.path if spec else 'n/a'}",
+                   f"{len(sub.items)} evidence item(s) · path {path}"
+                   + (f" · {note}" if note else ""),
                    items=[{"claim": i.claim, "value": i.value,
                            "confidence": round(i.confidence, 3),
                            "modality": i.modality} for i in sub.items])
@@ -256,7 +267,8 @@ class Pipeline:
                 abstained=True, confidence=es.confidence, task=p.task,
                 tools=p.tools, params=p.params, evidence=es.to_dict(),
                 geojson=es.geojson(), trace=tr.to_list(), manifest=manifest,
-                elapsed_ms=round((time.time() - t0) * 1000, 1), engine=engine)
+                elapsed_ms=round((time.time() - t0) * 1000, 1), engine=engine,
+                precomputed=staged)
 
         tr.add("Confidence", f"{es.confidence:.2f} · "
                              f"{len(es.passing)}/{len(es.items)} items passed the gate")
@@ -272,7 +284,8 @@ class Pipeline:
                       task=p.task, tools=p.tools, params=p.params,
                       evidence=es.to_dict(), geojson=gj, trace=tr.to_list(),
                       manifest=manifest,
-                      elapsed_ms=round((time.time() - t0) * 1000, 1), engine=engine)
+                      elapsed_ms=round((time.time() - t0) * 1000, 1), engine=engine,
+                      precomputed=staged)
 
     # -- helpers ----------------------------------------------------------- #
     def _spec_for(self, tool: str):
@@ -288,6 +301,77 @@ class Pipeline:
         optical = i.optical or (i.t1 if i.t1 and i.t1.sensor != "sar" else None)             or (i.t2 if i.t2 and i.t2.sensor != "sar" else None)
         sar = i.sar or (i.t1 if i.t1 and i.t1.sensor == "sar" else None)             or (i.t2 if i.t2 and i.t2.sensor == "sar" else None)
         return optical, sar
+
+    def _adapted(self, tool: str, query: str, inputs: Inputs,
+                 sub: EvidenceSet) -> tuple[bool, str]:
+        """Ask the runtime for the adapted path; fold its answer into `sub`.
+
+        Returns (ran, note). The adapted model is one more source of evidence,
+        not a replacement for measurement (ADR-007): its answer becomes an
+        `Evidence` record beside the classical ones, a disagreement with a
+        measured value is recorded as a conflict and lowers confidence (audit
+        A3), and the answer layer still phrases records, never pixels.
+        """
+        adapter = REGISTRY[tool]["adapter"]
+        if not self.runtime.available(adapter):
+            # A pack that is installed but cannot serve here is worth one line
+            # in the trace: whoever reads this result should not have to open
+            # /api/health to learn why the adapted model did not answer.
+            if adapter in self.runtime.packs():
+                why = getattr(self.runtime, "not_serving_reason", lambda a: "")(adapter)
+                return False, f"M1 installed but not serving here: {why or 'no inference path'}"
+            return False, ""
+
+        payload: dict[str, Any] = {"question": query}
+        task = tool
+        if tool == "rs_vqa":
+            if inputs.optical is None:
+                # M1 was trained on optical imagery. Showing it SAR as a grey
+                # photograph is the mistake 03 §7 names; the classical SAR path
+                # answers instead.
+                return False, "M1 not used: SAR input, and M1 is an optical model"
+            rgb = raster_rgb_u8(inputs.optical)
+            payload.update(image_key=image_key(rgb), _rgb_u8=rgb)
+            task = "vqa"
+
+        try:
+            out = self.runtime.infer(adapter, task, payload)
+        except SatQueryError as exc:
+            return False, f"M1 not used: {exc.message}"
+
+        if out.get("stub"):
+            return True, "stub pack, no model output"
+        answer_text = out.get("answer")
+        if not answer_text:
+            return False, "M1 not used: the runtime returned no answer"
+
+        source = str(out.get("source", "live"))
+        measured = next((e for e in sub.items if e.confidence > 0), None)
+        ev = Evidence(
+            claim="M1 answer", value=answer_text,
+            confidence=float(out.get("confidence", 0.0)), modality="optical",
+            source_model=str(out.get("pack", adapter)), source_version=source,
+            method=f"M1 — QLoRA-adapted Qwen2-VL-7B ({source})",
+            supporting=[f"served {source}"]
+                       + ([f"measured: {measured.claim} = {measured.value}"] if measured else []))
+        conflict = _disagreement(answer_text, measured)
+        if conflict:
+            ev.conflicts.append(conflict)
+
+        # Order decides which record the answer layer leads with. A count or an
+        # area is a measurement, and M1 counts poorly (object quantity 0.56 on
+        # VRSBench) — the measured value leads and M1 corroborates. Everything
+        # else — what is it, where, what shape, is there — M1 leads.
+        #
+        # Decided by what the classical path actually produced, not by
+        # re-reading the question: "what type of area is this?" contains
+        # "area" and is not a measurement, and guessing intent twice let the
+        # two guesses disagree.
+        if measured is not None and measured.unit in ("regions", "areas", "ha"):
+            sub.items.append(ev)
+        else:
+            sub.items.insert(0, ev)
+        return True, f"M1 {source}" + (" · conflict with measurement recorded" if conflict else "")
 
     def _execute(self, tool: str, query: str, i: Inputs, thr: float) -> EvidenceSet:
         if tool == "rs_vqa":
@@ -336,6 +420,30 @@ def _plural(n: int, word: str, plural: str | None = None) -> str:
     return word if n == 1 else (plural or word + "s")
 
 
+_NUMBER_WORDS = {"zero": 0, "no": 0, "none": 0, "one": 1, "two": 2, "three": 3,
+                 "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+                 "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
+
+
+def _disagreement(answer_text: str, measured: Evidence | None) -> str:
+    """A conflict record when M1 and a measurement answer the same thing
+    differently: yes/no against presence, or a number against a count."""
+    if measured is None:
+        return ""
+    a = answer_text.strip().lower().rstrip(".")
+    mv = measured.value
+    if isinstance(mv, str) and mv in ("yes", "no") and a.split()[:1] in (["yes"], ["no"]):
+        if a.split()[0] != mv:
+            return f"M1 said {a.split()[0]!r}; measurement says {mv!r} ({measured.method})"
+        return ""
+    if measured.unit in ("regions", "areas") and isinstance(mv, (int, float)):
+        first = a.split()[0] if a else ""
+        n = int(first) if first.isdigit() else _NUMBER_WORDS.get(first)
+        if n is not None and n != int(mv):
+            return f"M1 counted {n}; measurement counts {int(mv)} ({measured.method})"
+    return ""
+
+
 def answer(task: str, es: EvidenceSet, query: str = "") -> str:
     """Phrase verified evidence.
 
@@ -350,6 +458,7 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
 
     by_claim = {e.claim: e for e in items}
     parts: list[str] = []
+    m1_phrased = False
 
     if task == "cross_modal":
         rec = next((e for e in items if "recovered by SAR" in e.claim), None)
@@ -407,7 +516,7 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
                          f"{g.mask_area_ha:.2f} ha.")
             if g.boxes:
                 lat, lon = g.boxes[0].centre()
-                parts.append(f"The largest is centred at {lat:.4f} N {lon:.4f} E "
+                parts.append(f"The largest is centred at {abs(lat):.4f} {'N' if lat >= 0 else 'S'} {abs(lon):.4f} {'E' if lon >= 0 else 'W'} "
                              f"and covers {g.boxes[0].area_ha:.2f} ha.")
         else:
             parts.append("Nothing matching that description was located in this scene.")
@@ -428,7 +537,12 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
 
     else:  # single_vqa
         e = items[0]
-        if e.unit in ("regions", "areas"):
+        if e.claim == "M1 answer":
+            # The adapted model's answer, as given. Its provenance lives in the
+            # evidence record and the trace, not in the sentence.
+            parts.append(f"{str(e.value).rstrip('.')}.")
+            m1_phrased = True
+        elif e.unit in ("regions", "areas"):
             parts.append(f"{e.value}.")
             if e.mask_area_ha:
                 parts.append(f"Total extent {e.mask_area_ha:.2f} ha.")
@@ -438,8 +552,22 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
             parts.append(f"Dominant land cover is {e.value}.")
         else:
             parts.append(f"{e.value}." if e.value is not None else e.claim + ".")
-        if e.supporting:
+        # "Shares" are land-cover shares. Under any other record the same
+        # label once put threshold diagnostics in front of the user.
+        if e.supporting and e.claim == "dominant land cover":
             parts.append("Shares: " + "; ".join(e.supporting[:3]) + ".")
+
+    # M1 answered but a measurement led (a count, an area) or the answer is a
+    # structured summary: the adapted model's reading must still be visible.
+    # A result that reports `engine: neural+classical` while never saying what
+    # the neural model said would be a claim with nothing behind it on screen.
+    m1 = by_claim.get("M1 answer")
+    if m1 is not None and not m1_phrased and not m1.conflicts:
+        if any(e.claim.startswith("detected ") for e in items):
+            parts.insert(0, f"The adapted model (M1) reads the scene as: "
+                            f"{str(m1.value).rstrip('.')}.")
+        else:
+            parts.append(f"The adapted model (M1) agrees: {str(m1.value).rstrip('.')}.")
 
     conflicts = [c for e in items for c in e.conflicts]
     if conflicts:

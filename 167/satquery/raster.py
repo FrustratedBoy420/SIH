@@ -22,7 +22,7 @@ which is all the evidence layer asks for.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +61,9 @@ class GeoTransform:
     origin_y: float          # f
     col_rotation: float      # d
     pixel_height: float      # e   (negative for north-up imagery)
+    #: What the six numbers are measured in. Bound from `Raster.crs` so that a
+    #: transform can never be read in the wrong units - see `pixel_to_lonlat`.
+    crs: str = "EPSG:4326"
 
     @classmethod
     def identity(cls, width: int, height: int) -> "GeoTransform":
@@ -87,20 +90,174 @@ class GeoTransform:
         row = (-self.col_rotation * dx + self.pixel_width * dy) / det
         return col, row
 
+    # -- what the coordinates mean ------------------------------------- #
+    #
+    # The six numbers are in the units of the raster's CRS: degrees for
+    # EPSG:4326, metres for UTM. Everything that reports a place on Earth or an
+    # area must know which. Before this, every transform was read as degrees:
+    # a 10 m UTM pixel became 1,113 km wide, a 164 ha scene reported
+    # 48,948,962,480 ha, and eastings were printed as longitudes under an
+    # EPSG:4326 label. Real Cartosat and Sentinel products are UTM, so that was
+    # the common case, not an edge case.
+
+    @property
+    def kind(self) -> str:
+        """`geographic`, `utm`, or `unsupported`."""
+        return crs_kind(self.crs)
+
+    @property
+    def can_georeference(self) -> bool:
+        """Whether positions can be expressed as longitude/latitude."""
+        return self.kind in ("geographic", "utm")
+
+    def pixel_to_lonlat(self, col: float, row: float) -> tuple[float, float]:
+        """(lon, lat) in WGS84 for a pixel position, whatever the source CRS."""
+        x, y = self.pixel_to_world(col, row)
+        kind = self.kind
+        if kind == "geographic":
+            return x, y
+        if kind == "utm":
+            zone, north = utm_zone(self.crs)
+            return utm_to_lonlat(x, y, zone, north)
+        raise ValueError(
+            f"{self.crs} is a projection this build cannot convert to "
+            "longitude/latitude; positions stay in pixel space"
+        )
+
+    def pixel_area_m2(self, col: float = 0.0, row: float = 0.0) -> float:
+        """Ground area of one pixel, in square metres, at a pixel position.
+
+        Projected CRSs are metric, so the area is the transform's determinant.
+        For degrees, a degree of longitude shrinks with latitude: ignoring
+        cos(latitude) overstated every area by ~9 % at the demo scene's 23 N.
+        """
+        det = abs(self.pixel_width * self.pixel_height
+                  - self.row_rotation * self.col_rotation)
+        if self.kind == "geographic":
+            _, lat = self.pixel_to_world(col, row)
+            return det * _M_PER_DEG_LAT * _M_PER_DEG_LON_EQ * math.cos(math.radians(lat))
+        return det
+
     @property
     def ground_sample_distance(self) -> float:
-        """Metres per pixel, approximated for geographic coordinates.
+        """Metres per pixel along a row.
 
-        For EPSG:4326 the transform is in degrees, so this converts using the
-        standard 111 320 m per degree of latitude. It is an approximation and
-        is reported as one — good enough to state a scene's resolution, not
-        good enough to measure with.
+        Exact for projected (metric) CRSs. For EPSG:4326 it is the east-west
+        size at the origin latitude - an approximation, reported as one: good
+        enough to state a scene's resolution, not to measure with. Areas use
+        `pixel_area_m2`, which does not share this approximation.
         """
-        return abs(self.pixel_width) * 111_320.0
+        if self.kind == "geographic":
+            return (abs(self.pixel_width) * _M_PER_DEG_LON_EQ
+                    * math.cos(math.radians(self.origin_y)))
+        return abs(self.pixel_width)
 
     def as_tuple(self) -> tuple[float, ...]:
         return (self.origin_x, self.pixel_width, self.row_rotation,
                 self.origin_y, self.col_rotation, self.pixel_height)
+
+
+# --------------------------------------------------------------------------- #
+# Coordinate reference systems
+# --------------------------------------------------------------------------- #
+#
+# Only what this project meets: geographic WGS84, and UTM on WGS84 (EPSG:326zz
+# north, 327zz south), which is how Cartosat, Sentinel-2 and most RISAT
+# products are delivered. Anything else is refused explicitly rather than
+# guessed - a projection read in the wrong units produces confident numbers
+# that are wrong by orders of magnitude, and nothing downstream can tell.
+
+_WGS84_A = 6_378_137.0
+_WGS84_F = 1 / 298.257_223_563
+_UTM_K0 = 0.9996
+_M_PER_DEG_LON_EQ = 111_320.0
+_M_PER_DEG_LAT = 110_574.0
+
+_GEOGRAPHIC = {"EPSG:4326", "EPSG:4979", "OGC:CRS84", "CRS84", "WGS84"}
+
+
+def crs_kind(crs: str) -> str:
+    code = (crs or "").upper().replace(" ", "")
+    if code in _GEOGRAPHIC:
+        return "geographic"
+    if code.startswith("EPSG:"):
+        try:
+            n = int(code.split(":", 1)[1])
+        except ValueError:
+            return "unsupported"
+        if 32601 <= n <= 32660 or 32701 <= n <= 32760:
+            return "utm"
+    return "unsupported"
+
+
+def utm_zone(crs: str) -> tuple[int, bool]:
+    n = int(crs.upper().split(":", 1)[1])
+    return (n - 32600, True) if n < 32700 else (n - 32700, False)
+
+
+def utm_to_lonlat(easting: float, northing: float, zone: int,
+                  north: bool = True) -> tuple[float, float]:
+    """Inverse transverse Mercator on WGS84 - Snyder, USGS PP 1395, section 8.
+
+    Millimetre-accurate inside a zone, far below a pixel. Written out rather
+    than imported because the venue machine is not guaranteed pyproj, and a
+    dependency that only this function needs is not worth that risk.
+    """
+    a, f, k0 = _WGS84_A, _WGS84_F, _UTM_K0
+    e2 = f * (2 - f)
+    ep2 = e2 / (1 - e2)
+    x = easting - 500_000.0
+    y = northing if north else northing - 10_000_000.0
+
+    m = y / k0
+    mu = m / (a * (1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256))
+    e1 = (1 - math.sqrt(1 - e2)) / (1 + math.sqrt(1 - e2))
+    phi1 = (mu + (3 * e1 / 2 - 27 * e1 ** 3 / 32) * math.sin(2 * mu)
+            + (21 * e1 ** 2 / 16 - 55 * e1 ** 4 / 32) * math.sin(4 * mu)
+            + (151 * e1 ** 3 / 96) * math.sin(6 * mu)
+            + (1097 * e1 ** 4 / 512) * math.sin(8 * mu))
+
+    sin1, cos1, tan1 = math.sin(phi1), math.cos(phi1), math.tan(phi1)
+    c1 = ep2 * cos1 ** 2
+    t1 = tan1 ** 2
+    n1 = a / math.sqrt(1 - e2 * sin1 ** 2)
+    r1 = a * (1 - e2) / (1 - e2 * sin1 ** 2) ** 1.5
+    d = x / (n1 * k0)
+
+    lat = phi1 - (n1 * tan1 / r1) * (
+        d ** 2 / 2
+        - (5 + 3 * t1 + 10 * c1 - 4 * c1 ** 2 - 9 * ep2) * d ** 4 / 24
+        + (61 + 90 * t1 + 298 * c1 + 45 * t1 ** 2 - 252 * ep2 - 3 * c1 ** 2) * d ** 6 / 720)
+    lon0 = math.radians((zone - 1) * 6 - 180 + 3)
+    lon = lon0 + (
+        d - (1 + 2 * t1 + c1) * d ** 3 / 6
+        + (5 - 2 * c1 + 28 * t1 - 3 * c1 ** 2 + 8 * ep2 + 24 * t1 ** 2) * d ** 5 / 120) / cos1
+    return math.degrees(lon), math.degrees(lat)
+
+
+def lonlat_to_utm(lon: float, lat: float, zone: int) -> tuple[float, float]:
+    """Forward transverse Mercator on WGS84 - for writing UTM test data and for
+    checking `utm_to_lonlat` by round trip."""
+    a, f, k0 = _WGS84_A, _WGS84_F, _UTM_K0
+    e2 = f * (2 - f)
+    ep2 = e2 / (1 - e2)
+    phi = math.radians(lat)
+    lam = math.radians(lon) - math.radians((zone - 1) * 6 - 180 + 3)
+    n = a / math.sqrt(1 - e2 * math.sin(phi) ** 2)
+    t = math.tan(phi) ** 2
+    c = ep2 * math.cos(phi) ** 2
+    aa = math.cos(phi) * lam
+    m = a * ((1 - e2 / 4 - 3 * e2 ** 2 / 64 - 5 * e2 ** 3 / 256) * phi
+             - (3 * e2 / 8 + 3 * e2 ** 2 / 32 + 45 * e2 ** 3 / 1024) * math.sin(2 * phi)
+             + (15 * e2 ** 2 / 256 + 45 * e2 ** 3 / 1024) * math.sin(4 * phi)
+             - (35 * e2 ** 3 / 3072) * math.sin(6 * phi))
+    x = k0 * n * (aa + (1 - t + c) * aa ** 3 / 6
+                  + (5 - 18 * t + t ** 2 + 72 * c - 58 * ep2) * aa ** 5 / 120)
+    y = k0 * (m + n * math.tan(phi) * (
+        aa ** 2 / 2 + (5 - t + 9 * c + 4 * c ** 2) * aa ** 4 / 24
+        + (61 - 58 * t + t ** 2 + 600 * c - 330 * ep2) * aa ** 6 / 720))
+    northing = y if lat >= 0 else y + 10_000_000.0
+    return x + 500_000.0, northing
 
 
 # --------------------------------------------------------------------------- #
@@ -121,6 +278,22 @@ class Raster:
     acquired: str = ""
     meta: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        # One source of truth for units: the raster's CRS, copied into its
+        # transform so no caller can read metres as degrees again.
+        if self.transform.crs != self.crs:
+            self.transform = replace(self.transform, crs=self.crs)
+        if self.georeferenced and not self.transform.can_georeference:
+            # Positions in an unconvertible projection would be printed as
+            # longitude/latitude and be wrong by orders of magnitude. Degrade to
+            # the pixel-space path (audit A1) and say why.
+            self.georeferenced = False
+            self.meta.setdefault(
+                "crs_note",
+                f"{self.crs} cannot be converted to longitude/latitude by this "
+                "build (geographic WGS84 and UTM are supported); results are "
+                "reported in pixel space.")
+
     # -- shape ------------------------------------------------------------- #
     @property
     def bands(self) -> int:
@@ -139,9 +312,17 @@ class Raster:
         return self.height, self.width
 
     # -- extent ------------------------------------------------------------ #
+    def _to_place(self, col: float, row: float) -> tuple[float, float]:
+        t = self.transform
+        return t.pixel_to_lonlat(col, row) if t.can_georeference else t.pixel_to_world(col, row)
+
     def bounds(self) -> tuple[float, float, float, float]:
-        """(min_x, min_y, max_x, max_y) over the four corners."""
-        corners = [self.transform.pixel_to_world(c, r)
+        """(min_lon, min_lat, max_lon, max_lat) over the four corners.
+
+        In WGS84 degrees whatever the source CRS; a UTM raster's corners are
+        converted, not relabelled. Native units only for an unconvertible CRS.
+        """
+        corners = [self._to_place(c, r)
                    for c, r in ((0, 0), (self.width, 0),
                                 (0, self.height), (self.width, self.height))]
         xs = [c[0] for c in corners]
@@ -149,7 +330,7 @@ class Raster:
         return min(xs), min(ys), max(xs), max(ys)
 
     def centre(self) -> tuple[float, float]:
-        return self.transform.pixel_to_world(self.width / 2, self.height / 2)
+        return self._to_place(self.width / 2, self.height / 2)
 
     # -- pixels ------------------------------------------------------------ #
     def band(self, index: int) -> np.ndarray:
@@ -206,6 +387,7 @@ class Raster:
             "crs": self.crs,
             "georeferenced": self.georeferenced,
             "geotransform": [round(v, 10) for v in self.transform.as_tuple()],
+            "crs_kind": self.transform.kind,
             "gsd_m": round(self.transform.ground_sample_distance, 2),
             "bounds": [round(v, 6) for v in (minx, miny, maxx, maxy)],
             "centre": [round(cy, 6), round(cx, 6)],   # lat, lon
@@ -313,16 +495,26 @@ def read(path: str | Path, sensor: str = "", band_names: list[str] | None = None
 
 
 def write_geotiff(raster: Raster, path: str | Path) -> Path:
-    """Write a single-band or RGB GeoTIFF carrying the geotransform tags.
+    """Write EVERY band, one TIFF page each, carrying the geotransform tags.
 
     Written through Pillow so the demo data is real, georeferenced, readable
     by QGIS — not a PNG pretending to be a raster.
+
+    It used to write `raster.rgb()`: a three-channel 8-bit *rendering*. For
+    optical that was lossy; for SAR it was wrong. A two-band VV/VH scene came
+    back as three bands named red, green, blue, `vh` was gone, and the first
+    specialist to ask for `named("vv")` raised `KeyError`. The file looked like
+    a raster and was a picture of one.
+
+    One float page per band round-trips through `read()` unchanged, which is
+    what the reader was already written to expect.
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    rgb = (np.clip(raster.rgb(), 0, 1) * 255).astype(np.uint8)
-    img = Image.fromarray(rgb, mode="RGB")
+    bands = np.clip(np.asarray(raster.data, dtype=np.float32), 0, 1)
+    pages = [Image.fromarray(band, mode="F") for band in bands]
+    img = pages[0]
 
     t = raster.transform
     info = TiffImagePlugin.ImageFileDirectory_v2()
@@ -335,10 +527,15 @@ def write_geotiff(raster: Raster, path: str | Path) -> Path:
             code = int(raster.crs.split(":")[1])
         except ValueError:
             code = 4326
-    # one geokey: GeographicType (2048)
-    info[34735] = (1, 1, 0, 1, 2048, 0, 1, code)
+    if crs_kind(raster.crs) == "geographic":
+        # GTModelType = geographic (2), GeographicType (2048)
+        info[34735] = (1, 1, 0, 2, 1024, 0, 1, 2, 2048, 0, 1, code)
+    else:
+        # GTModelType = projected (1), ProjectedCSType (3072). Writing a UTM code
+        # under GeographicType, as before, produced a file every GIS misreads.
+        info[34735] = (1, 1, 0, 2, 1024, 0, 1, 1, 3072, 0, 1, code)
 
-    img.save(path, tiffinfo=info)
+    img.save(path, tiffinfo=info, save_all=True, append_images=pages[1:])
     return path
 
 

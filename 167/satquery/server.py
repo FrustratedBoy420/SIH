@@ -196,16 +196,38 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
     @app.get("/api/health")
     def health() -> dict[str, Any]:
         d = rt.describe(model_runtime)
-        note = ("Adapter packs loaded: " + ", ".join(d["adapters"])
-                if d["adapters_loaded"] else
-                "No adapter packs staged. Every number is measured by the "
-                "classical path; the adapted path activates when a pack is "
-                "placed under adapters/.")
+        idle = [a for a in d["adapters"] if a not in d["adapters_serving"]]
+        if not d["adapters_loaded"]:
+            note = ("No adapter packs staged. Every number is measured by the "
+                    "classical path; the adapted path activates when a pack is "
+                    "placed under adapters/.")
+        else:
+            note = "Adapter packs loaded: " + ", ".join(d["adapters"]) + "."
+            for a in d["adapters_serving"]:
+                info = d["packs"].get(a, {})
+                if info.get("mode") == "precomputed":
+                    # Serving from a cache is real M1 output, but only for the
+                    # images and questions it was produced for. Say so, so
+                    # "serving" is never read as "answers anything".
+                    note += (f" {a} serves {info.get('precomputed', 0)} pre-computed "
+                             "M1 answers; any other image or question falls back "
+                             "to the classical specialist, and the trace says which.")
+                elif info.get("mode") == "live":
+                    note += f" {a} runs live on this machine's GPU."
+            if idle:
+                # Loaded is not serving. Saying only "loaded" beside a real
+                # pack invites the reader to assume it answered the query.
+                note += (" Not serving: " + ", ".join(idle) + " — no inference "
+                         "path can run them here (no GPU, and no pre-computed "
+                         "answers), so the classical specialist answers and "
+                         "`engine` says so.")
         if d["stub_packs"]:
             note += (" Stub pack(s) present (" + ", ".join(d["stub_packs"]) +
                      ") — these exercise the loader and report no measurements.")
         return {"ok": True, "version": __version__, "engine": d["engine"],
-                "adapters_loaded": d["adapters_loaded"], "note": note,
+                "adapters_loaded": d["adapters_loaded"],
+                "adapters_serving": d["adapters_serving"],
+                "packs": d["packs"], "note": note,
                 "transport": d["transport"], "serving_plan": d["serving_plan"],
                 "rasters_stored": len(rasters), "runs_stored": len(runs.ids()),
                 "limits": {"max_bytes": MAX_BYTES, "max_pixels": MAX_PIXELS,
@@ -295,10 +317,19 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
         for row in rows:
             pack = by_component.get(str(row.get("id", "")))
             if pack is not None:
+                # Three facts, kept apart because each was once reported as
+                # another: a manifest exists (trained and measured), its
+                # weights are on this machine (they are gitignored, so a fresh
+                # clone has the first without the second), and something can
+                # run them. Only the last may be called serving.
+                has_weights = pack.stub or "adapter_model.safetensors" in pack.artefacts
+                serving = model_runtime.available(pack.adapter)
                 row["adapter"] = pack.adapter
-                row["weights_present"] = True
+                row["weights_present"] = has_weights
                 row["weights_path"] = pack.path
-                row["status"] = "loaded"
+                row["serving"] = serving
+                row["status"] = ("serving" if serving
+                                 else "loaded" if has_weights else "trained")
                 row["pack"] = pack.to_dict()
         return {"models": rows}
 

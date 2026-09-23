@@ -1,0 +1,28 @@
+{
+  "pack_id": "m1-rs-vqa-r2",
+  "component": "M1",
+  "adapter": "adapter_A_rs_general",
+  "base_model": "Qwen/Qwen2-VL-7B-Instruct",
+  "revision": "eed13092ef92e448dd6875b2a00151bd3f7db0ac",
+  "revision_note": "Hub head of Qwen/Qwen2-VL-7B-Instruct read on 2026-09-23. The training run pulled the head without pinning, so this is the revision it most likely used, not one it recorded. Pin it for any re-run.",
+  "corpus": "VRSBench (xiang709/VRSBench), CC-BY-4.0",
+  "split": "train: Annotations_train, 12,000 QA, seed 0 | eval: Annotations_val, 2,000 QA, seed 0 | train and val share 0 of 20,264 / 9,350 images (counted)",
+  "zero_shot": 0.527,
+  "adapted": 0.66,
+  "gain": 0.133,
+  "metric": "VRSBench VQA exact match after light normalisation, n=2000",
+  "date": "2026-09-20",
+  "licence": "apache-2.0 (base model, verified on the Hub model card 2026-09-23); adapter released under the same terms",
+  "training": {
+    "method": "QLoRA, 4-bit NF4 base, fp16 compute, Kaggle T4",
+    "lora": {"r": 8, "alpha": 16, "dropout": 0.05, "targets": ["q_proj", "k_proj", "v_proj", "o_proj"]},
+    "samples": 12000,
+    "epochs": 1,
+    "optimizer_steps": 375,
+    "effective_batch": 32,
+    "lr": 0.0002,
+    "script": "models/train_rs_vqa.py",
+    "record": "training_record.json"
+  },
+  "stub": false
+}

@@ -65,12 +65,16 @@ class GeoBox:
         area = area_px or ((x1 - x0 + 1) * (y1 - y0 + 1))
         if not georeferenced:
             return cls(x0, y0, x1, y1, area_px=int(area), area_ha=0.0)
-        lon0, lat0 = transform.pixel_to_world(x0, y0)
-        lon1, lat1 = transform.pixel_to_world(x1 + 1, y1 + 1)
-        gsd = transform.ground_sample_distance
+        if not transform.can_georeference:
+            return cls(x0, y0, x1, y1, area_px=int(area), area_ha=0.0)
+        # Converted to WGS84, never relabelled: a UTM box's corners in metres
+        # were once written under an EPSG:4326 label.
+        lon0, lat0 = transform.pixel_to_lonlat(x0, y0)
+        lon1, lat1 = transform.pixel_to_lonlat(x1 + 1, y1 + 1)
+        px_m2 = transform.pixel_area_m2((x0 + x1) / 2, (y0 + y1) / 2)
         return cls(x0, y0, x1, y1,
                    round(lon0, 6), round(lat0, 6), round(lon1, 6), round(lat1, 6),
-                   int(area), round(area * gsd * gsd / 10_000.0, 3))
+                   int(area), round(area * px_m2 / 10_000.0, 3))
 
     def centre(self) -> tuple[float, float] | None:
         if not self.georeferenced:
@@ -202,10 +206,14 @@ def boxes_from_props(props: list[dict], transform: GeoTransform,
 def mask_area_ha(mask: np.ndarray, transform: GeoTransform,
                  georeferenced: bool = True) -> float:
     """Ground area in hectares; 0.0 when there is no ground to measure."""
-    if not georeferenced:
+    if not georeferenced or not transform.can_georeference:
         return 0.0
-    gsd = transform.ground_sample_distance
-    return round(float(mask.sum()) * gsd * gsd / 10_000.0, 3)
+    n = int(mask.sum())
+    if n == 0:
+        return 0.0
+    rows, cols = np.nonzero(mask)
+    px_m2 = transform.pixel_area_m2(float(cols.mean()), float(rows.mean()))
+    return round(n * px_m2 / 10_000.0, 3)
 
 
 def confidence_from_separation(values: np.ndarray, threshold: float) -> float:

@@ -190,6 +190,9 @@ export function grounding(optical: Raster | undefined, sar: Raster | undefined, 
 
 function intent(q: string) {
   if (/how many|count|number of/.test(q)) return 'count'
+  // Before presence, as in satquery/specialists.py: "how much vegetation is
+  // there?" contains "is there" and was answered "yes."
+  if (/how much/.test(q)) return 'area'
   if (/is there|are there|does .* (contain|have)|any /.test(q)) return 'presence'
   if (/how much|area|hectare|extent|coverage/.test(q)) return 'area'
   return 'describe'

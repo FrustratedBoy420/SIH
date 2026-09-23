@@ -1,0 +1,68 @@
+{
+  "model": "Qwen/Qwen2-VL-7B-Instruct",
+  "base_key": "qwen2vl",
+  "adapter": "/kaggle/working/adapters/qwen2vl_rung2/adapter",
+  "condition": "adapted",
+  "dataset": "VRSBench VQA",
+  "dataset_root": "/kaggle/working/VRSBench",
+  "split": "auto",
+  "seed": 0,
+  "limit": 2000,
+  "dtype": "fp16",
+  "load_in_4bit": true,
+  "wall_seconds": 1710.8,
+  "latency_p50": 0.816,
+  "n": 2000,
+  "accuracy_exact": 0.66,
+  "accuracy_lenient": 0.663,
+  "by_type": {
+    "image": {
+      "n": 57,
+      "accuracy_exact": 0.9825
+    },
+    "object category": {
+      "n": 275,
+      "accuracy_exact": 0.5091
+    },
+    "object color": {
+      "n": 190,
+      "accuracy_exact": 0.6
+    },
+    "object direction": {
+      "n": 24,
+      "accuracy_exact": 0.4583
+    },
+    "object existence": {
+      "n": 429,
+      "accuracy_exact": 0.9301
+    },
+    "object position": {
+      "n": 299,
+      "accuracy_exact": 0.5686
+    },
+    "object quantity": {
+      "n": 349,
+      "accuracy_exact": 0.5616
+    },
+    "object shape": {
+      "n": 73,
+      "accuracy_exact": 0.6164
+    },
+    "object size": {
+      "n": 62,
+      "accuracy_exact": 0.5323
+    },
+    "reasoning": {
+      "n": 44,
+      "accuracy_exact": 0.6818
+    },
+    "rural or urban": {
+      "n": 13,
+      "accuracy_exact": 1.0
+    },
+    "scene type": {
+      "n": 185,
+      "accuracy_exact": 0.6108
+    }
+  }
+}

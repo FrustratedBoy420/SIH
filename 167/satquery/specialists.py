@@ -396,6 +396,11 @@ class VQA(Specialist):
     def _intent(q: str) -> str:
         if re.search(r"how many|count|number of", q):
             return "count"
+        # Before presence: "how much vegetation is there?" contains "is there",
+        # and was answered "yes." — a presence reply to a quantity question,
+        # on one of the workstation's own example queries.
+        if re.search(r"how much", q):
+            return "area"
         if re.search(r"is there|are there|does .* (contain|have)|any ", q):
             return "presence"
         if re.search(r"how much|area|hectare|extent|coverage", q):

@@ -1,0 +1,36 @@
+{
+  "base": "Qwen/Qwen2-VL-7B-Instruct",
+  "corpus": "VRSBench",
+  "split": "train",
+  "samples": 12000,
+  "epochs": 1.0,
+  "seed": 0,
+  "lora": {
+    "r": 8,
+    "alpha": 16,
+    "dropout": 0.05,
+    "targets": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj"
+    ]
+  },
+  "lr": 0.0002,
+  "effective_batch": 32,
+  "dtype": "fp16",
+  "load_in_4bit": true,
+  "wall_hours": 0.11,
+  "pack_mb": 31.6,
+  "zero_shot_reference": "see models/MANIFEST.md",
+  "annotation_2026_09_23": {
+    "added_by": "review, after the run \u2014 the fields above are as the script wrote them",
+    "source": "checkpoint-375/trainer_state.json",
+    "final_step": 375,
+    "max_steps": 375,
+    "epoch": 1.0,
+    "completed": true,
+    "wall_hours_is_misleading": "wall_hours (0.11) measures only the last session. The run was resumed near the end (checkpoint-370 was the latest save before the final session); at the observed ~71 s per optimizer step, 375 steps is roughly 7.4 h of training. The script now records steps, not a clock.",
+    "weights_sha256_prefix": "2ea5192277839e63 (== checkpoint-375, != checkpoint-370)"
+  }
+}

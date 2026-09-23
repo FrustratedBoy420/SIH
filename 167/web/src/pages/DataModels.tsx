@@ -14,7 +14,9 @@ const STATUS: Record<string, { cls: string; text: string }> = {
   partial: { cls: 'border-warn text-warn', text: 'partial · some files staged' },
   absent: { cls: 'border-ink-3 text-ink-2', text: 'absent · not staged' },
   unavailable: { cls: 'border-ink text-ink', text: 'unavailable · not public' },
-  loaded: { cls: 'border-good text-good', text: 'loaded' },
+  serving: { cls: 'border-good text-good', text: 'serving' },
+  loaded: { cls: 'border-warn text-warn', text: 'loaded · not serving yet' },
+  trained: { cls: 'border-ink text-ink', text: 'trained · weights not staged here' },
   'not trained': { cls: 'border-warn text-warn', text: 'not trained · no weights' },
   frozen: { cls: 'border-ink-3 text-ink-2', text: 'frozen · not trained by design' },
   'rule-based': { cls: 'border-ink-3 text-ink-2', text: 'rule-based stand-in' },
@@ -71,7 +73,11 @@ export default function DataModels() {
   const { data: cat } = useQuery({ queryKey: ['catalog'], queryFn: api.catalog })
   const { data: reg } = useQuery({ queryKey: ['registry'], queryFn: api.registry })
   const adapters = cat?.models.filter((m) => m.adapter) ?? []
-  const loaded = adapters.filter((m) => m.status === 'loaded')
+  // "Serving now" is claimed only for what answers queries. A pack that is
+  // trained or loaded is counted as a pack, never as serving — counting
+  // `loaded` here once put "M1 adapted" over answers the classical path gave.
+  const packs = adapters.filter((m) => ['serving', 'loaded', 'trained'].includes(m.status))
+  const serving = adapters.filter((m) => m.status === 'serving')
 
   return (
     <div className="px-5 pb-24 pt-14 sm:px-8" data-testid="data-page">
@@ -106,9 +112,9 @@ export default function DataModels() {
       <section className="mt-20" aria-labelledby="m-h">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 id="m-h" className="t-section">Models</h2>
-          <p className="mono text-[13px]" data-testid="serving-now">serving now: {loaded.length ? `${loaded.map((m) => m.id).join(', ')} adapted` : 'the classical path, for all four tools'} · adapter packs {loaded.length}/{adapters.length}</p>
+          <p className="mono text-[13px]" data-testid="serving-now">serving now: {serving.length ? `${serving.map((m) => m.id).join(', ')} adapted` : 'the classical path, for all four tools'} · adapter packs {packs.length}/{adapters.length}</p>
         </div>
-        <p className="mt-3 max-w-[760px] text-ink-2">One frozen base, swappable LoRA adapters, a separate SAR encoder. Status is what is on disk, not what is planned: an adapter reads “loaded” only when its pack exists.</p>
+        <p className="mt-3 max-w-[760px] text-ink-2">One frozen base, swappable LoRA adapters, a separate SAR encoder. Status is what is on disk, not what is planned. An adapter reads “trained” when a measured pack exists, “loaded” when its weights are on this machine, and “serving” only when something can run them — the three were once collapsed, and a loaded pack was claimed as serving.</p>
         <div className="mt-6 overflow-x-auto">
           <table className="w-full min-w-[860px] border-collapse text-left">
             <thead><tr className="border-b border-ink">{['', 'Component', 'State', 'Adapter · data', 'Note'].map((h) => <th key={h} className="label py-2 font-medium">{h}</th>)}</tr></thead>

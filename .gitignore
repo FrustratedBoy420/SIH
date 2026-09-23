@@ -38,6 +38,16 @@ secrets.json
 !167/models/adapters/
 !167/models/eval/
 !167/models/.gitkeep
+!167/models/results/
+
+# Evidence is small and IS tracked: predictions and summaries are a few hundred
+# kilobytes each, and MANIFEST.md's rule 5 depends on them -- every number in it
+# must be recomputable by a reader rather than taken on trust. The WEIGHTS those
+# numbers came from stay untracked above; they are rebuildable, the evidence is
+# not.
+!167/models/results/*.jsonl
+!167/models/results/*.json
+!167/models/adapters/**/training_record.json
 
 *.safetensors
 *.bin
@@ -90,3 +100,17 @@ desktop.ini
 /runs/
 /167/runs/
 *.egg-info/
+
+# --- raw training downloads ------------------------------------------------
+# What comes back from a Kaggle run before anything is picked out of it:
+# checkpoints with optimizer state, ~250 MB per run. The pack and the evidence
+# are copied into models/ and tracked from there; the raw folder never is.
+167/qwen2vl_*/
+167/baseline/
+
+# --- local leftovers, not part of this repository ----------------------------
+# Mridul/ is a pre-restructure copy of SatQuery; dark-transit/ is the old
+# location of what now lives in 143/. Together ~550 MB, almost all node_modules
+# and run output. Ignored, not deleted -- that call is the owner's.
+Mridul/
+dark-transit/

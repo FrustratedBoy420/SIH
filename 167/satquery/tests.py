@@ -17,8 +17,11 @@ requirements, so a regression there is a scoring regression.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import json
+import pathlib
+import tempfile
 import time
 import traceback
 from typing import Callable
@@ -289,7 +292,11 @@ def _():
     sc = scenes.build(size=96, seed=5)
     r = Pipeline().run("use the optical and SAR images together",
                        Inputs(optical=sc.optical(5), sar=sc.sar(5)))
+    # "Co-registration checked" reports a measured offset between a pair
+    # (VAL-05/06) — an observation of the inputs, not a line of reasoning, so it
+    # belongs on the list of steps a trace may show.
     allowed = {"Input validated", "Task identified", "Compatibility check",
+               "Co-registration checked",
                "Tool selected", "Parameters", "Confidence", "Conflicts recorded",
                "Evidence returned", "Refused", "Confidence gate"}
     for s in r.trace:
@@ -392,31 +399,303 @@ def _():
         ok(back.crs.upper().startswith("EPSG"), f"CRS lost: {back.crs}")
 
 
+
+@check("a quantity question gets a quantity, not a yes")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    r = Pipeline(runtime=InProcessRuntime_empty()).run(
+        "How much vegetation is there?", Inputs(optical=sc.optical(5)))
+    first = r.evidence["items"][0]
+    ok(first["unit"] == "ha", f"answered with {first['claim']!r} = {first['value']!r}")
+    ok("hectares" in r.answer, f"answer is not an area: {r.answer[:80]}")
+
+
+# ------------------------------------------------------------ projections #
+#
+# Every demo scene is EPSG:4326, so for most of this project's life nothing
+# exercised a projected CRS — and a UTM upload reported 48,948,962,480 ha for
+# a 164 ha image, printed eastings as longitudes, and labelled metres EPSG:4326.
+# Every check here asserts a VALUE that is physically possible, not merely that
+# an answer appeared: the UI suite passed on exactly that answer.
+
+
+def _utm_raster(zone: int = 44, lon: float = 79.09, lat: float = 21.15,
+                size: int = 96, px: float = 10.0):
+    from .raster import GeoTransform, Raster, lonlat_to_utm
+
+    e0, n0 = lonlat_to_utm(lon, lat, zone)
+    sc = scenes.build(size=size, seed=5)
+    opt = sc.optical(5)
+    return Raster(data=opt.data, crs=f"EPSG:326{zone}", sensor="optical",
+                  band_names=opt.band_names, source="utm_test.tif",
+                  transform=GeoTransform(e0, px, 0.0, n0, 0.0, -px))
+
+
+@check("UTM maths matches the published and defined reference values")
+def _():
+    from .raster import lonlat_to_utm, utm_to_lonlat
+
+    e, n = lonlat_to_utm(3.0, 0.0, 31)
+    ok(abs(e - 500_000) < 1e-6 and abs(n) < 1e-6, f"equator on the CM gave {e}, {n}")
+    # WGS84 meridian arc to 45 deg is 4,984,944.378 m; UTM scales it by 0.9996.
+    _, n45 = lonlat_to_utm(3.0, 45.0, 31)
+    ok(abs(n45 - 4_982_950.400) < 0.01, f"45N northing {n45:.3f}, expected 4982950.400")
+    for zone, lon in ((43, 72.2), (44, 81.0), (45, 89.8)):
+        for lat in (8.0, 23.35, 35.0):
+            back = utm_to_lonlat(*lonlat_to_utm(lon, lat, zone), zone, True)
+            ok(abs(back[0] - lon) < 1e-7 and abs(back[1] - lat) < 1e-7,
+               f"round trip {lon},{lat} -> {back}")
+
+
+@check("a UTM raster reports metres as metres and places as degrees")
+def _():
+    r = _utm_raster()
+    s = r.summary()
+    ok(s["crs_kind"] == "utm", f"kind {s['crs_kind']}")
+    ok(abs(s["gsd_m"] - 10.0) < 1e-9, f"10 m pixels reported as {s['gsd_m']} m")
+    lat, lon = s["centre"]
+    ok(20.5 < lat < 21.5 and 78.8 < lon < 79.5,
+       f"centre {lat},{lon} is not near the scene (21.15 N, 79.09 E)")
+
+
+@check("no area can exceed the ground the image covers")
+def _():
+    import tempfile
+    from .runtime import InProcessRuntime
+
+    r = _utm_raster()
+    footprint_ha = r.width * r.height * 100 / 10_000          # 10 m pixels
+    res = Pipeline(runtime=InProcessRuntime(tempfile.mkdtemp())).run(
+        "highlight the water body", Inputs(optical=r))
+    ok(not res.refused, f"refused: {res.answer[:80]}")
+    for item in res.evidence["items"]:
+        area = item.get("mask_area_ha") or 0.0
+        ok(0.0 <= area <= footprint_ha,
+           f"{item['claim']!r} covers {area} ha in a {footprint_ha} ha image")
+    for feat in res.geojson["features"]:
+        for lon, lat in feat["geometry"]["coordinates"][0]:
+            ok(-180 <= lon <= 180 and -90 <= lat <= 90,
+               f"GeoJSON vertex {lon},{lat} is not a longitude/latitude")
+
+
+@check("areas on a geographic raster account for latitude")
+def _():
+    import math
+    from .raster import GeoTransform
+
+    t = GeoTransform(85.0, 0.001, 0.0, 23.35, 0.0, -0.001)
+    got = t.pixel_area_m2(0, 0)
+    expect = 0.001 * 0.001 * 110_574 * 111_320 * math.cos(math.radians(23.35))
+    ok(abs(got - expect) / expect < 1e-6, f"{got:.2f} m2, expected {expect:.2f}")
+    ok(got < 0.001 * 0.001 * 111_320 ** 2 * 0.93,
+       "pixel area ignores latitude — every area ~9 % high at 23 N")
+
+
+@check("a projection that cannot be converted is not reported as a place")
+def _():
+    from .raster import GeoTransform, Raster
+
+    sc = scenes.build(size=64, seed=5)
+    r = Raster(data=sc.optical(5).data, crs="EPSG:3857",
+               transform=GeoTransform(9_440_000.0, 10.0, 0.0, 2_670_000.0, 0.0, -10.0))
+    ok(not r.georeferenced, "an unconvertible projection was treated as georeferenced")
+    ok("crs_note" in r.meta, "no note saying why positions are in pixel space")
+
+
+@check("a UTM GeoTIFF round-trips with its projection intact")
+def _():
+    import tempfile
+    from pathlib import Path
+    from .raster import read, write_geotiff
+
+    r = _utm_raster()
+    with tempfile.TemporaryDirectory() as d:
+        back = read(write_geotiff(r, Path(d) / "utm.tif"), sensor="optical")
+    ok(back.crs == "EPSG:32644", f"CRS came back as {back.crs}")
+    ok(back.georeferenced and back.transform.kind == "utm", "projection lost on write")
+    ok(abs(back.summary()["centre"][0] - r.summary()["centre"][0]) < 1e-6,
+       "the scene moved on the round trip")
+
+
+
+# ---------------------------------------------------------------- M1 serving #
+#
+# The adapted model reaches a result through the runtime (live on a GPU, or
+# pre-computed for known images). No GPU here, so these checks drive the whole
+# path with a pre-computed pack — the same runtime code, the same keying, the
+# same evidence record a live answer produces.
+
+
+@contextlib.contextmanager
+def _m1_pack(rows: list[dict]):
+    """A real (non-stub) M1 pack whose answers are pre-computed."""
+    from .runtime import InProcessRuntime
+
+    with tempfile.TemporaryDirectory() as d:
+        folder = pathlib.Path(d) / "m1"
+        folder.mkdir()
+        (folder / "pack.json").write_text(json.dumps({
+            "pack_id": "m1-test", "component": "M1",
+            "adapter": "adapter_A_rs_general", "base_model": "test/base",
+        }), encoding="utf-8")
+        (folder / "precomputed.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows), encoding="utf-8")
+        yield InProcessRuntime(d)
+
+
+def _key_for(raster) -> str:
+    from .runtime import image_key, raster_rgb_u8
+    return image_key(raster_rgb_u8(raster))
+
+
+@check("M1 prompt at serving time is the prompt it was trained and measured with")
+def _():
+    import importlib.util
+    from .runtime import M1_PROMPT_SUFFIX
+
+    cfg = pathlib.Path(__file__).resolve().parent.parent / "models" / "common" / "config.py"
+    spec = importlib.util.spec_from_file_location("_m1cfg", cfg)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    ok(M1_PROMPT_SUFFIX == mod.SHORT_ANSWER_SUFFIX,
+       "serving prompt differs from training prompt — that is a different model")
+
+
+@check("M1 answers a known image, and the result says M1 ran")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "What type of area is shown in this image?"
+    with _m1_pack([{"image_key": _key_for(opt), "question": q,
+                    "answer": "Industrial", "confidence": 0.81}]) as rt:
+        r = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+    ok(r.engine == "neural+classical", f"engine {r.engine!r} after M1 answered")
+    first = r.evidence["items"][0]
+    ok(first["claim"] == "M1 answer" and first["value"] == "Industrial",
+       f"M1 did not lead the evidence: {first['claim']!r} = {first['value']!r}")
+    ok(r.answer.startswith("Industrial"), f"answer does not lead with M1: {r.answer[:60]}")
+    ok(any("M1 precomputed" in s["detail"] for s in r.trace),
+       "the trace does not say M1 answered from pre-computed output")
+    ok(r.precomputed, "a pre-computed M1 answer was not flagged as staged (ADP-09)")
+
+
+@check("a structured scene summary still says what M1 read")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "Describe the land-cover and major objects visible in this image."
+    with _m1_pack([{"image_key": _key_for(opt), "question": q,
+                    "answer": "Residential area near a river", "confidence": 0.8}]) as rt:
+        r = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+    ok(r.engine == "neural+classical", f"engine {r.engine!r}")
+    ok("Residential area near a river" in r.answer,
+       f"engine claims M1 ran but the answer never says what it read: {r.answer[:120]}")
+    ok("Detected:" in r.answer, "the structured summary (audit B3) was lost")
+
+
+@check("an image M1 has no answer for falls back to classical, and says so")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    with _m1_pack([{"image_key": "not-this-image", "question": "anything",
+                    "answer": "x", "confidence": 0.9}]) as rt:
+        r = Pipeline(runtime=rt).run("what type of area is shown?",
+                                     Inputs(optical=sc.optical(5)))
+    ok(r.engine == "classical", f"engine {r.engine!r} on a cache miss")
+    ok(all(i["claim"] != "M1 answer" for i in r.evidence["items"]),
+       "an M1 record appeared for an image M1 never saw")
+    ok(any("M1 not used" in s["detail"] for s in r.trace),
+       "the fallback is not stated in the trace")
+
+
+@check("SAR is never shown to M1 as a photograph")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    sar = sc.sar(5)
+    q = "is there a built-up area in this image?"
+    with _m1_pack([{"image_key": _key_for(sar), "question": q,
+                    "answer": "Yes", "confidence": 0.9}]) as rt:
+        r = Pipeline(runtime=rt).run(q, Inputs(sar=sar))
+    ok(r.engine == "classical", "M1 answered a SAR-only query")
+    ok(any("SAR input" in s["detail"] for s in r.trace), "the reason is not in the trace")
+
+
+@check("M1 disagreeing with a measured count is a recorded conflict, not an answer")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "How many water bodies are there?"
+    with _m1_pack([{"image_key": _key_for(opt), "question": q,
+                    "answer": "7", "confidence": 0.9}]) as rt:
+        r = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+        base = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=opt))
+    items = r.evidence["items"]
+    ok(items[0]["claim"] != "M1 answer", "M1 led a count — measurement must lead counts")
+    m1 = next((i for i in items if i["claim"] == "M1 answer"), None)
+    ok(m1 is not None, "M1 corroboration missing")
+    measured = items[0]["value"]
+    if measured != 7:
+        ok(m1["conflicts"], f"M1 said 7, measurement {measured}, and no conflict was recorded")
+        ok(r.confidence < base.confidence,
+           f"a conflict did not lower confidence: {r.confidence} vs {base.confidence}")
+
+
+def InProcessRuntime_empty():
+    from .runtime import InProcessRuntime
+    return InProcessRuntime(tempfile.mkdtemp())
+
+
+@check("a remote runtime is sent pixels as PNG, never a raw array")
+def _():
+    from .errors import SatQueryError
+    from .runtime import HttpRuntime, raster_rgb_u8
+
+    sc = scenes.build(size=32, seed=5)
+    rt = HttpRuntime("http://127.0.0.1:9", timeout=0.5)       # nothing listens
+    try:
+        rt.infer("adapter_A_rs_general", "vqa",
+                 {"question": "q", "image_key": "k", "_rgb_u8": raster_rgb_u8(sc.optical(5))})
+        ok(False, "an unreachable runtime returned a result")
+    except SatQueryError as exc:
+        ok(exc.code == "runtime_unreachable", f"failed as {exc.code}, not unreachable")
+    except TypeError as exc:
+        ok(False, f"payload was not serialisable: {exc}")
+
+
 # ------------------------------------------------------------ adapter socket #
 #
-# `Pipeline(adapters=...)` is the seam the trained LoRA pack will arrive
-# through. Until one exists, no call site in the tree passes the argument, so
-# the whole branch has never executed -- see docs/10_Decision_Record.md section
-# 6. These checks run it now, against a stub, so that its first execution is not
-# on the day the real weights land under deadline pressure.
+# `Pipeline(runtime=...)` is the seam a trained LoRA pack arrives through
+# (TRD §4.6, CON-03). These checks build real pack directories -- a `pack.json`
+# on disk, read by `load_packs` -- so the loader, the keying by registry adapter
+# name, and the claim that reaches `Result.engine` are all exercised together.
 #
-# The stub deliberately carries no model behaviour. What is under test is the
-# wiring: that a pack reaches the right specialist, that it reaches only that
-# one, and that the claim it produces travels all the way out to `Result.engine`
-# where a judge reads it. Loading actual weights is a separate problem and is
-# not what breaks first.
+# Two kinds of pack. A *stub* pack serves by construction (ADP-06): it proves
+# the wiring before weights exist. A *real* pack is loaded and reported, but
+# serves only once an inference path can run it. The last check below exists
+# because that distinction was once missing: staging the real M1 pack made
+# every result claim `neural+classical` on answers the classical specialist
+# produced alone.
 
 
-class _StubPack:
-    """Stands in for a loaded LoRA pack. Truthiness is all the seam inspects."""
+@contextlib.contextmanager
+def _runtime(*packs: tuple[str, bool]):
+    """An in-process runtime over temporary packs: (adapter name, is_stub)."""
+    from .runtime import InProcessRuntime
 
-    def __init__(self, name: str = "stub") -> None:
-        self.name = name
+    with tempfile.TemporaryDirectory() as d:
+        for i, (adapter, stub) in enumerate(packs):
+            folder = pathlib.Path(d) / f"pack-{i}"
+            folder.mkdir()
+            (folder / "pack.json").write_text(json.dumps({
+                "pack_id": f"test-{i}", "component": "M1", "adapter": adapter,
+                "base_model": "test/base", "stub": stub,
+            }), encoding="utf-8")
+        yield InProcessRuntime(d)
 
 
 @check("adapter socket — a pack flips exactly its own specialist to neural")
 def _():
-    pipe = Pipeline(adapters={"adapter_B_grounding": _StubPack()})
+    with _runtime(("adapter_B_grounding", True)) as rt:
+        pipe = Pipeline(runtime=rt)
     ok(pipe.grounding.adapter_loaded, "the pack did not reach the grounding specialist")
     ok(pipe.grounding.path == "neural+classical",
        f"grounding reports {pipe.grounding.path!r}")
@@ -428,8 +707,9 @@ def _():
 @check("adapter socket — a loaded pack reaches Result.engine and the trace")
 def _():
     sc = scenes.build(size=96, seed=5)
-    pipe = Pipeline(adapters={"adapter_B_grounding": _StubPack()})
-    r = pipe.run("highlight the water body", Inputs(optical=sc.optical(5)))
+    with _runtime(("adapter_B_grounding", True)) as rt:
+        r = Pipeline(runtime=rt).run("highlight the water body",
+                                     Inputs(optical=sc.optical(5)))
     ok(not r.refused, f"grounding refused: {r.answer[:80]}")
     ok(r.engine == "neural+classical", f"engine reported {r.engine!r}")
     executed = [s for s in r.trace if s["step"].startswith("Executed")]
@@ -441,7 +721,11 @@ def _():
 @check("adapter socket — with no pack, nothing anywhere claims to be neural")
 def _():
     sc = scenes.build(size=96, seed=5)
-    r = Pipeline().run("highlight the water body", Inputs(optical=sc.optical(5)))
+    # An explicit empty runtime, so the check does not depend on whether an
+    # `adapters/` directory happens to exist in the working directory.
+    with _runtime() as rt:
+        r = Pipeline(runtime=rt).run("highlight the water body",
+                                     Inputs(optical=sc.optical(5)))
     ok(r.engine == "classical", f"engine claims {r.engine!r} with no pack loaded")
     ok("neural" not in json.dumps(r.trace),
        "the trace claims a neural path that no pack provides")
@@ -451,9 +735,28 @@ def _():
 def _():
     # A typo in a pack name must not silently load nothing while the system
     # reports success. The failure has to be visible as "still classical".
-    pipe = Pipeline(adapters={"adapter_Z_does_not_exist": _StubPack()})
+    with _runtime(("adapter_Z_does_not_exist", True)) as rt:
+        pipe = Pipeline(runtime=rt)
     for spec in (pipe.grounding, pipe.vqa, pipe.change, pipe.fusion):
         ok(not spec.adapter_loaded, f"{spec.name} loaded from an unknown key")
+
+
+@check("adapter socket — a real pack with no inference path claims nothing")
+def _():
+    from .runtime import describe
+
+    sc = scenes.build(size=96, seed=5)
+    with _runtime(("adapter_A_rs_general", False)) as rt:
+        health = describe(rt)
+        r = Pipeline(runtime=rt).run("is there a water body in this image?",
+                                     Inputs(optical=sc.optical(5)))
+    ok(health["adapters"] == ["adapter_A_rs_general"],
+       f"a real pack on disk was not reported as loaded: {health['adapters']}")
+    ok(health["adapters_serving"] == [],
+       f"a pack with no inference path is reported serving: {health['adapters_serving']}")
+    ok(health["engine"] == "classical", f"health claims {health['engine']!r}")
+    ok(r.engine == "classical",
+       f"result claims {r.engine!r} for an answer the classical specialist produced")
 
 
 # ---------------------------------------------------------------- runner #

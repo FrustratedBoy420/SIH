@@ -10,7 +10,7 @@ imagery can actually support the question, and returns an answer with the
 evidence behind it.
 
 ```bash
-python3 -m satquery.cli selftest     # 30 checks, ~1.4 s
+python3 -m satquery.cli selftest     # 49 checks, ~2 s
 python3 -m satquery.cli demo         # one cross-modal run, printed
 python3 -m satquery.cli eval         # metrics and the A–E ablation
 python3 -m satquery.cli serve        # http://127.0.0.1:8000
@@ -52,7 +52,7 @@ Five capabilities. The system must satisfy all five.
 
 | | Requirement | State |
 |---|---|---|
-| 1 | **Remote-sensing adaptation — a fine-tuned visual or vision-language component** | **not built** — see below |
+| 1 | **Remote-sensing adaptation — a fine-tuned visual or vision-language component** | **trained, measured, wired** (M1, +13.30 points) — serves where it can run; see below |
 | 2 | Single-image VQA, plus one more single-image task | built, classical |
 | 3 | Bi-temporal change analysis | built, classical |
 | 4 | Optical–SAR cross-modal analysis | built, classical |
@@ -63,9 +63,12 @@ Requirement 1 is the one the statement calls disqualifying to omit:
 > *"A generic LLM or VLM without remote-sensing adaptation will not satisfy the
 > requirements."*
 
-It is the current build's single open item, and the whole near-term plan is
-pointed at it. `models/MANIFEST.md` stays empty until a pack exists with a
-measured before-and-after number beside it.
+M1 is trained and measured: zero-shot 0.5270 → adapted 0.6600 on 2,000
+held-out VRSBench items, with train/val image overlap counted at zero. The pack
+ships in `models/adapters/m1-rs-vqa/` and is wired into the pipeline: an
+optical VQA query is answered by M1 wherever M1 can run — live on a CUDA GPU,
+or from answers pre-computed by the same code on Kaggle — and `engine` says
+which path answered each query.
 
 ---
 
@@ -95,23 +98,47 @@ sides:
 
 ```
 zero-shot   0.5270
-adapted     0.6305
-gain       +0.1035
+rung 1      0.6305    4,000 training samples
+rung 2      0.6600   12,000 training samples   <- shipped
+gain       +0.1330
 ```
+
+Train and evaluation are VRSBench's own published split, and the overlap
+between them was counted rather than assumed: 0 of 20,264 / 9,350 images.
 
 Numbers, per-category breakdown and the caveats on comparing them to published
 results are in `models/MANIFEST.md`. The training script is
 `models/train_rs_vqa.py`; the evaluation is `models/eval_baseline.py`, with and
 without `--adapter`.
 
-**Not yet wired into the pipeline.** The seam exists and is tested:
-`Pipeline(adapters=...)` accepts a pack, `Specialist.path` reports
-`neural+classical` when one is loaded, and that claim travels out to
-`Result.engine`. Four checks in `satquery/tests.py` ("adapter socket") drive it
-with a stub, so a pack reaching the wrong specialist — or a missing pack
-producing a neural claim — fails the self-test. What remains is connecting the
-trained pack to that seam; until that lands, the running system reports
-`classical`, which is the truth.
+**How M1 serves.** `python3 -m satquery.cli serve --adapters models/adapters`
+loads the pack. For an optical VQA question the pipeline asks the runtime for
+M1's answer, in one of two ways:
+
+| Mode | Where | What |
+|---|---|---|
+| **live** | a machine with a CUDA GPU (~6 GB for the 4-bit 7B) and `torch`/`peft` | base + adapter loaded once, run greedily — the same path that measured 0.660 |
+| **pre-computed** | any machine, including a 4 GB laptop | answers that same live path produced earlier, for known images and questions — `models/precompute_m1.py` on Kaggle writes them to `models/adapters/m1-rs-vqa/precomputed.jsonl` |
+
+M1's answer becomes one more evidence record, never a replacement for
+measurement (ADR-007). It leads the answer for *what / where / which* questions;
+a **measured** count or area leads its question, because M1 counts poorly
+(object quantity 0.56) — and when M1 disagrees with the measurement, the
+disagreement is recorded as a conflict and confidence drops (audit A3). SAR is
+never shown to M1: it was trained on optical imagery (03 §7).
+
+When M1 cannot answer — no GPU, an image it has no pre-computed answer for, a
+SAR input — the classical specialist answers, the result says
+`engine: classical`, and the trace says why. A pre-computed answer sets the
+result's `precomputed` flag, so the interface discloses it (ADP-09).
+`/api/health` reports each pack's mode — live, pre-computed with a count, or
+not serving and why.
+
+A loaded pack once counted as *available* whether or not anything could run
+it, and staging M1 made results claim `neural+classical` on answers a
+three-class Otsu split had produced. `available()` now means *can serve*, and
+`satquery/tests.py` drives the whole path — stub packs, a real pack with no
+inference path, pre-computed hits and misses, SAR, and a count conflict.
 
 **Not built — M2 grounding, M3 change, M4 optical–SAR adapters.** Deferred by
 `docs/10_Decision_Record.md` §1: the problem statement requires *at least one*
@@ -151,9 +178,9 @@ cd web && npm install && npm run build
 cd .. && python3 -m satquery.cli serve      # UI and API on one origin
 ```
 
-Serving the built UI currently requires **FastAPI**; the stdlib fallback serves
-`/api/*` only. Until that is fixed, `pip install fastapi uvicorn` is a
-prerequisite for seeing the interface.
+The server needs **FastAPI and uvicorn** (`pip install fastapi uvicorn`); the
+earlier standard-library fallback has been removed, and `serve` says at start-up
+whether `web/dist` was found.
 
 Development, with hot reload:
 
@@ -188,8 +215,19 @@ measured over the same labelled queries the routing rules were written from, so
 it reports construction rather than generalisation. It will be reported once a
 held-out paraphrase set exists — see `docs/10_Decision_Record.md`.
 
-**Not claimed:** VRSBench, RSVQA or CDVQA numbers. Those need the adapters and
-a benchmark loader, neither of which exists yet.
+**VRSBench VQA is claimed, for M1**: 0.5270 zero-shot → 0.6600 adapted on
+2,000 held-out items, paired McNemar p = 1.2e-35 — with its caveats in
+`models/MANIFEST.md`. **Not claimed:** RSVQA and CDVQA; there is no loader for
+either.
+
+**Projections.** Uploaded imagery in UTM (EPSG:326xx / 327xx) — how Cartosat
+and Sentinel-2 products are delivered — is converted to WGS84 for every
+position, box and GeoJSON vertex, and measured in metres. Until 23 Sep it was
+read as degrees: a 164 ha UTM image reported 48,948,962,480 ha. Other
+projections are refused into pixel space with a stated reason rather than
+guessed. Areas on geographic (EPSG:4326) imagery now account for latitude; they
+previously ran ~9 % high at the demo scene's 23 N, so the demo's hectare
+figures are ~9 % lower than in earlier versions of this README.
 
 ---
 

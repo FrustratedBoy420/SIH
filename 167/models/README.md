@@ -210,6 +210,36 @@ bhi badla toh dono numbers ka farak adaptation nahi, subset ban jaata hai.
 
 Adapted results alag file mein jaate hain — baseline overwrite nahi hota.
 
+## M1 ko laptop par chalana — `precompute_m1.py`
+
+Laptop par 4 GB VRAM hai, M1 (4-bit 7B) ko ~6 GB chahiye. Isliye demo ke
+sawaalon ke jawab Kaggle par **pehle se** nikaal lo — wahi code jo server GPU
+par chalata (`satquery.runtime.M1Live`), toh jawab bilkul wahi hote hain.
+
+```python
+# Kaggle par (GPU on), repo ke 167/ folder se
+!python models/precompute_m1.py \
+    --adapter-dir /kaggle/working/adapters/qwen2vl_rung2/adapter \
+    --out /kaggle/working/precomputed.jsonl
+```
+
+Script demo scenes aur un sawaalon par chalti hai jo router sach mein `rs_vqa`
+(M1) ko bhejta hai (abhi 12 mein se 11). Apni GeoTIFFs bhi de sakte ho:
+`--images a.tif b.tif`.
+
+Phir laptop par:
+
+```
+copy precomputed.jsonl models\adapters\m1-rs-vqa\
+python models/precompute_m1.py --check models/adapters/m1-rs-vqa/precomputed.jsonl
+```
+
+`--check` ko GPU nahi chahiye. Wo batata hai kaunse demo jawab is machine par
+milenge (`hit`) aur kaunse classical par girenge (`MISS`). Key image ke exact
+pixels ka hash hai; agar do machines scene ko ek grey-level bhi alag render
+karein, toh wo jawab miss hoga — aur system classical path se jawab dega aur
+trace mein wajah likhega, galat image ka jawab nahi dega.
+
 ## Flags
 
 | Flag | Kya karta hai |
