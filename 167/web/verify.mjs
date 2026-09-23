@@ -5,11 +5,12 @@
  *   node verify.mjs [baseUrl] [fixturesDir]
  *
  * Anchored to data-testid, never to styling classes (NFR-16). Runs against
- * whichever engine the build selects (the preview engine by default), so it
- * needs no backend. Covers: landing loads, upload works (and fails loudly),
- * query answers, trace populates, refusal and abstention are visible, exports
- * download, deep links survive refresh, reduced motion, no WebGL, phone width,
- * and zero console errors (NFR-12).
+ * whichever engine the page selects: a static preview needs no backend; a
+ * page served by `satquery serve` uses the API, and then M1's palette is
+ * checked too when M1 serves pre-computed answers. Covers: landing loads,
+ * upload works (and fails loudly), query answers, trace populates, refusal
+ * and abstention are visible, exports download, deep links survive refresh,
+ * reduced motion, no WebGL, phone width, and zero console errors (NFR-12).
  */
 
 import { chromium } from 'playwright'
@@ -246,6 +247,35 @@ try {
       await page.locator(tid('file-t1')).setInputFiles(png)
       await page.locator(tid('slot-t1')).getByText('not georeferenced').waitFor({ timeout: 10000 })
       return 'CRS none, pixel coordinates'
+    })
+  }
+
+  /* ------------------------------------------------------------------ M1 */
+  // Only against a live server serving M1's pre-computed answers
+  // (satquery serve --adapters models/adapters). A real VRSBench photo is one
+  // of the images M1 holds answers for; the palette must offer those
+  // questions, and picking one must be answered by M1, not the classical path.
+  const health = await fetch(`${BASE}/api/health`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  const m1 = Object.values(health?.packs ?? {}).some((p) => p.mode === 'precomputed')
+  const photo = '../demo/real_vrsbench/08281_0000.png'
+  if (m1 && existsSync(photo)) {
+    await check('palette offers M1\'s questions for a known image', async () => {
+      await page.locator(tid('file-optical')).setInputFiles(photo)
+      await page.locator(tid('slot-optical')).getByText('uploaded').waitFor({ timeout: 20000 })
+      await page.waitForTimeout(800)
+      await page.keyboard.press('Control+k')
+      await page.getByText('M1 has answers for this image').waitFor({ timeout: 5000 })
+      return `${await page.getByText('answered by M1 · pre-computed').count()} question(s)`
+    })
+    await check('a palette question is answered by M1, pre-computed', async () => {
+      const q = 'How many bridges are visible in the image?'
+      await page.getByText(q, { exact: true }).click()
+      await page.locator(tid('answer')).waitFor({ timeout: 20000 })
+      await page.waitForFunction(() => !document.querySelector('[data-testid="query-submit"]')?.hasAttribute('disabled'), null, { timeout: 20000 })
+      await page.waitForTimeout(1500)
+      if (!(await page.locator('body').innerText()).includes('M1 precomputed')) throw new Error('trace does not name M1 precomputed')
+      await page.screenshot({ path: `${SHOTS}/18-m1-palette.png` })
+      return (await page.locator(tid('answer-text')).innerText()).trim().slice(0, 80)
     })
   }
 
