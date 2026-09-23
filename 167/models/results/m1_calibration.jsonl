@@ -1,0 +1,300 @@
+{"uid": "09224_0000:0", "qtype": "scene type", "question": "What is the main structure visible in the image?", "truth": "Train station", "answer": "Train station", "confidence": 0.6728, "correct": true}
+{"uid": "09224_0000:1", "qtype": "object existence", "question": "Are there any residential areas visible?", "truth": "Yes", "answer": "Yes", "confidence": 0.9538, "correct": true}
+{"uid": "09224_0000:2", "qtype": "object existence", "question": "Is there greenery visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.939, "correct": true}
+{"uid": "10097_0000:0", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "2", "answer": "2", "confidence": 0.8285, "correct": true}
+{"uid": "10097_0000:1", "qtype": "object size", "question": "Is the top-most ship larger or smaller than the other?", "truth": "Larger", "answer": "smaller", "confidence": 0.7466, "correct": false}
+{"uid": "10097_0000:2", "qtype": "object position", "question": "What is the relative position of the smaller ship?", "truth": "Bottom-right", "answer": "Bottom-right", "confidence": 0.5395, "correct": true}
+{"uid": "10097_0000:3", "qtype": "object position", "question": "Which ship is the right-most?", "truth": "The smaller ship", "answer": "smaller ship", "confidence": 0.4022, "correct": true}
+{"uid": "10097_0000:4", "qtype": "object position", "question": "Are both ships docked?", "truth": "Yes", "answer": "Yes", "confidence": 0.9247, "correct": true}
+{"uid": "P1390_0083:0", "qtype": "object quantity", "question": "How many planes are visible?", "truth": "2", "answer": "4", "confidence": 0.6061, "correct": false}
+{"uid": "P1390_0083:1", "qtype": "scene type", "question": "Is the terrain around the runway paved or unpaved?", "truth": "unpaved", "answer": "Unpaved", "confidence": 0.8048, "correct": true}
+{"uid": "P1390_0083:2", "qtype": "object position", "question": "Are the visible planes positioned on the runway?", "truth": "No", "answer": "Yes", "confidence": 0.842, "correct": false}
+{"uid": "08281_0000:0", "qtype": "object quantity", "question": "How many bridges are visible in the image?", "truth": "2", "answer": "2", "confidence": 0.7383, "correct": true}
+{"uid": "08281_0000:1", "qtype": "object position", "question": "Where is the vehicle located?", "truth": "Middle-right", "answer": "Middle-right", "confidence": 0.5298, "correct": true}
+{"uid": "08281_0000:2", "qtype": "object existence", "question": "Is there a body of water present under the bridges?", "truth": "Yes", "answer": "Yes", "confidence": 0.9733, "correct": true}
+{"uid": "P5789_2244:0", "qtype": "image", "question": "Is the image in color or grayscale?", "truth": "grayscale", "answer": "grayscale", "confidence": 0.8298, "correct": true}
+{"uid": "P5789_2244:1", "qtype": "object quantity", "question": "How many harbors are visible?", "truth": "2", "answer": "1", "confidence": 0.7706, "correct": false}
+{"uid": "P5789_2244:2", "qtype": "reasoning", "question": "Which object is larger, the bottom-most harbor or the top-most harbor?", "truth": "bottom-most", "answer": "bottom-most harbor", "confidence": 0.7026, "correct": false}
+{"uid": "P5789_2244:3", "qtype": "object existence", "question": "Are there any buildings visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9104, "correct": true}
+{"uid": "09054_0000:0", "qtype": "object category", "question": "What is the main feature of the image?", "truth": "baseball field", "answer": "baseball field", "confidence": 0.7702, "correct": true}
+{"uid": "09054_0000:1", "qtype": "object existence", "question": "Is there a fenced area adjacent to the baseball field?", "truth": "Yes", "answer": "Yes", "confidence": 0.9571, "correct": true}
+{"uid": "09054_0000:2", "qtype": "object color", "question": "What colors are present on the baseball field?", "truth": "green, brown", "answer": "Green, brown", "confidence": 0.6976, "correct": true}
+{"uid": "P2701_0041:0", "qtype": "object quantity", "question": "How many storage tanks are clearly visible?", "truth": "5", "answer": "4", "confidence": 0.4487, "correct": false}
+{"uid": "P2701_0041:1", "qtype": "object position", "question": "Where is the storage tank with the smallest identification number located?", "truth": "top-middle", "answer": "Top-left", "confidence": 0.574, "correct": false}
+{"uid": "P2701_0041:2", "qtype": "object existence", "question": "Is there a storage tank in the bottom-left part of the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.8801, "correct": true}
+{"uid": "P2701_0041:3", "qtype": "object size", "question": "Are all storage tanks approximately the same size?", "truth": "Yes", "answer": "Yes", "confidence": 0.8277, "correct": true}
+{"uid": "P2645_0002:0", "qtype": "object quantity", "question": "How many large vehicles are visible at the bottom of the parking area?", "truth": "2", "answer": "1", "confidence": 0.7092, "correct": false}
+{"uid": "P2645_0002:1", "qtype": "object color", "question": "What color is the building's roof?", "truth": "grey", "answer": "Dark", "confidence": 0.4824, "correct": false}
+{"uid": "P2645_0002:2", "qtype": "object existence", "question": "Are there skylights on the building's roof?", "truth": "yes", "answer": "Yes", "confidence": 0.9693, "correct": true}
+{"uid": "P5789_1538:0", "qtype": "object category", "question": "What type of ground facility is visible in the image?", "truth": "ground-track-field", "answer": "stadium", "confidence": 0.5952, "correct": false}
+{"uid": "P5789_1538:1", "qtype": "image", "question": "Is the image in color or grayscale?", "truth": "grayscale", "answer": "grayscale", "confidence": 0.8104, "correct": true}
+{"uid": "P5789_1538:2", "qtype": "object existence", "question": "Are there any buildings adjacent to the track field?", "truth": "Yes", "answer": "Yes", "confidence": 0.9421, "correct": true}
+{"uid": "06296_0000:0", "qtype": "object quantity", "question": "How many baseball fields are visible in the image?", "truth": "4", "answer": "2", "confidence": 0.595, "correct": false}
+{"uid": "06296_0000:1", "qtype": "object existence", "question": "Is there a golf course in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9172, "correct": true}
+{"uid": "06296_0000:2", "qtype": "object existence", "question": "Are storage tanks present in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9262, "correct": true}
+{"uid": "06296_0000:3", "qtype": "object category", "question": "What is positioned just above the golf course?", "truth": "Baseball fields", "answer": "Airport", "confidence": 0.3366, "correct": false}
+{"uid": "06296_0000:4", "qtype": "object position", "question": "Where are the storage tanks located relative to the image?", "truth": "Middle-right", "answer": "Top-right", "confidence": 0.4667, "correct": false}
+{"uid": "06296_0000:5", "qtype": "object category", "question": "What type of structures surround the sports facilities?", "truth": "Buildings", "answer": "Buildings", "confidence": 0.7705, "correct": true}
+{"uid": "P0047_0007:0", "qtype": "object shape", "question": "What is the shape of the baseball diamond?", "truth": "diamond", "answer": "Diamond", "confidence": 0.6588, "correct": true}
+{"uid": "P0047_0007:1", "qtype": "object existence", "question": "Is there a vehicle in the top-left corner of the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9441, "correct": true}
+{"uid": "P0047_0007:2", "qtype": "object quantity", "question": "How many baseball diamonds are visible in the image?", "truth": "1", "answer": "2", "confidence": 0.7464, "correct": false}
+{"uid": "P0558_0005:0", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "1", "answer": "1", "confidence": 0.9232, "correct": true}
+{"uid": "P0558_0005:1", "qtype": "object position", "question": "Where is the top-most harbor positioned in relation to the water body?", "truth": "Top", "answer": "Top-middle", "confidence": 0.4608, "correct": false}
+{"uid": "P0558_0005:2", "qtype": "object position", "question": "Is the middle harbor connected to any land vegetation?", "truth": "Yes", "answer": "Yes", "confidence": 0.7648, "correct": true}
+{"uid": "P0558_0005:3", "qtype": "object category", "question": "What are the structures extending into the water called?", "truth": "Harbors", "answer": "Harbors", "confidence": 0.7916, "correct": true}
+{"uid": "P0558_0005:4", "qtype": "object category", "question": "Which object is depicted nearest to the top-left quadrant?", "truth": "Ship", "answer": "ship", "confidence": 0.5795, "correct": true}
+{"uid": "08274_0000:0", "qtype": "object position", "question": "What is the primary structure visible on the right side of the image?", "truth": "airport", "answer": "airport", "confidence": 0.7342, "correct": true}
+{"uid": "08274_0000:1", "qtype": "object existence", "question": "Are there any visible planes at the airport?", "truth": "no", "answer": "No", "confidence": 0.9164, "correct": true}
+{"uid": "08274_0000:2", "qtype": "scene type", "question": "What kind of patterns dominate the image?", "truth": "farmland", "answer": "Rectangular", "confidence": 0.3243, "correct": false}
+{"uid": "08274_0000:3", "qtype": "object existence", "question": "Is there a presence of dense vegetation near the airport?", "truth": "yes", "answer": "Yes", "confidence": 0.9016, "correct": true}
+{"uid": "08274_0000:4", "qtype": "object quantity", "question": "How many runways can be seen at the airport?", "truth": "one", "answer": "1", "confidence": 0.6574, "correct": true}
+{"uid": "11525_0000:0", "qtype": "object shape", "question": "What is the shape of the chimney?", "truth": "round", "answer": "circular", "confidence": 0.6131, "correct": false}
+{"uid": "11525_0000:1", "qtype": "object position", "question": "Where is the chimney located in the image?", "truth": "bottom-right", "answer": "Bottom-right", "confidence": 0.609, "correct": true}
+{"uid": "11525_0000:2", "qtype": "image", "question": "What color is the imagery from GoogleEarth?", "truth": "color", "answer": "Color", "confidence": 0.3408, "correct": true}
+{"uid": "10619_0000:0", "qtype": "object existence", "question": "Is there a vehicle on the highway?", "truth": "Yes", "answer": "Yes", "confidence": 0.9773, "correct": true}
+{"uid": "10619_0000:1", "qtype": "object quantity", "question": "How many vehicles are present?", "truth": "1", "answer": "1", "confidence": 0.9703, "correct": true}
+{"uid": "10619_0000:2", "qtype": "object position", "question": "Where is the vehicle located in the image?", "truth": "Middle-right", "answer": "middle-right", "confidence": 0.718, "correct": true}
+{"uid": "10619_0000:3", "qtype": "object size", "question": "What size is the vehicle?", "truth": "Large", "answer": "small", "confidence": 0.6431, "correct": false}
+{"uid": "P1143_0010:0", "qtype": "object quantity", "question": "How many planes are visible in the image?", "truth": "1", "answer": "1", "confidence": 0.9283, "correct": true}
+{"uid": "P1143_0010:1", "qtype": "object existence", "question": "Is the plane in this image unique?", "truth": "Yes", "answer": "Yes", "confidence": 0.6834, "correct": true}
+{"uid": "09895_0000:0", "qtype": "scene type", "question": "What type of area is shown in the image?", "truth": "Residential", "answer": "Residential", "confidence": 0.8595, "correct": true}
+{"uid": "09895_0000:1", "qtype": "object color", "question": "What is the main color of the vehicle?", "truth": "Black", "answer": "Dark", "confidence": 0.6598, "correct": false}
+{"uid": "09895_0000:2", "qtype": "object quantity", "question": "How many vehicles are visible in the image?", "truth": "1", "answer": "1", "confidence": 0.8928, "correct": true}
+{"uid": "09895_0000:3", "qtype": "object existence", "question": "Is there any visible landscaping in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9494, "correct": true}
+{"uid": "09895_0000:4", "qtype": "object position", "question": "Where is the vehicle positioned in the image?", "truth": "Bottom-middle", "answer": "Bottom-middle", "confidence": 0.5642, "correct": true}
+{"uid": "P5070_0104:0", "qtype": "scene type", "question": "What type of area is depicted in the image?", "truth": "urban", "answer": "Urban", "confidence": 0.8172, "correct": true}
+{"uid": "P5070_0104:1", "qtype": "object existence", "question": "Are there any pedestrians visible in the image?", "truth": "yes", "answer": "Yes", "confidence": 0.9667, "correct": true}
+{"uid": "P5070_0104:2", "qtype": "object quantity", "question": "How many trees are visible in the image?", "truth": "22", "answer": "10", "confidence": 0.4469, "correct": false}
+{"uid": "P5070_0104:3", "qtype": "object color", "question": "What color is the vehicle located at the top-right corner?", "truth": "grey", "answer": "White", "confidence": 0.8604, "correct": false}
+{"uid": "P5070_0104:4", "qtype": "reasoning", "question": "Do the shadows in the image indicate the direction of sunlight?", "truth": "yes", "answer": "East", "confidence": 0.3718, "correct": false}
+{"uid": "P5070_0043:0", "qtype": "object category", "question": "What is the category of the top-most visible small vehicle?", "truth": "small-vehicle", "answer": "small-vehicle", "confidence": 0.718, "correct": true}
+{"uid": "P5070_0043:1", "qtype": "object quantity", "question": "How many small vehicles are clearly positioned at the image boundaries?", "truth": "2", "answer": "2", "confidence": 0.6822, "correct": true}
+{"uid": "P5070_0043:2", "qtype": "object existence", "question": "Is there a small vehicle located centrally in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9387, "correct": true}
+{"uid": "11127_0000:0", "qtype": "object category", "question": "What is the main object present in the image?", "truth": "ship", "answer": "ship", "confidence": 0.689, "correct": true}
+{"uid": "11127_0000:1", "qtype": "object quantity", "question": "Is there more than one ship visible?", "truth": "no", "answer": "No", "confidence": 0.8972, "correct": true}
+{"uid": "11127_0000:2", "qtype": "object color", "question": "What color is the body of water in the image?", "truth": "dark", "answer": "Dark", "confidence": 0.6417, "correct": true}
+{"uid": "11127_0000:3", "qtype": "object category", "question": "What object category does the single visible object belong to?", "truth": "ship", "answer": "ship", "confidence": 0.8123, "correct": true}
+{"uid": "11127_0000:4", "qtype": "object position", "question": "Is the ship docked or at sea?", "truth": "docked", "answer": "Docked", "confidence": 0.7168, "correct": true}
+{"uid": "06344_0000:0", "qtype": "object category", "question": "What is the main green space in the image?", "truth": "forest", "answer": "Golf course", "confidence": 0.7273, "correct": false}
+{"uid": "06344_0000:1", "qtype": "object existence", "question": "Are there any golf courses visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9489, "correct": true}
+{"uid": "09721_0000:0", "qtype": "object category", "question": "What sport is associated with the field shown in the image?", "truth": "baseball", "answer": "baseball", "confidence": 0.8878, "correct": true}
+{"uid": "09721_0000:1", "qtype": "object color", "question": "What color are the rooftops of residential houses in the image?", "truth": "varied", "answer": "Gray", "confidence": 0.3928, "correct": false}
+{"uid": "09721_0000:2", "qtype": "object existence", "question": "Is there greenery surrounding the baseball field?", "truth": "Yes", "answer": "Yes", "confidence": 0.9189, "correct": true}
+{"uid": "09721_0000:3", "qtype": "object quantity", "question": "How many vehicles are visible in the image?", "truth": "1", "answer": "1", "confidence": 0.7197, "correct": true}
+{"uid": "09721_0000:4", "qtype": "object position", "question": "Where is the vehicle located in relation to the baseball field?", "truth": "middle-right", "answer": "Top-right", "confidence": 0.5136, "correct": false}
+{"uid": "P2625_0021:0", "qtype": "object quantity", "question": "How many large vehicles are visible in the image?", "truth": "10", "answer": "9", "confidence": 0.5127, "correct": false}
+{"uid": "P2625_0021:1", "qtype": "object size", "question": "Which object is largest in size among the large vehicles?", "truth": "bottom-right vehicle", "answer": "Top-most vehicle", "confidence": 0.467, "correct": false}
+{"uid": "P2625_0021:2", "qtype": "object position", "question": "Are the vehicles more clustered on the left or spaced out towards the bottom?", "truth": "clustered on the left", "answer": "Bottom", "confidence": 0.5009, "correct": false}
+{"uid": "P2625_0021:3", "qtype": "object color", "question": "What color are the rooftops of the vehicles?", "truth": "white", "answer": "White", "confidence": 0.7388, "correct": true}
+{"uid": "P5070_0091:0", "qtype": "scene type", "question": "What type of area is shown in the image?", "truth": "Urban", "answer": "Urban", "confidence": 0.7879, "correct": true}
+{"uid": "P5070_0091:1", "qtype": "object existence", "question": "Is there any vegetation in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9459, "correct": true}
+{"uid": "P5070_0091:2", "qtype": "object quantity", "question": "How many small vehicles can be seen?", "truth": "1", "answer": "1", "confidence": 0.8046, "correct": true}
+{"uid": "P5070_0091:3", "qtype": "object category", "question": "What is casting shadows on the ground?", "truth": "Trees", "answer": "Trees", "confidence": 0.8888, "correct": true}
+{"uid": "P5070_0091:4", "qtype": "object existence", "question": "Are there people in the open space?", "truth": "Yes", "answer": "Yes", "confidence": 0.9518, "correct": true}
+{"uid": "P5070_0091:5", "qtype": "object color", "question": "What is the color of the open space surface?", "truth": "Taupe", "answer": "Gray", "confidence": 0.6138, "correct": false}
+{"uid": "11174_0000:0", "qtype": "scene type", "question": "What type of landscape is predominantly observed in the image?", "truth": "Suburban", "answer": "Urban", "confidence": 0.4322, "correct": false}
+{"uid": "11174_0000:1", "qtype": "object existence", "question": "Are there any sports courts visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9227, "correct": true}
+{"uid": "11174_0000:2", "qtype": "object color", "question": "What is the color of the rooftops on the buildings?", "truth": "Varied", "answer": "Gray", "confidence": 0.471, "correct": false}
+{"uid": "11174_0000:3", "qtype": "object quantity", "question": "How many vehicles are visible in the image?", "truth": "2", "answer": "2", "confidence": 0.579, "correct": true}
+{"uid": "P4151_0128:0", "qtype": "object category", "question": "What is the object at the bottom of the image?", "truth": "Small vehicle", "answer": "vehicle", "confidence": 0.5117, "correct": false}
+{"uid": "P4151_0128:1", "qtype": "object existence", "question": "Are there any houses visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.8508, "correct": true}
+{"uid": "P4151_0128:2", "qtype": "object position", "question": "Is the vehicle parked near any other vehicles?", "truth": "No", "answer": "No", "confidence": 0.8577, "correct": true}
+{"uid": "P4151_0128:3", "qtype": "object color", "question": "What is the main color of the rooftops?", "truth": "Gray", "answer": "Dark", "confidence": 0.4765, "correct": false}
+{"uid": "07336_0000:0", "qtype": "scene type", "question": "What is the main structure visible in the image?", "truth": "harbor", "answer": "harbor", "confidence": 0.7864, "correct": true}
+{"uid": "07336_0000:1", "qtype": "object quantity", "question": "How many ships are docked in the image?", "truth": "5", "answer": "4", "confidence": 0.6566, "correct": false}
+{"uid": "07336_0000:2", "qtype": "object position", "question": "Are the ships arranged perpendicular to the dock?", "truth": "Yes", "answer": "Yes", "confidence": 0.9229, "correct": true}
+{"uid": "07336_0000:3", "qtype": "object existence", "question": "Is there water visible surrounding the harbor?", "truth": "Yes", "answer": "Yes", "confidence": 0.964, "correct": true}
+{"uid": "07336_0000:4", "qtype": "object color", "question": "What color is the water in the image?", "truth": "Green", "answer": "Green", "confidence": 0.6356, "correct": true}
+{"uid": "P0936_0018:0", "qtype": "object existence", "question": "Is there a visible swimming pool in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9454, "correct": true}
+{"uid": "P0936_0018:1", "qtype": "object quantity", "question": "How many small vehicles are visible?", "truth": "5", "answer": "2", "confidence": 0.5836, "correct": false}
+{"uid": "P0936_0018:2", "qtype": "object position", "question": "Where is the swimming pool located?", "truth": "middle-left", "answer": "Bottom-left", "confidence": 0.5005, "correct": false}
+{"uid": "P0936_0018:3", "qtype": "object color", "question": "What color are the rooftops of most houses?", "truth": "Grey, brown", "answer": "Various", "confidence": 0.4545, "correct": false}
+{"uid": "P1581_0025:0", "qtype": "image", "question": "Is the image grayscale or color?", "truth": "Grayscale", "answer": "grayscale", "confidence": 0.797, "correct": true}
+{"uid": "P1581_0025:1", "qtype": "object existence", "question": "Are there multiple storage tanks visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9145, "correct": true}
+{"uid": "P1581_0025:2", "qtype": "object quantity", "question": "How many storage tanks are there?", "truth": "7", "answer": "2", "confidence": 0.6075, "correct": false}
+{"uid": "P1581_0025:3", "qtype": "object size", "question": "Are all storage tanks of the same size?", "truth": "No", "answer": "No", "confidence": 0.8202, "correct": true}
+{"uid": "08269_0000:0", "qtype": "object quantity", "question": "How many vehicles are visible in the image?", "truth": "5", "answer": "5", "confidence": 0.5381, "correct": true}
+{"uid": "08269_0000:1", "qtype": "object existence", "question": "Are lane markings visible on the road?", "truth": "Yes", "answer": "Yes", "confidence": 0.9694, "correct": true}
+{"uid": "08269_0000:2", "qtype": "object position", "question": "Where is the vehicle with obj_id 0 located?", "truth": "Top-middle", "answer": "top-middle", "confidence": 0.4781, "correct": true}
+{"uid": "08269_0000:3", "qtype": "object position", "question": "Which side of the image is the vehicle with obj_id 1 on?", "truth": "Left", "answer": "Left", "confidence": 0.4533, "correct": true}
+{"uid": "P0990_0006:0", "qtype": "object existence", "question": "Are there any small vehicles located at the top right of the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.947, "correct": true}
+{"uid": "P0990_0006:1", "qtype": "object quantity", "question": "How many harbors are present in the image?", "truth": "1", "answer": "1", "confidence": 0.8022, "correct": true}
+{"uid": "P0990_0006:2", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "2", "answer": "1", "confidence": 0.803, "correct": false}
+{"uid": "P0990_0006:3", "qtype": "object position", "question": "Where is the harbor located?", "truth": "top-left", "answer": "Top-left", "confidence": 0.6176, "correct": true}
+{"uid": "10301_0000:0", "qtype": "scene type", "question": "What is the primary structure visible in the image?", "truth": "overpass", "answer": "overpass", "confidence": 0.8315, "correct": true}
+{"uid": "10301_0000:1", "qtype": "object existence", "question": "Does the image display any vehicles?", "truth": "No", "answer": "No", "confidence": 0.8259, "correct": true}
+{"uid": "10301_0000:2", "qtype": "scene type", "question": "Is the surrounding terrain densely vegetated?", "truth": "No", "answer": "No", "confidence": 0.9179, "correct": true}
+{"uid": "09543_0000:0", "qtype": "scene type", "question": "What is the main structure at the bottom of the image?", "truth": "trainstation", "answer": "Train station", "confidence": 0.714, "correct": false}
+{"uid": "09543_0000:1", "qtype": "object existence", "question": "Are there any visible tracks in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9402, "correct": true}
+{"uid": "09543_0000:2", "qtype": "rural or urban", "question": "Does the image show a rural or urban area?", "truth": "Urban", "answer": "Urban", "confidence": 0.7676, "correct": true}
+{"uid": "09543_0000:3", "qtype": "object existence", "question": "Are there trees visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.8978, "correct": true}
+{"uid": "P0198_0000:0", "qtype": "object quantity", "question": "How many tennis courts are visible in this image?", "truth": "3", "answer": "4", "confidence": 0.5379, "correct": false}
+{"uid": "P0198_0000:1", "qtype": "object color", "question": "What is the main color of the tennis court surfaces?", "truth": "green", "answer": "Blue", "confidence": 0.7102, "correct": false}
+{"uid": "P0198_0000:2", "qtype": "scene type", "question": "What type of area is depicted in the image?", "truth": "recreational", "answer": "Tennis courts", "confidence": 0.7845, "correct": false}
+{"uid": "P0198_0000:3", "qtype": "object existence", "question": "Is there any building visible in the image?", "truth": "no", "answer": "Yes", "confidence": 0.9371, "correct": false}
+{"uid": "09455_0000:0", "qtype": "object category", "question": "What is the main structure crossing the water body?", "truth": "bridge", "answer": "Bridge", "confidence": 0.8648, "correct": true}
+{"uid": "09455_0000:1", "qtype": "object position", "question": "Which side of the image is the bridge located?", "truth": "right", "answer": "right", "confidence": 0.6802, "correct": true}
+{"uid": "09455_0000:2", "qtype": "object position", "question": "Is there a road visible next to the bridge?", "truth": "yes", "answer": "Yes", "confidence": 0.9634, "correct": true}
+{"uid": "09455_0000:3", "qtype": "object direction", "question": "Is the bridge running north-south or east-west?", "truth": "north-south", "answer": "East-west", "confidence": 0.6507, "correct": false}
+{"uid": "09455_0000:4", "qtype": "rural or urban", "question": "Does the image depict urban or rural landscape features?", "truth": "rural", "answer": "Rural", "confidence": 0.765, "correct": true}
+{"uid": "05946_0000:0", "qtype": "object color", "question": "What color is the track of the ground track field?", "truth": "Red", "answer": "Red", "confidence": 0.6605, "correct": true}
+{"uid": "05946_0000:1", "qtype": "object existence", "question": "Is the ground track field surrounded by buildings?", "truth": "Yes", "answer": "Yes", "confidence": 0.8144, "correct": true}
+{"uid": "05946_0000:2", "qtype": "object category", "question": "What is the main structure in this image?", "truth": "Ground track field", "answer": "ground-track-field", "confidence": 0.5953, "correct": false}
+{"uid": "P1738_0037:0", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "4", "answer": "1", "confidence": 0.844, "correct": false}
+{"uid": "P1738_0037:1", "qtype": "object category", "question": "What is the primary object in the middle-right section of the image?", "truth": "harbor", "answer": "ship", "confidence": 0.5921, "correct": false}
+{"uid": "P1738_0037:2", "qtype": "reasoning", "question": "Is the harbor on the far right larger than the one near the center?", "truth": "No", "answer": "Yes", "confidence": 0.7246, "correct": false}
+{"uid": "P1738_0037:3", "qtype": "scene type", "question": "Does the image show a waterfront area?", "truth": "Yes", "answer": "Yes", "confidence": 0.9512, "correct": true}
+{"uid": "P1738_0037:4", "qtype": "object existence", "question": "Is the ship at the top-left corner fully visible?", "truth": "No", "answer": "No", "confidence": 0.8301, "correct": true}
+{"uid": "P1738_0037:5", "qtype": "object category", "question": "What are the main objects located at the waterfront?", "truth": "ships, harbors", "answer": "Ship, buildings", "confidence": 0.3867, "correct": false}
+{"uid": "P1738_0037:6", "qtype": "object size", "question": "Can any large ships be seen in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.6995, "correct": true}
+{"uid": "07695_0000:0", "qtype": "object category", "question": "What is the main structure in this image?", "truth": "Stadium", "answer": "stadium", "confidence": 0.7145, "correct": true}
+{"uid": "07695_0000:1", "qtype": "object existence", "question": "Are there any parking lots visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9737, "correct": true}
+{"uid": "07695_0000:2", "qtype": "object existence", "question": "Is the stadium surrounded by a field?", "truth": "Yes", "answer": "Yes", "confidence": 0.9564, "correct": true}
+{"uid": "07695_0000:3", "qtype": "object quantity", "question": "How many buildings can be seen surrounding the stadium?", "truth": "Multiple", "answer": "2", "confidence": 0.396, "correct": false}
+{"uid": "P2789_0078:0", "qtype": "object existence", "question": "Are there ships present in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9625, "correct": true}
+{"uid": "P2789_0078:1", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "2", "answer": "2", "confidence": 0.5097, "correct": true}
+{"uid": "P2789_0078:2", "qtype": "object position", "question": "Where is one of the ships located in the image?", "truth": "Bottom-left", "answer": "Bottom-left", "confidence": 0.5864, "correct": true}
+{"uid": "P2789_0078:3", "qtype": "object quantity", "question": "How many small vehicles can be distinctly identified?", "truth": "5", "answer": "4", "confidence": 0.4453, "correct": false}
+{"uid": "P0936_0006:0", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "4", "answer": "3", "confidence": 0.5616, "correct": false}
+{"uid": "P0936_0006:1", "qtype": "object existence", "question": "Are there any unique objects in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.537, "correct": true}
+{"uid": "P0936_0006:2", "qtype": "object category", "question": "What is the category of the unique object?", "truth": "small-vehicle", "answer": "ship", "confidence": 0.7463, "correct": false}
+{"uid": "P0936_0006:3", "qtype": "object position", "question": "Is the small vehicle near water?", "truth": "No", "answer": "Yes", "confidence": 0.9054, "correct": false}
+{"uid": "P0936_0006:4", "qtype": "object category", "question": "What object is located in the top-left corner?", "truth": "small-vehicle", "answer": "small-vehicle", "confidence": 0.6402, "correct": true}
+{"uid": "P0936_0006:5", "qtype": "object existence", "question": "Is there a vehicle on the road?", "truth": "No", "answer": "Yes", "confidence": 0.7091, "correct": false}
+{"uid": "P1410_0070:0", "qtype": "object quantity", "question": "How many vehicles are visible in the image?", "truth": "None", "answer": "1", "confidence": 0.6683, "correct": false}
+{"uid": "P1410_0070:1", "qtype": "object category", "question": "What type of aerial vehicle is present in the upper right corner?", "truth": "Helicopter", "answer": "helicopter", "confidence": 0.6305, "correct": true}
+{"uid": "P1410_0070:2", "qtype": "scene type", "question": "What is the condition of the terrain?", "truth": "Barren", "answer": "Desert-like", "confidence": 0.5541, "correct": false}
+{"uid": "P1410_0070:3", "qtype": "object existence", "question": "Is there any vegetation visible in the image?", "truth": "Sparse", "answer": "Yes", "confidence": 0.8752, "correct": false}
+{"uid": "P1410_0070:4", "qtype": "object position", "question": "Which side of the road is the vegetation on?", "truth": "Side", "answer": "Left", "confidence": 0.7532, "correct": false}
+{"uid": "11438_0000:0", "qtype": "scene type", "question": "What type of terrain occupies most of the image?", "truth": "Mixed terrain", "answer": "Rural", "confidence": 0.4801, "correct": false}
+{"uid": "11438_0000:1", "qtype": "object existence", "question": "Is there an airport present in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.947, "correct": true}
+{"uid": "11438_0000:2", "qtype": "object color", "question": "What color are the areas that appear to be vegetation?", "truth": "Green", "answer": "Green", "confidence": 0.7335, "correct": true}
+{"uid": "11438_0000:3", "qtype": "scene type", "question": "What is the main structure located on the right side of the image?", "truth": "Airport", "answer": "airport", "confidence": 0.752, "correct": true}
+{"uid": "P0583_0008:0", "qtype": "object quantity", "question": "How many harbors are visible in the image?", "truth": "2", "answer": "2", "confidence": 0.8827, "correct": true}
+{"uid": "P0583_0008:1", "qtype": "object shape", "question": "What shape are the harbor docks?", "truth": "L-shaped", "answer": "L-shaped", "confidence": 0.682, "correct": true}
+{"uid": "P0583_0008:2", "qtype": "object position", "question": "Is the longer dock located at the top or bottom of the image?", "truth": "Bottom", "answer": "Bottom", "confidence": 0.5551, "correct": true}
+{"uid": "P2168_0010:0", "qtype": "object quantity", "question": "How many basketball courts are there?", "truth": "4", "answer": "2", "confidence": 0.5978, "correct": false}
+{"uid": "P2168_0010:1", "qtype": "object shape", "question": "What is the shape of the tennis courts?", "truth": "rectangular", "answer": "Rectangular", "confidence": 0.7879, "correct": true}
+{"uid": "P2168_0010:2", "qtype": "reasoning", "question": "Are there more basketball courts than tennis courts?", "truth": "Yes", "answer": "Yes", "confidence": 0.9505, "correct": true}
+{"uid": "P2168_0010:3", "qtype": "object position", "question": "What is the relative position of the tennis courts compared to the basketball courts?", "truth": "left", "answer": "Left", "confidence": 0.4061, "correct": true}
+{"uid": "P2168_0010:4", "qtype": "scene type", "question": "Is the area surrounded by vegetation?", "truth": "Yes", "answer": "Yes", "confidence": 0.9502, "correct": true}
+{"uid": "P2168_0010:5", "qtype": "object color", "question": "What color are the court lines?", "truth": "white", "answer": "White", "confidence": 0.7224, "correct": true}
+{"uid": "P1434_0001:0", "qtype": "object existence", "question": "Is there a small vehicle present in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9322, "correct": true}
+{"uid": "P1434_0001:1", "qtype": "object quantity", "question": "How many large vehicles are visible?", "truth": "7", "answer": "10", "confidence": 0.4143, "correct": false}
+{"uid": "P1434_0001:2", "qtype": "object color", "question": "What color are the visible vehicles primarily?", "truth": "White", "answer": "white", "confidence": 0.6922, "correct": true}
+{"uid": "P1434_0001:3", "qtype": "object position", "question": "What is the position of the unique small vehicle?", "truth": "Middle-left", "answer": "Bottom-middle", "confidence": 0.5404, "correct": false}
+{"uid": "P1434_0001:4", "qtype": "object existence", "question": "Are there any green areas visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.767, "correct": true}
+{"uid": "P1434_0001:5", "qtype": "object position", "question": "What relative position does the bottom-most large vehicle have?", "truth": "Bottom", "answer": "Bottom-most", "confidence": 0.5508, "correct": false}
+{"uid": "P1434_0001:6", "qtype": "reasoning", "question": "Is the ground in the parking area paved?", "truth": "No", "answer": "No", "confidence": 0.7811, "correct": true}
+{"uid": "P0019_0092:0", "qtype": "object category", "question": "What type of vessel is visible in the image?", "truth": "ship", "answer": "ship", "confidence": 0.5851, "correct": true}
+{"uid": "P0019_0092:1", "qtype": "object quantity", "question": "How many harbors are present in the image?", "truth": "1", "answer": "2", "confidence": 0.6319, "correct": false}
+{"uid": "P0019_0092:2", "qtype": "object position", "question": "What is the position of the ship within the image?", "truth": "bottom-right", "answer": "bottom-right", "confidence": 0.6708, "correct": true}
+{"uid": "P0019_0092:3", "qtype": "object position", "question": "Is the harbor located next to the ship?", "truth": "Yes", "answer": "Yes", "confidence": 0.8881, "correct": true}
+{"uid": "10254_0000:0", "qtype": "object color", "question": "What color is the largest vehicle in the image?", "truth": "Red", "answer": "Red", "confidence": 0.6694, "correct": true}
+{"uid": "10254_0000:1", "qtype": "object quantity", "question": "How many vehicles are visible in the image?", "truth": "4", "answer": "1", "confidence": 0.7724, "correct": false}
+{"uid": "10254_0000:2", "qtype": "object existence", "question": "Is there an expressway service area in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.8932, "correct": true}
+{"uid": "10254_0000:3", "qtype": "object position", "question": "Where is the expressway service area located in the image?", "truth": "Center", "answer": "Bottom-right", "confidence": 0.4482, "correct": false}
+{"uid": "P0932_0004:0", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "1", "answer": "1", "confidence": 0.8489, "correct": true}
+{"uid": "P0932_0004:1", "qtype": "object position", "question": "In which quadrant of the image is the ship located?", "truth": "top-right", "answer": "Top-right", "confidence": 0.7191, "correct": true}
+{"uid": "P0932_0004:2", "qtype": "object position", "question": "Is the ship located near the top-most harbor?", "truth": "Yes", "answer": "Yes", "confidence": 0.9151, "correct": true}
+{"uid": "P0932_0004:3", "qtype": "object category", "question": "What type of structures are present in the bottom-most area of the image?", "truth": "harbor", "answer": "Harbors", "confidence": 0.7561, "correct": false}
+{"uid": "P0932_0004:4", "qtype": "object category", "question": "What object is found in the top-right quadrant of the image besides the ship?", "truth": "harbor", "answer": "harbor", "confidence": 0.6723, "correct": true}
+{"uid": "P0932_0004:5", "qtype": "object quantity", "question": "How many harbors are depicted in the image?", "truth": "3", "answer": "3", "confidence": 0.75, "correct": true}
+{"uid": "06829_0000:0", "qtype": "object shape", "question": "What is the distinctive shape of the structure in the right side of the image?", "truth": "oval", "answer": "Oval", "confidence": 0.6463, "correct": true}
+{"uid": "06829_0000:1", "qtype": "scene type", "question": "Is this image taken from a rural or urban area?", "truth": "urban", "answer": "Urban", "confidence": 0.8042, "correct": true}
+{"uid": "06829_0000:2", "qtype": "object category", "question": "What main object is visible on the right side of the image?", "truth": "stadium", "answer": "stadium", "confidence": 0.6822, "correct": true}
+{"uid": "06829_0000:3", "qtype": "object existence", "question": "Are there any roads visible around the stadium?", "truth": "Yes", "answer": "Yes", "confidence": 0.9693, "correct": true}
+{"uid": "P2802_0119:0", "qtype": "object quantity", "question": "How many small vehicles are visible?", "truth": "3", "answer": "2", "confidence": 0.419, "correct": false}
+{"uid": "P2802_0119:1", "qtype": "object position", "question": "Where are the small vehicles primarily located?", "truth": "bottom-middle", "answer": "bottom-middle", "confidence": 0.4644, "correct": true}
+{"uid": "P2802_0119:2", "qtype": "object existence", "question": "Is there any small vehicle that is the most right-most among others?", "truth": "Yes", "answer": "Yes", "confidence": 0.8926, "correct": true}
+{"uid": "P2802_0119:3", "qtype": "object position", "question": "Are the vehicles located closer to the top or bottom of the image?", "truth": "Bottom", "answer": "Bottom", "confidence": 0.7471, "correct": true}
+{"uid": "P2802_0119:4", "qtype": "scene type", "question": "Do the small vehicles appear near any particular airport area?", "truth": "Tarmac", "answer": "Yes", "confidence": 0.6093, "correct": false}
+{"uid": "10877_0000:0", "qtype": "scene type", "question": "What is the main structure visible in the center of the image?", "truth": "stadium", "answer": "stadium", "confidence": 0.7864, "correct": true}
+{"uid": "10877_0000:1", "qtype": "object category", "question": "What type of buildings are found to the southwest of the stadium?", "truth": "residential", "answer": "Residential", "confidence": 0.8274, "correct": true}
+{"uid": "10877_0000:2", "qtype": "object color", "question": "What color is the field inside the stadium?", "truth": "green", "answer": "Green", "confidence": 0.8002, "correct": true}
+{"uid": "10877_0000:3", "qtype": "object shape", "question": "Is the road near the stadium straight or curved?", "truth": "curved", "answer": "Curved", "confidence": 0.779, "correct": true}
+{"uid": "09593_0000:0", "qtype": "scene type", "question": "What is the main structure visible in the image?", "truth": "train station", "answer": "Train station", "confidence": 0.6634, "correct": true}
+{"uid": "09593_0000:1", "qtype": "object position", "question": "Is the train station positioned in the center of the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.8573, "correct": true}
+{"uid": "09593_0000:2", "qtype": "object direction", "question": "Does the train station appear to be vertically oriented?", "truth": "Yes", "answer": "Yes", "confidence": 0.9246, "correct": true}
+{"uid": "09593_0000:3", "qtype": "image", "question": "Is the captured image in color or grayscale?", "truth": "Color", "answer": "Color", "confidence": 0.6959, "correct": true}
+{"uid": "11510_0000:0", "qtype": "object category", "question": "What is the main object in the image?", "truth": "Airplane", "answer": "plane", "confidence": 0.7258, "correct": false}
+{"uid": "11510_0000:1", "qtype": "object existence", "question": "Are there any lines visible on the ground?", "truth": "Yes", "answer": "Yes", "confidence": 0.9507, "correct": true}
+{"uid": "P2455_0003:0", "qtype": "object shape", "question": "Is the road network predominantly straight?", "truth": "Yes", "answer": "Yes", "confidence": 0.7001, "correct": true}
+{"uid": "P2455_0003:1", "qtype": "object existence", "question": "Are there more houses with gardens or without?", "truth": "With gardens", "answer": "With gardens", "confidence": 0.7079, "correct": true}
+{"uid": "P2455_0003:2", "qtype": "object category", "question": "What object is in the top-left position?", "truth": "Small vehicle", "answer": "small-vehicle", "confidence": 0.6745, "correct": false}
+{"uid": "P2455_0003:3", "qtype": "object color", "question": "Do all the houses have the same color rooftops?", "truth": "No", "answer": "No", "confidence": 0.9388, "correct": true}
+{"uid": "09780_0000:0", "qtype": "object quantity", "question": "How many windmills are visible in the image?", "truth": "4", "answer": "4", "confidence": 0.5209, "correct": true}
+{"uid": "09780_0000:1", "qtype": "object position", "question": "What object is found at the bottom-most edge of the image?", "truth": "Windmill", "answer": "windmill", "confidence": 0.8761, "correct": true}
+{"uid": "09780_0000:2", "qtype": "object existence", "question": "Is there vegetation visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.8368, "correct": true}
+{"uid": "09780_0000:3", "qtype": "object color", "question": "What is the color of the terrain where the windmills are located?", "truth": "Beige", "answer": "Light brown", "confidence": 0.3698, "correct": false}
+{"uid": "07891_0000:0", "qtype": "object category", "question": "What is the main object in the image?", "truth": "airplane", "answer": "plane", "confidence": 0.6689, "correct": false}
+{"uid": "07891_0000:1", "qtype": "object position", "question": "Where is the airplane located in the image?", "truth": "bottom-right side", "answer": "bottom-right", "confidence": 0.7096, "correct": false}
+{"uid": "07891_0000:2", "qtype": "image", "question": "Is the image in color?", "truth": "Yes", "answer": "Yes", "confidence": 0.9044, "correct": true}
+{"uid": "07891_0000:3", "qtype": "object quantity", "question": "How many airplanes are visible in the image?", "truth": "1", "answer": "1", "confidence": 0.9423, "correct": true}
+{"uid": "07891_0000:4", "qtype": "object existence", "question": "Does the image show any buildings or vehicles besides the airplane?", "truth": "No", "answer": "No", "confidence": 0.9297, "correct": true}
+{"uid": "P0791_0000:0", "qtype": "object category", "question": "What type of vehicle is in the center top of the image?", "truth": "small-vehicle", "answer": "Small-vehicle", "confidence": 0.727, "correct": true}
+{"uid": "P0791_0000:1", "qtype": "object existence", "question": "Are there any tennis courts in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9766, "correct": true}
+{"uid": "P0791_0000:2", "qtype": "object quantity", "question": "How many tennis courts are there?", "truth": "Two", "answer": "2", "confidence": 0.8757, "correct": true}
+{"uid": "P0791_0000:3", "qtype": "object size", "question": "What is the size of the tennis courts?", "truth": "Small", "answer": "Small", "confidence": 0.4611, "correct": true}
+{"uid": "P0791_0000:4", "qtype": "scene type", "question": "Is there any greenery visible in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9318, "correct": true}
+{"uid": "P0791_0000:5", "qtype": "object category", "question": "What objects are located near the tennis courts?", "truth": "Trees", "answer": "Trees", "confidence": 0.7682, "correct": true}
+{"uid": "P1242_0051:0", "qtype": "object category", "question": "What type of vehicle is present in the image?", "truth": "ship", "answer": "ship", "confidence": 0.4863, "correct": true}
+{"uid": "P1242_0051:1", "qtype": "object existence", "question": "Is the ship unique in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.8446, "correct": true}
+{"uid": "P1242_0051:2", "qtype": "object size", "question": "What is the relative size of the ship in the image?", "truth": "small", "answer": "small", "confidence": 0.6503, "correct": true}
+{"uid": "P1410_0101:0", "qtype": "scene type", "question": "What main feature does the image show?", "truth": "soccer field", "answer": "soccer field", "confidence": 0.7509, "correct": true}
+{"uid": "P1410_0101:1", "qtype": "object quantity", "question": "How many small vehicles are visible on the road?", "truth": "4", "answer": "2", "confidence": 0.6099, "correct": false}
+{"uid": "P1410_0101:2", "qtype": "object position", "question": "Is the soccer field located at the top or bottom of the image?", "truth": "top", "answer": "Top", "confidence": 0.7114, "correct": true}
+{"uid": "P1410_0101:3", "qtype": "object existence", "question": "Are there any vehicles to the right side of the road?", "truth": "Yes", "answer": "Yes", "confidence": 0.8997, "correct": true}
+{"uid": "P1410_0101:4", "qtype": "object existence", "question": "Is the vehicle referenced by obj_id 3 the only one on its side of the road?", "truth": "No", "answer": "Yes", "confidence": 0.8599, "correct": false}
+{"uid": "P0213_0014:0", "qtype": "object category", "question": "What is the category of the visible objects on the tarmac?", "truth": "planes", "answer": "planes", "confidence": 0.6363, "correct": true}
+{"uid": "P0213_0014:1", "qtype": "object quantity", "question": "How many planes are visible in the image?", "truth": "4", "answer": "4", "confidence": 0.802, "correct": true}
+{"uid": "P0213_0014:2", "qtype": "object existence", "question": "Is there a plane positioned at the bottom-most section of the tarmac?", "truth": "Yes", "answer": "Yes", "confidence": 0.8741, "correct": true}
+{"uid": "P1751_0004:0", "qtype": "object shape", "question": "What is the shape of the feature located in the middle-right section of the image?", "truth": "roundabout", "answer": "Rectangular", "confidence": 0.5606, "correct": false}
+{"uid": "P1751_0004:1", "qtype": "image", "question": "Is the image in color or grayscale?", "truth": "grayscale", "answer": "grayscale", "confidence": 0.8207, "correct": true}
+{"uid": "P1751_0004:2", "qtype": "object existence", "question": "Are there any roundabouts in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.93, "correct": true}
+{"uid": "P1751_0004:3", "qtype": "scene type", "question": "What type of urban structures can be seen around the roundabout?", "truth": "buildings", "answer": "Residential", "confidence": 0.497, "correct": false}
+{"uid": "P1751_0004:4", "qtype": "object position", "question": "Which part of the image is the roundabout located?", "truth": "middle-right", "answer": "Top-right", "confidence": 0.4942, "correct": false}
+{"uid": "P0961_0031:0", "qtype": "object quantity", "question": "How many ships are visible in the image?", "truth": "2", "answer": "1", "confidence": 0.8026, "correct": false}
+{"uid": "P0961_0031:1", "qtype": "object existence", "question": "Is there a swimming pool in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9729, "correct": true}
+{"uid": "P0961_0031:2", "qtype": "object color", "question": "What is the color of the swimming pool?", "truth": "Blue", "answer": "Blue", "confidence": 0.7322, "correct": true}
+{"uid": "P0961_0031:3", "qtype": "object position", "question": "Where is the swimming pool located in the image?", "truth": "Top", "answer": "Top-right", "confidence": 0.5748, "correct": false}
+{"uid": "P8287_0119:0", "qtype": "image", "question": "What type of image is this?", "truth": "Aerial", "answer": "Aerial", "confidence": 0.7565, "correct": true}
+{"uid": "P8287_0119:1", "qtype": "object quantity", "question": "How many small vehicles are distinctly visible around the building?", "truth": "4", "answer": "10", "confidence": 0.4294, "correct": false}
+{"uid": "P8287_0119:2", "qtype": "object position", "question": "Are the vehicles positioned closer to the top or bottom of the building?", "truth": "Both", "answer": "Top", "confidence": 0.6082, "correct": false}
+{"uid": "P2678_0050:0", "qtype": "scene type", "question": "What is the main type of area observed in the image?", "truth": "Industrial area", "answer": "Industrial", "confidence": 0.5187, "correct": false}
+{"uid": "P2678_0050:1", "qtype": "object quantity", "question": "How many storage tanks can be seen in the image?", "truth": "3", "answer": "2", "confidence": 0.5222, "correct": false}
+{"uid": "P2678_0050:2", "qtype": "object color", "question": "What color is the dome roof of the central storage tank?", "truth": "Dark", "answer": "Green", "confidence": 0.646, "correct": false}
+{"uid": "P2678_0050:3", "qtype": "object existence", "question": "Are there any vehicles visible in the image?", "truth": "yes", "answer": "No", "confidence": 0.8071, "correct": false}
+{"uid": "P2678_0050:4", "qtype": "object shape", "question": "What is the shape of the storage tank located near the center of the image?", "truth": "Circular", "answer": "circular", "confidence": 0.7199, "correct": true}
+{"uid": "10359_0000:0", "qtype": "object category", "question": "What is the object in the top-middle of the image?", "truth": "expressway-toll-station", "answer": "Expressway-toll-station", "confidence": 0.6969, "correct": true}
+{"uid": "10359_0000:1", "qtype": "object existence", "question": "Is there a track and field in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9326, "correct": true}
+{"uid": "10359_0000:2", "qtype": "object quantity", "question": "How many track and fields are visible?", "truth": "1", "answer": "1", "confidence": 0.6726, "correct": true}
+{"uid": "10359_0000:3", "qtype": "object position", "question": "Where is the ground track and field located?", "truth": "middle-left", "answer": "Top-left", "confidence": 0.5514, "correct": false}
+{"uid": "10359_0000:4", "qtype": "scene type", "question": "What kind of area is shown in the image?", "truth": "Urban", "answer": "Industrial", "confidence": 0.6687, "correct": false}
+{"uid": "P0179_0039:0", "qtype": "object color", "question": "What is the color of the building's rooftop?", "truth": "white", "answer": "White", "confidence": 0.8493, "correct": true}
+{"uid": "P0179_0039:1", "qtype": "object existence", "question": "Are there any small vehicles present in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9656, "correct": true}
+{"uid": "P0179_0039:2", "qtype": "object quantity", "question": "How many small vehicles can be clearly counted in the image?", "truth": "9", "answer": "10", "confidence": 0.3761, "correct": false}
+{"uid": "P0179_0039:3", "qtype": "object color", "question": "What is the predominant color of the small vehicles?", "truth": "white", "answer": "White", "confidence": 0.8071, "correct": true}
+{"uid": "P0179_0039:4", "qtype": "reasoning", "question": "Are the small vehicles arranged in rows?", "truth": "Yes", "answer": "Yes", "confidence": 0.9182, "correct": true}
+{"uid": "P0179_0039:5", "qtype": "object existence", "question": "Is the building's rooftop entirely captured in the image?", "truth": "Yes", "answer": "No", "confidence": 0.8409, "correct": false}
+{"uid": "P0882_0001:0", "qtype": "object quantity", "question": "How many swimming pools are there in the image?", "truth": "2", "answer": "2", "confidence": 0.8938, "correct": true}
+{"uid": "P0882_0001:1", "qtype": "object position", "question": "Which object is located at the bottom of the image?", "truth": "Swimming pool", "answer": "Swimming pool", "confidence": 0.6899, "correct": true}
+{"uid": "P0882_0001:2", "qtype": "object position", "question": "Where is the top-most swimming pool relative to the tennis courts?", "truth": "Below", "answer": "Above", "confidence": 0.3057, "correct": false}
+{"uid": "P0882_0001:3", "qtype": "object category", "question": "Which facility is situated in the bottom-most position of the image?", "truth": "Swimming pool", "answer": "Swimming pool", "confidence": 0.7741, "correct": true}
+{"uid": "11027_0000:0", "qtype": "scene type", "question": "What is the main structure visible in the image?", "truth": "Train station", "answer": "Train station", "confidence": 0.6885, "correct": true}
+{"uid": "11027_0000:1", "qtype": "rural or urban", "question": "Is this area more likely to be urban or rural?", "truth": "Urban", "answer": "Urban", "confidence": 0.8928, "correct": true}
+{"uid": "11027_0000:2", "qtype": "object quantity", "question": "How many vehicles are visible on the right side of the image?", "truth": "Several", "answer": "1", "confidence": 0.5916, "correct": false}
+{"uid": "P1434_0006:0", "qtype": "object quantity", "question": "How many large vehicles are in the image?", "truth": "3", "answer": "1", "confidence": 0.8464, "correct": false}
+{"uid": "P1434_0006:1", "qtype": "object size", "question": "Which vehicle is the largest?", "truth": "right-most", "answer": "middle-right", "confidence": 0.3327, "correct": false}
+{"uid": "P1434_0006:2", "qtype": "object color", "question": "What color is the roof of the building aligned with the bottom-most large vehicle?", "truth": "red", "answer": "Red", "confidence": 0.5388, "correct": true}
+{"uid": "P0019_0007:0", "qtype": "object color", "question": "What color is the small vehicle at the top-right position?", "truth": "White", "answer": "White", "confidence": 0.8469, "correct": true}
+{"uid": "P0019_0007:1", "qtype": "object quantity", "question": "How many vehicles are visible in the image?", "truth": "3", "answer": "5", "confidence": 0.3909, "correct": false}
+{"uid": "P0019_0007:2", "qtype": "object existence", "question": "Is there vegetation present in the image?", "truth": "Yes", "answer": "Yes", "confidence": 0.9595, "correct": true}
+{"uid": "P0019_0007:3", "qtype": "object category", "question": "What is the object at the top-left position?", "truth": "Small-vehicle", "answer": "small-vehicle", "confidence": 0.7851, "correct": true}
+{"uid": "P0019_0007:4", "qtype": "reasoning", "question": "Are all the visible vehicles parked?", "truth": "Yes", "answer": "Yes", "confidence": 0.9229, "correct": true}
+{"uid": "P0019_0007:5", "qtype": "object position", "question": "What is the relative position of the vehicles on the left side of the image?", "truth": "Top-left", "answer": "Top-left", "confidence": 0.4214, "correct": true}
+{"uid": "06806_0000:0", "qtype": "object quantity", "question": "How many vehicles are visible in the parking lot?", "truth": "3", "answer": "3", "confidence": 0.718, "correct": true}
+{"uid": "06806_0000:1", "qtype": "reasoning", "question": "Is the vehicle on the left-most side the only car on that side?", "truth": "Yes", "answer": "Yes", "confidence": 0.8852, "correct": true}
+{"uid": "06806_0000:2", "qtype": "object size", "question": "Are all the vehicles small in size?", "truth": "Yes", "answer": "Yes", "confidence": 0.8969, "correct": true}
+{"uid": "06806_0000:3", "qtype": "reasoning", "question": "Is there significant space between the parked vehicles?", "truth": "Yes", "answer": "Yes", "confidence": 0.7808, "correct": true}
+{"uid": "P0964_0001:0", "qtype": "scene type", "question": "What is the main man-made structure visible in the image?", "truth": "harbor", "answer": "harbor", "confidence": 0.8085, "correct": true}

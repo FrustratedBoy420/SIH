@@ -240,6 +240,23 @@ pixels ka hash hai; agar do machines scene ko ek grey-level bhi alag render
 karein, toh wo jawab miss hoga — aur system classical path se jawab dega aur
 trace mein wajah likhega, galat image ka jawab nahi dega.
 
+### Asli photos par M1 — `--vrsbench-val`
+
+Demo scenes computer se bane hain, M1 unhe "Map" / "Space" bolta hai. M1 ki asli
+quality dikhane ke liye VRSBench validation ki **asli Google Earth photos** lo —
+M1 ne inhe kabhi nahi dekha, aur har photo ke saath **sahi jawab** hai:
+
+```python
+!python models/precompute_m1.py     --adapter-dir /kaggle/working/adapters/qwen2vl_rung2/adapter     --vrsbench-val 8 --data /kaggle/working/VRSBench     --out /kaggle/working/real_demo/precomputed.jsonl     --bundle /kaggle/working/real_demo
+```
+
+`real_demo/` folder download karo — usme `images/` (photos), `precomputed.jsonl`
+(demo scenes + photos dono ke jawab) aur `guide.md` (har photo ke sawaal, sahi
+jawab aur M1 ka jawab) hai. `precomputed.jsonl` ko
+`models/adapters/m1-rs-vqa/` mein rakho, aur photos **wahi files** upload karo —
+jawab exact pixels se match hote hain, toh photo ko edit/resize/screenshot mat
+karna.
+
 ## Flags
 
 | Flag | Kya karta hai |

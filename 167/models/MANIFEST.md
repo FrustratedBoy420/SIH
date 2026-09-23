@@ -288,19 +288,59 @@ reasons:
   back to M1 for such *questions*, answered in words with no box drawn;
   instructions ("highlight the unicorn") still abstain, because they ask for a
   box nothing measured.
-- **5 were answered by M1 below the 0.45 gate** and not used. Whether that gate
-  suits M1's confidence scale is unmeasured — see `models/calibrate_m1.py`,
-  which records answer, confidence and correctness for ~300 validation
-  questions so the gate can be chosen from data.
+- **5 were answered by M1 below the 0.45 gate** and not used. Measured since
+  on 300 questions (*Calibration*, below): answers M1 gives under 0.45 are
+  wrong 83 % of the time, so withholding them is the right call.
 
 n = 38 is small (95 % interval roughly ±16 points); it shows *where* the system
 loses answers, not a figure to report. On these RGB-only images the classical
 path cannot measure anything (no NIR band), so M1 is the only source — the
 reverse of the generated demo scenes, where measurement is strong and M1 weak.
 
-**Confidence.** M1's confidence is the geometric mean probability of the tokens
-it generated. It is model-internal and not yet calibrated against outcomes
-(audit B8); the evidence gate treats it like any other record's confidence.
+### Calibration — the gate, chosen from data
+
+`models/calibrate_m1.py` asked M1 directly (no router, no gate) the first 300
+questions of the evaluation subset, on a Kaggle T4, and recorded its answer,
+confidence and correctness. Rows: `models/results/m1_calibration.jsonl`.
+
+**The serving path is the evaluated model.** On those 300 questions `M1Live` —
+the class the server runs — gave **300 of 300 answers identical** to the run
+that measured 0.660. Same prompt, same processor, same decoding. M1 alone on
+these 300: 0.673, consistent with 0.660 on 2,000.
+
+**M1's confidence is informative.** Accuracy rises with it in every band:
+
+```
+confidence   n    accuracy
+0.3 - 0.4    12     8.3 %
+0.4 - 0.5    26    30.8 %
+0.5 - 0.6    36    36.1 %
+0.6 - 0.7    48    64.6 %
+0.7 - 0.8    58    70.7 %
+0.8 - 0.9    59    83.1 %
+0.9 - 1.0    61    96.7 %
+```
+
+Above 0.6 the number is close to the accuracy it predicts; below 0.6 it
+overstates it (0.55 means ~36 %). It is a ranking signal that is roughly
+calibrated where it matters, not a probability everywhere.
+
+**The 0.45 gate stays — now for a measured reason.** It was set for the
+classical path, and applying it to M1's different scale was a guess. Measured:
+
+```
+gate   withheld   of which wrong   abstention precision   right answers lost
+0.40      12            11               91.7 %                   1
+0.45      23            19               82.6 %                   4
+0.50      38            29               76.3 %                   9
+0.60      74            52               70.3 %                  22
+```
+
+At 0.45 the system withholds 7.7 % of M1's answers, and 83 % of what it
+withholds would have been wrong; answered accuracy rises from 0.673 to 0.715
+at a cost of 4 right answers in 300. A higher gate buys little precision for
+many lost answers. Spec §9 asks for abstention precision to be measured
+alongside accuracy; this is that measurement.
 
 **Before 23 Sep** a loaded pack counted as *available* whether or not anything
 could run it, and staging this pack made results claim `neural+classical` on
