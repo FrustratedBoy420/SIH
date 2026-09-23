@@ -100,15 +100,46 @@ export function pixelToLonLat(r: Raster, col: number, row: number): [number, num
   return nativeToLonLat(r.crs, x, y)
 }
 
+const M_PER_DEG_LON_EQ = 111_320
+const M_PER_DEG_LAT = 110_574
+
 /**
- * Metres per pixel. For EPSG:4326 the transform is in degrees, so — exactly as
- * the backend does — it converts at 111 320 m per degree: good enough to state
- * a resolution, not to survey with. Projected CRSs are already in metres.
+ * Metres per pixel along a row — the same figure as the backend's
+ * `ground_sample_distance`. For EPSG:4326 it is the east-west size at the
+ * origin latitude: good enough to state a resolution, not to measure with.
+ * Areas use `pixelAreaM2`, which does not share that approximation.
  */
 export function gsd(r: Raster): number {
   if (!r.georeferenced) return 0
   const c = epsgCode(r.crs)
-  return c === 4326 ? Math.abs(r.transform.pw) * 111_320 : Math.abs(r.transform.pw)
+  if (c === 4326) return Math.abs(r.transform.pw) * M_PER_DEG_LON_EQ * Math.cos(r.transform.oy * Math.PI / 180)
+  if (c === 3857) {
+    const lat = nativeToLonLat(r.crs, r.transform.ox, r.transform.oy)?.[1] ?? 0
+    return Math.abs(r.transform.pw) * Math.cos(lat * Math.PI / 180)
+  }
+  return Math.abs(r.transform.pw)
+}
+
+/**
+ * Ground area of one pixel in m², at a pixel position — `pixel_area_m2` in
+ * `satquery/raster.py`. A degree of longitude shrinks with latitude; ignoring
+ * cos(latitude) put every EPSG:4326 area ~9 % above the backend's at 23 N.
+ * Web Mercator stretches both axes by 1/cos(latitude).
+ */
+export function pixelAreaM2(r: Raster, col: number, row: number): number {
+  if (!r.georeferenced) return 0
+  const t = r.transform
+  const det = Math.abs(t.pw * t.ph - t.rr * t.cr)
+  const c = epsgCode(r.crs)
+  if (c === 4326) {
+    const lat = pixelToNative(t, col, row)[1]
+    return det * M_PER_DEG_LAT * M_PER_DEG_LON_EQ * Math.cos(lat * Math.PI / 180)
+  }
+  if (c === 3857) {
+    const lat = pixelToLonLat(r, col, row)?.[1] ?? 0
+    return det * Math.cos(lat * Math.PI / 180) ** 2
+  }
+  return det
 }
 
 /** (minLon, minLat, maxLon, maxLat) over the four corners, or pixel extent. */

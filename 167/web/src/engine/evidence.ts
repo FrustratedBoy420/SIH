@@ -6,7 +6,7 @@
  */
 
 import type { EvidenceItem, GeoBox, Modality } from '@/lib/contract'
-import { gsd, pixelToLonLat, type Raster } from './raster'
+import { pixelAreaM2, pixelToLonLat, type Raster } from './raster'
 import type { Region } from './cv'
 
 const r6 = (v: number) => Math.round(v * 1e6) / 1e6
@@ -16,23 +16,23 @@ export function geoBox(r: Raster, bbox: [number, number, number, number], areaPx
   const [x0, y0, x1, y1] = bbox
   const a = pixelToLonLat(r, x0, y0)
   const b = pixelToLonLat(r, x1 + 1, y1 + 1)
-  const g = gsd(r)
   const area = areaPx || (x1 - x0 + 1) * (y1 - y0 + 1)
   return {
     x0, y0, x1, y1,
     lon0: a ? r6(a[0]) : null, lat0: a ? r6(a[1]) : null,
     lon1: b ? r6(b[0]) : null, lat1: b ? r6(b[1]) : null,
     area_px: area,
-    area_ha: r3(area * g * g / 10_000),
+    area_ha: r3(area * pixelAreaM2(r, (x0 + x1) / 2, (y0 + y1) / 2) / 10_000),
   }
 }
 
 export const boxesFromProps = (props: Region[], r: Raster, limit = 24) =>
   props.slice(0, limit).map((p) => geoBox(r, p.bbox, p.area_px))
 
+/** Measured at the scene centre; the backend uses the mask's centroid — within a
+ * scene-sized image the two differ by well under 1 %. */
 export function maskAreaHa(count: number, r: Raster): number {
-  const g = gsd(r)
-  return r3(count * g * g / 10_000)
+  return r3(count * pixelAreaM2(r, r.width / 2, r.height / 2) / 10_000)
 }
 
 /**
