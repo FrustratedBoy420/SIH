@@ -18,6 +18,7 @@ services:
     environment:
       SATQUERY_RUNTIME: ${SATQUERY_RUNTIME:-inproc}
       SATQUERY_RUNTIME_TIMEOUT: ${SATQUERY_RUNTIME_TIMEOUT:-20}
+      SATQUERY_MAX_UPLOAD_MB: ${SATQUERY_MAX_UPLOAD_MB:-200}
     volumes:
       - satquery-data:/data                 # uploads and stored runs survive restarts
       - ./adapters:/app/adapters:ro,z       # adapter packs, if any (z: SELinux relabel, no-op elsewhere)

@@ -40,10 +40,10 @@ import numpy as np
 from PIL import Image
 
 from . import __version__, datasets, evaluate, report as reports, runtime as rt
-from .errors import SatQueryError, not_found
+from .errors import SatQueryError, not_found, too_large
 from .pipeline import Pipeline, Result
 from .router import Inputs, REGISTRY
-from .store import ACCEPTED, MAX_BYTES, MAX_PIXELS, RasterStore, RunStore, ROLES
+from .store import ACCEPTED, MAX_BYTES, MAX_PIXELS, RasterStore, RunStore, ROLES, _human
 
 # --------------------------------------------------------------------------- #
 # built-in scenes
@@ -284,6 +284,10 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
     @app.post("/api/rasters")
     async def upload(file: UploadFile = File(...), role: str = Form(...),
                      sensor: str = Form("")) -> dict[str, Any]:
+        # Refused before it is read: on a small host, reading a file over the
+        # limit into memory is what takes the process down.
+        if file.size is not None and file.size > MAX_BYTES:
+            raise too_large("size", _human(file.size), _human(MAX_BYTES))
         data = await file.read()
         raster_id, summary = rasters.put(data, file.filename or "upload", role, sensor)
         return {"raster_id": raster_id, "summary": summary}

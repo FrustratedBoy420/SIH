@@ -37,7 +37,16 @@ from .raster import Raster, fit_for_analysis, read as read_raster
 
 ACCEPTED = (".tif", ".tiff", ".png", ".jpg", ".jpeg")
 
-MAX_BYTES = 200 * 1024 * 1024         # 200 MB
+def _max_upload_mb() -> int:
+    """SATQUERY_MAX_UPLOAD_MB, default 200. Lower it on a small host: a 512 MB
+    free tier cannot hold a 200 MB upload and the raster decoded from it."""
+    try:
+        return max(1, int(os.environ.get("SATQUERY_MAX_UPLOAD_MB", "200")))
+    except ValueError:
+        return 200
+
+
+MAX_BYTES = _max_upload_mb() * 1024 * 1024
 MAX_PIXELS = 120_000_000              # ~11k x 11k; guards decompression bombs
 MAX_BANDS = 16
 ROLES = ("optical", "sar", "t1", "t2")

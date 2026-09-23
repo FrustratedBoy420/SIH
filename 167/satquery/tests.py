@@ -1186,6 +1186,31 @@ def _():
            "a served page would run the preview engine and never reach the API")
 
 
+@check("an upload over SATQUERY_MAX_UPLOAD_MB is refused with 413 and its size")
+def _():
+    import urllib.error
+    import urllib.request
+    from . import server
+    limit, server.MAX_BYTES = server.MAX_BYTES, 1000
+    body = (b"--b\r\nContent-Disposition: form-data; name=\"role\"\r\n\r\noptical\r\n"
+            b"--b\r\nContent-Disposition: form-data; name=\"file\"; filename=\"big.tif\"\r\n"
+            b"Content-Type: image/tiff\r\n\r\n" + b"\0" * 5000 + b"\r\n--b--\r\n")
+    try:
+        with _Api() as api:
+            req = urllib.request.Request(api.base + "/api/rasters", data=body, method="POST",
+                                         headers={"Content-Type": "multipart/form-data; boundary=b"})
+            try:
+                urllib.request.urlopen(req, timeout=10)
+                code, err = 200, {}
+            except urllib.error.HTTPError as e:
+                code, err = e.code, json.loads(e.read())
+    finally:
+        server.MAX_BYTES = limit
+    ok(code == 413, f"an over-limit upload returned {code}")
+    msg = json.dumps(err)
+    ok("5 KB" in msg and "1000B" in msg, f"the error does not state size and limit: {err}")
+
+
 @check("OPS-01 — a stored run replays from its record and comes out identical")
 def _():
     with _Api() as api:

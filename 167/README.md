@@ -262,7 +262,8 @@ measured on the queries the rules were written from. The held-out figure needs
 
 Environment: `SATQUERY_RUNTIME` (`inproc` or an URL), `SATQUERY_RUNTIME_TIMEOUT`
 (s, default 20), `SATQUERY_ANALYSIS_MAX_SIDE` (px, default 2048 — larger
-rasters are block-averaged and say so), `SATQUERY_VAR`, `SATQUERY_HOME`.
+rasters are block-averaged and say so), `SATQUERY_MAX_UPLOAD_MB` (default 200;
+lower it on a small host such as a 512 MB free tier), `SATQUERY_VAR`, `SATQUERY_HOME`.
 
 ---
 
