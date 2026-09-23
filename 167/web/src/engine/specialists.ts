@@ -194,7 +194,9 @@ function intent(q: string) {
   // there?" contains "is there" and was answered "yes."
   if (/how much/.test(q)) return 'area'
   if (/is there|are there|does .* (contain|have)|any /.test(q)) return 'presence'
-  if (/how much|area|hectare|extent|coverage/.test(q)) return 'area'
+  // "area" alone is not a measurement ("is this a rural or urban area?"),
+  // as in satquery/specialists.py.
+  if (/area of|how large|how big|hectare|extent|coverage/.test(q)) return 'area'
   return 'describe'
 }
 

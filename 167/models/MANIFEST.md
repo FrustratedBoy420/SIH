@@ -251,11 +251,30 @@ then copy the file into `models/adapters/m1-rs-vqa/` and run
 on the laptop — it reports, without a GPU, which demo answers this machine will
 find.
 
-**State on 23 Sep:** no `precomputed.jsonl` yet, and the development laptop has
-no GPU, so the pack is *installed but not serving* here. Every VQA result says
-`engine: classical` and its trace says why. That is the correct report, not a
-fault: the serving path is built and tested end to end with pre-computed packs
-in `satquery/tests.py`; what is missing is one Kaggle run of the script above.
+**State on 23 Sep.** `precomputed.jsonl` is in the pack: 33 answers
+(3 demo scenes x 11 questions the router sends to M1), produced on a Kaggle T4
+by `M1Live` — the first execution of the live inference path, and it ran
+cleanly. `--check` on the development laptop: **33 of 33 keys match**, so the
+laptop renders the scenes pixel-identically to Kaggle and every demo answer is
+served.
+
+**What M1 says about the demo scenes — read this before demonstrating it.**
+The built-in scenes are *generated*, not photographed, and M1 was trained on
+real Google Earth imagery. It notices. Asked "what type of area is shown?" it
+answers *Space* (0.24) and *Map* (0.22); asked to describe the scene, *Green and
+brown patches* (0.25). Those are fair readings of a procedural texture, and its
+confidence on them is low — every open-ended answer on these scenes falls below
+the 0.45 gate, is kept as evidence, and is not used; the trace says so and
+`engine` stays classical. The answers that pass are the ones it is sure of:
+*Rural* (0.70), *Yes* to water (0.93) and roads (0.95), a building count that
+agrees with measurement (2 = 2). One passes and is wrong on the scene's own
+ground truth — *No* buildings (0.90), where the scene has built-up clusters —
+and there the measurement leads, with M1's disagreement shown.
+
+So the demo scenes show the *machinery* — routing, gating, conflict — honestly.
+They are not where M1's 0.660 comes from. To show what M1 can do, show it real
+imagery: VRSBench validation images (never trained on), pre-computed with
+`--images`.
 
 **Confidence.** M1's confidence is the geometric mean probability of the tokens
 it generated. It is model-internal and not yet calibrated against outcomes

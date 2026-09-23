@@ -403,7 +403,10 @@ class VQA(Specialist):
             return "area"
         if re.search(r"is there|are there|does .* (contain|have)|any ", q):
             return "presence"
-        if re.search(r"how much|area|hectare|extent|coverage", q):
+        # "area" alone is not a measurement: "is this a rural or urban area?"
+        # and "what type of area is shown?" were answered with a hectare
+        # figure. A measurement is asked for with these phrasings.
+        if re.search(r"area of|how large|how big|hectare|extent|coverage", q):
             return "area"
         if re.search(r"describ|summar|overview|what('s| is| does)? (in|on|shown)|"
                      r"what does .* (show|contain)|tell me about", q):

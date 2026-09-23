@@ -354,9 +354,20 @@ class Pipeline:
             method=f"M1 — QLoRA-adapted Qwen2-VL-7B ({source})",
             supporting=[f"served {source}"]
                        + ([f"measured: {measured.claim} = {measured.value}"] if measured else []))
-        conflict = _disagreement(answer_text, measured)
+        conflict, compared = _disagreement(answer_text, measured)
         if conflict:
             ev.conflicts.append(conflict)
+        elif compared:
+            # Only said when a comparison was actually made. "M1 agrees: Rural"
+            # beside a hectare figure once implied a check that never happened.
+            ev.supporting.append("agrees with measurement")
+
+        if ev.confidence < sub.threshold:
+            # Kept as evidence for transparency, but it will not pass the gate,
+            # so it did not answer: the result must not claim the neural path.
+            sub.items.append(ev)
+            return False, (f"M1 answered {answer_text!r} at {ev.confidence:.2f}, "
+                           f"below the {sub.threshold:.2f} gate — not used")
 
         # Order decides which record the answer layer leads with. A count or an
         # area is a measurement, and M1 counts poorly (object quantity 0.56 on
@@ -367,7 +378,9 @@ class Pipeline:
         # re-reading the question: "what type of area is this?" contains
         # "area" and is not a measurement, and guessing intent twice let the
         # two guesses disagree.
-        if measured is not None and measured.unit in ("regions", "areas", "ha"):
+        # And when M1 and a measurement disagree, the measurement leads: it is
+        # traceable to a method and a threshold, and the disagreement is shown.
+        if conflict or (measured is not None and measured.unit in ("regions", "areas", "ha")):
             sub.items.append(ev)
         else:
             sub.items.insert(0, ev)
@@ -425,23 +438,27 @@ _NUMBER_WORDS = {"zero": 0, "no": 0, "none": 0, "one": 1, "two": 2, "three": 3,
                  "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
 
 
-def _disagreement(answer_text: str, measured: Evidence | None) -> str:
-    """A conflict record when M1 and a measurement answer the same thing
-    differently: yes/no against presence, or a number against a count."""
+def _disagreement(answer_text: str, measured: Evidence | None) -> tuple[str, bool]:
+    """(conflict, compared). A conflict when M1 and a measurement answer the
+    same thing differently — yes/no against presence, a number against a count.
+    `compared` is False when the two answers are not comparable at all, so
+    nothing may be said about agreement."""
     if measured is None:
-        return ""
+        return "", False
     a = answer_text.strip().lower().rstrip(".")
     mv = measured.value
     if isinstance(mv, str) and mv in ("yes", "no") and a.split()[:1] in (["yes"], ["no"]):
         if a.split()[0] != mv:
-            return f"M1 said {a.split()[0]!r}; measurement says {mv!r} ({measured.method})"
-        return ""
+            return f"M1 said {a.split()[0]!r}; measurement says {mv!r} ({measured.method})", True
+        return "", True
     if measured.unit in ("regions", "areas") and isinstance(mv, (int, float)):
         first = a.split()[0] if a else ""
         n = int(first) if first.isdigit() else _NUMBER_WORDS.get(first)
-        if n is not None and n != int(mv):
-            return f"M1 counted {n}; measurement counts {int(mv)} ({measured.method})"
-    return ""
+        if n is not None:
+            if n != int(mv):
+                return f"M1 counted {n}; measurement counts {int(mv)} ({measured.method})", True
+            return "", True
+    return "", False
 
 
 def answer(task: str, es: EvidenceSet, query: str = "") -> str:
@@ -547,11 +564,13 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
             if e.mask_area_ha:
                 parts.append(f"Total extent {e.mask_area_ha:.2f} ha.")
         elif e.unit == "ha":
-            parts.append(f"{e.value} hectares.")
+            v = e.value
+            parts.append(f"{v:,.2f} hectares." if isinstance(v, (int, float)) else f"{v} hectares.")
         elif e.claim == "dominant land cover":
             parts.append(f"Dominant land cover is {e.value}.")
         else:
-            parts.append(f"{e.value}." if e.value is not None else e.claim + ".")
+            v = e.value
+            parts.append(f"{str(v)[:1].upper()}{str(v)[1:]}." if v is not None else e.claim + ".")
         # "Shares" are land-cover shares. Under any other record the same
         # label once put threshold diagnostics in front of the user.
         if e.supporting and e.claim == "dominant land cover":
@@ -563,11 +582,13 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
     # the neural model said would be a claim with nothing behind it on screen.
     m1 = by_claim.get("M1 answer")
     if m1 is not None and not m1_phrased and not m1.conflicts:
+        said = str(m1.value).rstrip('.')
         if any(e.claim.startswith("detected ") for e in items):
-            parts.insert(0, f"The adapted model (M1) reads the scene as: "
-                            f"{str(m1.value).rstrip('.')}.")
+            parts.insert(0, f"The adapted model (M1) reads the scene as: {said}.")
+        elif "agrees with measurement" in m1.supporting:
+            parts.append(f"The adapted model (M1) agrees: {said}.")
         else:
-            parts.append(f"The adapted model (M1) agrees: {str(m1.value).rstrip('.')}.")
+            parts.append(f"The adapted model (M1) answers: {said}.")
 
     conflicts = [c for e in items for c in e.conflicts]
     if conflicts:

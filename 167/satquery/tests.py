@@ -644,6 +644,45 @@ def InProcessRuntime_empty():
     return InProcessRuntime(tempfile.mkdtemp())
 
 
+@check("an M1 answer below the confidence gate did not answer, and says so")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "What type of area is shown in this image?"
+    with _m1_pack([{"image_key": _key_for(opt), "question": q,
+                    "answer": "Space", "confidence": 0.24}]) as rt:
+        r = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+    ok(r.engine == "classical", f"engine {r.engine!r} for an answer the gate rejected")
+    ok("Space" not in r.answer, f"a gated M1 answer reached the user: {r.answer[:80]}")
+    ok(any("below the" in s["detail"] for s in r.trace), "the gate decision is not in the trace")
+    ok(not r.precomputed, "flagged as staged though nothing staged reached the answer")
+
+
+@check("when M1 contradicts a measurement, the measurement leads")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "Is there a water body in this image?"
+    base = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=opt))
+    measured = base.evidence["items"][0]["value"]
+    contrary = "No" if measured == "yes" else "Yes"
+    with _m1_pack([{"image_key": _key_for(opt), "question": q,
+                    "answer": contrary, "confidence": 0.95}]) as rt:
+        r = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+    ok(r.evidence["items"][0]["claim"] != "M1 answer",
+       "a contradicted M1 answer led over the measurement")
+    ok(r.answer.lower().startswith(measured), f"answer does not lead with the measurement: {r.answer[:60]}")
+    ok("M1 said" in r.answer, "the disagreement is not shown")
+
+
+@check("a classification question is not answered with a measurement")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    for q in ("Is this a rural or urban area?", "What type of area is shown in this image?"):
+        r = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=sc.optical(5)))
+        ok(r.evidence["items"][0]["unit"] != "ha", f"{q!r} was answered in hectares: {r.answer[:60]}")
+
+
 @check("a remote runtime is sent pixels as PNG, never a raw array")
 def _():
     from .errors import SatQueryError
