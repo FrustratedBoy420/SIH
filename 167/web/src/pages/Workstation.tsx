@@ -63,6 +63,13 @@ export default function Workstation() {
       const prev = st().inputs[role]
       const r = await api.upload(role, f)
       if (prev && !prev.summary.synthetic && !prev.summary.builtin) api.remove(prev.local_id)
+      // The first file of your own replaces the demo, not one slot of it: an
+      // uploaded photo beside the demo SAR read as an "optical + SAR pair"
+      // that nobody chose. Later uploads keep what is already yours.
+      const others = Object.entries(st().inputs).filter(([k, v]) => k !== role && v)
+      if (others.length && others.every(([, v]) => v!.summary.synthetic || v!.summary.builtin)) {
+        others.forEach(([k]) => st().setInput(k as Role, undefined))
+      }
       st().setInput(role, r)
     } catch (e) {
       setErrors((x) => ({ ...x, [role]: asApiError(e) }))
