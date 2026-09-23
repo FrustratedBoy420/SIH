@@ -51,7 +51,8 @@ export interface RasterSummary {
   crs: string
   georeferenced: boolean
   geotransform: number[]
-  gsd_m: number
+  /** null when the raster carries no georeference — there are no metres to state */
+  gsd_m: number | null
   bounds: number[]
   centre: number[]           // [lat, lon]
   acquired: string
@@ -146,6 +147,8 @@ export interface ModelEntry {
   weights_path?: string
   /** true only when an inference path can run the pack — not when it merely loads */
   serving?: boolean
+  /** how it serves: live on a GPU, or from pre-computed answers for known images */
+  mode?: string | null
   /**
    * trained  — a measured pack exists; its weights are not on this machine
    * loaded   — weights on disk, nothing can run them yet
@@ -182,7 +185,7 @@ export interface Evaluation {
   scene: { size: number; seed: number }
   tasks: TaskScore[]
   system_ablation: { rows: SystemAblationRow[]; formula: string; note: string }
-  /** A (base, zero-shot) vs B (M1) on VRSBench test — Mridul's runs. null until measured. */
+  /** A (base, zero-shot) vs B (M1), in percent (0–100) like the anchors, on VRSBench validation. null until measured. */
   adaptation: { zero_shot: number | null; adapted: number | null; gain: number | null; split: string }
   /** optical-only / SAR-only / both. null until measured. */
   cross_modal: { optical: number | null; sar: number | null; both: number | null; metric: string }

@@ -87,6 +87,12 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
 
 /* ----------------------------------------------------------------- rasters */
 
+export interface M1Questions {
+  mode: string | null
+  questions: { question: string; withheld: boolean }[]
+  note: string
+}
+
 export interface LoadedRaster {
   role: Role
   /** the id the active engine knows the raster by */
@@ -195,6 +201,17 @@ export const api = {
   async registry(): Promise<Record<string, RegistryTool>> {
     if (await engineMode() === 'http') return (await http<{ tools: Record<string, RegistryTool> }>('/api/registry')).tools
     return REGISTRY as unknown as Record<string, RegistryTool>
+  },
+
+  /**
+   * The questions M1 already holds answers for on this optical image (live
+   * API only). Questions, never answers; `withheld` marks those below the gate.
+   * Preview mode runs no model, so it offers none rather than suggesting
+   * questions M1 would not be the one to answer.
+   */
+  async m1Questions(opticalId: string): Promise<M1Questions> {
+    if (await engineMode() !== 'http') return { mode: null, questions: [], note: '' }
+    return http<M1Questions>(`/api/m1/questions?optical=${encodeURIComponent(opticalId)}`)
   },
 
   async catalog(): Promise<Catalog> {

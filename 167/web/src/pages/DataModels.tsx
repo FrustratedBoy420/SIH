@@ -112,7 +112,7 @@ export default function DataModels() {
       <section className="mt-20" aria-labelledby="m-h">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 id="m-h" className="t-section">Models</h2>
-          <p className="mono text-[13px]" data-testid="serving-now">serving now: {serving.length ? `${serving.map((m) => m.id).join(', ')} adapted` : 'the classical path, for all four tools'} · adapter packs {packs.length}/{adapters.length}</p>
+          <p className="mono text-[13px]" data-testid="serving-now">serving now: {serving.length ? `${serving.map((m) => m.id + (m.mode === 'precomputed' ? ' adapted · pre-computed answers for known images' : ' adapted')).join(', ')}` : 'the classical path, for all four tools'} · adapter packs {packs.length}/{adapters.length}</p>
         </div>
         <p className="mt-3 max-w-[760px] text-ink-2">One frozen base, swappable LoRA adapters, a separate SAR encoder. Status is what is on disk, not what is planned. An adapter reads “trained” when a measured pack exists, “loaded” when its weights are on this machine, and “serving” only when something can run them — the three were once collapsed, and a loaded pack was claimed as serving.</p>
         <div className="mt-6 overflow-x-auto">

@@ -117,7 +117,7 @@ function Visual({ stage, data, registry }: { stage: number; data: LandingData; r
             <ul className="mt-3">
               <Check d={0.1 + k * 0.3}>CRS {x.crs}</Check>
               <Check d={0.2 + k * 0.3}>{x.bands} bands · {x.band_names.join(', ')}</Check>
-              <Check d={0.3 + k * 0.3}>GSD {x.gsd_m.toFixed(1)} m · {x.width}×{x.height}</Check>
+              <Check d={0.3 + k * 0.3}>GSD {x.gsd_m != null ? `${x.gsd_m.toFixed(1)} m` : '—'} · {x.width}×{x.height}</Check>
               <Check d={0.4 + k * 0.3}>georeferenced</Check>
             </ul>
           </div>

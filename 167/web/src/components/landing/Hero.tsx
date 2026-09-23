@@ -53,7 +53,7 @@ export default function Hero({ data }: { data?: LandingData }) {
         </Suspense>
         <figcaption className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px] text-ink-2">
           <span><i className="mr-1.5 inline-block size-2.5 bg-sun align-[-1px]" />India</span>
-          <span><i className="mr-1.5 inline-block size-2.5 bg-ink align-[-1px]" />Demo scene{s ? ` · ${s.crs} · GSD ${s.gsd_m.toFixed(0)} m` : ''}</span>
+          <span><i className="mr-1.5 inline-block size-2.5 bg-ink align-[-1px]" />Demo scene{s ? ` · ${s.crs}${s.gsd_m != null ? ` · GSD ${s.gsd_m.toFixed(0)} m` : ''}` : ''}</span>
         </figcaption>
       </figure>
     </section>

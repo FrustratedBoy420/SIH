@@ -144,6 +144,37 @@ def resolve_inputs(spec: dict[str, str], store: RasterStore) -> Inputs:
 from pydantic import BaseModel, Field  # noqa: E402
 
 
+M1_ADAPTER = "adapter_A_rs_general"
+
+
+def m1_questions_for(optical: str, rasters: RasterStore, runtime: Any,
+                     gate: float) -> dict[str, Any]:
+    """What M1 can answer for the optical input `optical` names, right now.
+
+    `live`: anything — the model runs here. `precomputed`: exactly the questions
+    on file for these pixels, each marked `withheld` if its confidence is below
+    the gate (the system will not use it, and says so). Otherwise nothing, with
+    the reason, so the interface never offers a question M1 will not answer.
+    """
+    mode = runtime.mode(M1_ADAPTER) if hasattr(runtime, "mode") else None
+    if mode == "live":
+        return {"mode": "live", "questions": [],
+                "note": "M1 runs live here; any optical question reaches it."}
+    if mode != "precomputed":
+        return {"mode": mode, "questions": [],
+                "note": "M1 is not serving on this machine."}
+    raster = resolve_inputs({"optical": optical}, rasters).optical
+    if raster is None:
+        return {"mode": mode, "questions": [], "note": "No optical image."}
+    key = rt.image_key(rt.raster_rgb_u8(raster))
+    qs = [{"question": q["question"], "withheld": q["confidence"] < gate}
+          for q in runtime.questions_for(M1_ADAPTER, key)]
+    note = (f"{len(qs)} question(s) pre-computed for this image." if qs else
+            "No M1 answers are on file for this image; the classical path "
+            "will answer, and the trace will say why.")
+    return {"mode": mode, "questions": qs, "note": note}
+
+
 class QueryBody(BaseModel):
     """POST /api/query (API-02, API-11).
 
@@ -245,6 +276,10 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
     def raster_summary(raster_id: str) -> dict[str, Any]:
         return {"raster_id": raster_id, "summary": rasters.summary(raster_id)}
 
+    @app.get("/api/m1/questions")
+    def m1_questions(optical: str) -> dict[str, Any]:
+        return m1_questions_for(optical, rasters, model_runtime, pipeline.threshold)
+
     # -- query (API-02, API-11) ------------------------------------------- #
     @app.post("/api/query")
     def query(body: QueryBody = Body(...)) -> dict[str, Any]:
@@ -328,6 +363,8 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
                 row["weights_present"] = has_weights
                 row["weights_path"] = pack.path
                 row["serving"] = serving
+                row["mode"] = (model_runtime.mode(pack.adapter)
+                               if hasattr(model_runtime, "mode") else None)
                 row["status"] = ("serving" if serving
                                  else "loaded" if has_weights else "trained")
                 row["pack"] = pack.to_dict()

@@ -483,6 +483,34 @@ def cross_modal_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
     }
 
 
+def m1_adaptation(adapters: str | Path | None = None) -> dict[str, Any]:
+    """The measured M1 gain, read from the shipped pack's own manifest.
+
+    Hard-coded to null until 23 Sep, so the Results page showed "pending"
+    beside a pack that had been measured at 0.527 -> 0.660. The pack manifest
+    is the single place those numbers live; this reads them rather than
+    restating them. Null again only if no measured M1 pack is present.
+    """
+    import json
+
+    root = Path(adapters) if adapters else Path(__file__).resolve().parent.parent / "models" / "adapters"
+    for manifest in sorted(root.glob("*/pack.json")) if root.is_dir() else []:
+        try:
+            m = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if m.get("component") == "M1" and m.get("adapted") is not None and not m.get("stub"):
+            # Percent, like every anchor the Results page draws beside them
+            # (GeoChat 40.8, GPT-4V 65.6). Sent as fractions, the page showed a
+            # gain of "+0.1 pts" for a measured +13.3.
+            pct = lambda v: None if v is None else round(float(v) * 100, 1)
+            return {"zero_shot": pct(m.get("zero_shot")), "adapted": pct(m.get("adapted")),
+                    "gain": pct(m.get("gain")),
+                    "split": f"VRSBench validation, n=2,000, train/val overlap 0 · {m['pack_id']}"}
+    return {"zero_shot": None, "adapted": None, "gain": None,
+            "split": "VRSBench validation"}
+
+
 def contract_report(size: int = 256, seed: int = 7,
                     source: str = "api") -> dict[str, Any]:
     """`GET /api/evaluation` — API-08.
@@ -514,8 +542,7 @@ def contract_report(size: int = 256, seed: int = 7,
         # Mridul's runs on the VRSBench test split. Null until they exist —
         # the two ablations are separate measurements and are never merged
         # into one table (audit B6).
-        "adaptation": {"zero_shot": None, "adapted": None, "gain": None,
-                       "split": "VRSBench test"},
+        "adaptation": m1_adaptation(),
         "cross_modal": cross_modal_ablation(size, seed),
         "calibration": {"ece": cal["ece"], "n": cal["n"],
                         "bins": CALIBRATION_BINS,

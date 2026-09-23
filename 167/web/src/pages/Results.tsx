@@ -56,7 +56,7 @@ export default function Results() {
       </div>
 
       <Section n="01" title="Adaptation gain" req="R1 · ADP-04 · the disqualifying requirement"
-        lede="The evidence for adaptation is the gain over the same base, zero-shot, on the same VRSBench test split — not the adapted score alone. Bars animate from the published anchor to the measured value, so the anchor stays in view.">
+        lede="The evidence for adaptation is the gain over the same base, zero-shot, on the same VRSBench validation split — not the adapted score alone. Bars animate from the published anchor to the measured value, so the anchor stays in view.">
         <div className="mb-8 flex flex-wrap items-end gap-10">
           <div>
             <p className="label">Gain · zero-shot → M1</p>
@@ -64,15 +64,15 @@ export default function Results() {
           </div>
           <div className="mono pb-2 text-[12.5px] text-ink-2">target +10 to +20 · anchor GeoChat 40.8 % → 60.6 % = +19.8</div>
         </div>
-        <BarChart testId="chart-adaptation" caption="VQA accuracy on the VRSBench test split, zero-shot base versus the adapted M1, with published anchors"
+        <BarChart testId="chart-adaptation" caption="VQA accuracy on the VRSBench validation split, zero-shot base versus the adapted M1, with published anchors"
           max={100} ticks={[0, 25, 50, 75, 100]} fmt={(v) => `${v.toFixed(1)}`}
           band={[55, 62, 'target 55–62']}
           refs={[{ value: 40.8, label: 'GeoChat 0-shot 40.8' }, { value: 60.6, label: 'GeoChat FT 60.6' }, { value: 65.6, label: 'GPT-4V 65.6' }]}
           rows={[
-            { key: 'A', label: 'A · base, zero-shot', sub: 'M0 · GeoChat-7B or Qwen2-VL-7B', value: ev?.adaptation.zero_shot ?? null },
+            { key: 'A', label: 'A · base, zero-shot', sub: ev?.adaptation.adapted != null ? 'M0 · Qwen2-VL-7B-Instruct' : 'M0 · GeoChat-7B or Qwen2-VL-7B', value: ev?.adaptation.zero_shot ?? null },
             { key: 'B', label: 'B · M1, LoRA-adapted', sub: 'QLoRA on VRSBench train', value: ev?.adaptation.adapted ?? null, from: 40.8 },
           ]} />
-        <Pending owner="Mridul" what="zero-shot baseline due 13 Sep; adapted run after M1 trains" />
+        {ev?.adaptation.adapted == null && <Pending owner="Mridul" what="zero-shot baseline and adapted run on the same split" />}
       </Section>
 
       <Section n="02" title="Per-capability measurements" req="R2 · R3 · R4 · R5 · EVL-03"

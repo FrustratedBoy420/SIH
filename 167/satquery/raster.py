@@ -384,11 +384,16 @@ class Raster:
             "band_names": self.band_names,
             "width": self.width,
             "height": self.height,
-            "crs": self.crs,
+            # Without a georeference the transform maps the image onto a unit
+            # square, and any CRS or metres-per-pixel read from it is invented:
+            # a plain PNG was reported as EPSG:4326 at 217.4 m, with a 20 km
+            # scale bar drawn over a photo of one bridge.
+            "crs": self.crs if self.georeferenced else "none",
             "georeferenced": self.georeferenced,
             "geotransform": [round(v, 10) for v in self.transform.as_tuple()],
             "crs_kind": self.transform.kind,
-            "gsd_m": round(self.transform.ground_sample_distance, 2),
+            "gsd_m": (round(self.transform.ground_sample_distance, 2)
+                      if self.georeferenced else None),
             "bounds": [round(v, 6) for v in (minx, miny, maxx, maxy)],
             "centre": [round(cy, 6), round(cx, 6)],   # lat, lon
             "acquired": self.acquired,

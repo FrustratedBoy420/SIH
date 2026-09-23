@@ -249,7 +249,16 @@ class Pipeline:
 
         # 6 — fuse and gate
         pen = validate.penalty(coreg)
-        if coreg is not None and not coreg["aligned"]:
+        # Only a tool that combines the pair can be misled by a misaligned
+        # pair. A single-image question read one raster; penalising its answer
+        # for an unrelated second upload turned M1's 0.74 "2 bridges" into an
+        # abstention when a demo SAR scene was still loaded beside a photo.
+        uses_pair = any(t in _PAIR_TOOLS for t in p.tools)
+        if coreg is not None and not coreg["aligned"] and not uses_pair:
+            tr.add("Co-registration penalty",
+                   f"not applied — {', '.join(p.tools)} reads one image", ok=True,
+                   penalty=0.0, offset_px=coreg["offset_px"])
+        if coreg is not None and not coreg["aligned"] and uses_pair:
             # Two effects, deliberately distinct: each record loses `pen` for
             # resting on imagery that does not line up, and the aggregate
             # loses its standard per-conflict penalty for the disagreement
@@ -455,6 +464,10 @@ def _plural(n: int, word: str, plural: str | None = None) -> str:
     """Agreement, because '1 structures' undermines everything around it."""
     return word if n == 1 else (plural or word + "s")
 
+
+#: Tools whose evidence is computed from BOTH rasters of a pair — the only ones
+#: a co-registration offset can corrupt.
+_PAIR_TOOLS = frozenset({"optical_sar", "change_vqa"})
 
 def _asks_in_words(query: str) -> bool:
     """A question ("where is the ship?") can be answered in words; an

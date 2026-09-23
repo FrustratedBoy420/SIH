@@ -426,6 +426,9 @@ def _():
         "Is there a water body in this image?", Inputs(optical=r))
     name = res.geojson["crs"]["properties"]["name"]
     ok(name == PIXEL_CRS, f"pixel-space output declared as {name}")
+    s = r.summary()
+    ok(s["crs"] == "none" and s["gsd_m"] is None,
+       f"an unreferenced image reported crs={s['crs']} gsd={s['gsd_m']}")
 
 
 # ------------------------------------------------------------ projections #
@@ -725,6 +728,78 @@ def _():
     # Without M1 the honest outcome is unchanged: abstain, no box.
     r0 = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=opt))
     ok(r0.abstained or "not" in r0.answer.lower(), f"classical claimed an answer: {r0.answer[:60]}")
+
+
+@check("the interface is offered only questions M1 holds answers for")
+def _():
+    from .server import m1_questions_for
+    from .store import RasterStore
+
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    store = RasterStore(tempfile.mkdtemp())
+    rows = [{"image_key": _key_for(opt), "question": "Is there a road?", "answer": "Yes", "confidence": 0.9},
+            {"image_key": _key_for(opt), "question": "What type of area?", "answer": "Space", "confidence": 0.2},
+            {"image_key": "another-image", "question": "Unrelated?", "answer": "x", "confidence": 0.9}]
+    with _m1_pack(rows) as rt:
+        rid = store.put(_tiff_bytes(opt), "opt.tif", "optical", "optical")[0]
+        out = m1_questions_for(rid, store, rt, 0.45)
+    qs = {q["question"]: q["withheld"] for q in out["questions"]}
+    ok(out["mode"] == "precomputed", f"mode {out['mode']}")
+    ok(set(qs) == {"Is there a road?", "What type of area?"},
+       f"offered questions for another image, or missed some: {sorted(qs)}")
+    ok(qs["What type of area?"] and not qs["Is there a road?"], "the gate is not marked")
+    ok("answer" not in json.dumps(out["questions"]).lower().replace("answers", ""),
+       "the suggestions leak M1's answers")
+
+    empty = m1_questions_for(rid, store, InProcessRuntime_empty(), 0.45)
+    ok(empty["questions"] == [], "questions offered with no M1 serving")
+
+
+def _tiff_bytes(raster) -> bytes:
+    from .raster import write_geotiff
+    p = pathlib.Path(tempfile.mkdtemp()) / "x.tif"
+    return write_geotiff(raster, p).read_bytes()
+
+
+@check("a stray second image does not penalise a single-image answer")
+def _():
+    from .raster import GeoTransform, Raster
+
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    sar = sc.sar(5)
+    far = Raster(data=sar.data, crs=sar.crs, sensor="sar", band_names=sar.band_names,
+                 transform=GeoTransform(10.0, sar.transform.pixel_width, 0.0,
+                                        50.0, 0.0, sar.transform.pixel_height))
+    q = "Is there a water body in this image?"
+    alone = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=opt))
+    beside = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=opt, sar=far))
+    ok(abs(alone.confidence - beside.confidence) < 1e-9,
+       f"an unrelated SAR changed a single-image answer: {alone.confidence} -> {beside.confidence}")
+
+    # A tool that DOES combine the pair must still pay for the misalignment.
+    fused = Pipeline(runtime=InProcessRuntime_empty()).run(
+        "use the optical and SAR images together to identify built-up areas",
+        Inputs(optical=opt, sar=far))
+    ok(any(s["step"] == "Co-registration penalty" and not s["ok"] for s in fused.trace),
+       "a misaligned pair used by fusion was not penalised")
+
+
+@check("the Results page receives the measured gain, in the anchors' units")
+def _():
+    from .evaluate import m1_adaptation
+
+    with tempfile.TemporaryDirectory() as d:
+        folder = pathlib.Path(d) / "m1"; folder.mkdir()
+        (folder / "pack.json").write_text(json.dumps({
+            "pack_id": "m1-t", "component": "M1", "adapter": "adapter_A_rs_general",
+            "base_model": "x", "zero_shot": 0.527, "adapted": 0.66, "gain": 0.133}))
+        got = m1_adaptation(d)
+        none = m1_adaptation(pathlib.Path(d) / "absent")
+    ok((got["zero_shot"], got["adapted"], got["gain"]) == (52.7, 66.0, 13.3),
+       f"sent {got} — the page draws anchors in percent (GeoChat 40.8)")
+    ok(none["adapted"] is None, "a missing pack reported a measurement")
 
 
 @check("a remote runtime is sent pixels as PNG, never a raw array")

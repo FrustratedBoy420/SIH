@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { api, asApiError, type DemoKind } from '@/lib/api'
+import { api, asApiError, type DemoKind, type M1Questions } from '@/lib/api'
 import type { ApiError, Role } from '@/lib/contract'
 import { ROLES } from '@/lib/contract'
 import { EXAMPLES, type Scenario } from '@/lib/examples'
@@ -38,6 +38,7 @@ export default function Workstation() {
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState(params.get('q') ?? '')
   const [palette, setPalette] = useState(false)
+  const [m1q, setM1q] = useState<M1Questions | null>(null)
   const [errors, setErrors] = useState<Partial<Record<Role, ApiError>>>({})
   const [queryError, setQueryError] = useState<ApiError | null>(null)
   const input = useRef<HTMLInputElement>(null)
@@ -171,18 +172,41 @@ export default function Workstation() {
   const reading = Object.values(s.loading).some(Boolean)
   const loaded = ROLES.filter((r) => s.inputs[r])
   const first = loaded.map((r) => s.inputs[r]!)[0]
+  const opticalId = s.inputs.optical?.raster_id
   const inputsLabel = s.inputs.t1 && s.inputs.t2 ? 'bi-temporal pair' : s.inputs.optical && s.inputs.sar ? 'optical + SAR pair' : loaded.length ? `single · ${loaded[0]}` : 'no imagery'
   // evidence is drawn once the trace has replayed — what the run produced last appears last
   const items = s.replaying ? [] : result?.evidence.items ?? []
-  const groups = [...new Set(EXAMPLES.map((e) => e.group))].map((g) => ({
+  const exampleGroups = [...new Set(EXAMPLES.map((e) => e.group))].map((g) => ({
     heading: g,
     items: EXAMPLES.filter((e) => e.group === g).map((e) => ({ id: e.id, label: e.q, meta: `${e.rq ? e.rq + ' · ' : ''}${e.needs}`, onSelect: () => run(e.q) })),
   }))
+  // Questions M1 can already answer on this exact image come first. Without
+  // them, a presenter with a real photo had to type questions from a sheet,
+  // word for word, to reach the model at all.
+  const groups = m1q?.questions.length
+    ? [{
+        heading: 'M1 has answers for this image',
+        items: m1q.questions.map((q, i) => ({
+          id: `m1-${i}`, label: q.question,
+          meta: q.withheld ? 'M1 unsure · below the gate, will not be used' : 'answered by M1 · pre-computed',
+          onSelect: () => run(q.question),
+        })),
+      }, ...exampleGroups]
+    : exampleGroups
 
   // the imagery evidence thumbnails are cropped from: the after-date for change, else the first plate
   const plateRaster = result?.task === 'temporal_change' ? s.inputs.t2 ?? first : first
   const plate = plateRaster ? { src: plateRaster.layers.base, width: plateRaster.summary.width, height: plateRaster.summary.height } : undefined
   const card = 'frame bg-surface'
+
+  // Ask the API which questions M1 holds answers for whenever the optical
+  // image changes. A failure only means no suggestions — never a broken page.
+  useEffect(() => {
+    let live = true
+    if (!opticalId) { setM1q(null); return }
+    api.m1Questions(opticalId).then((r) => { if (live) setM1q(r) }).catch(() => { if (live) setM1q(null) })
+    return () => { live = false }
+  }, [opticalId])
 
   return (
     <div className="bg-surface-2 lg:grid lg:h-[calc(100dvh-var(--chrome))] lg:grid-cols-[292px_minmax(0,1fr)_404px] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-3 lg:p-3" data-testid="workstation">

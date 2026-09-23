@@ -23,7 +23,7 @@ export interface PlateGeo {
   height: number
   bounds: number[]           // [minLon, minLat, maxLon, maxLat] or pixel extent
   georeferenced: boolean
-  gsd_m: number
+  gsd_m: number | null
 }
 
 function niceStep(span: number, target = 5) {

@@ -326,6 +326,19 @@ class InProcessRuntime:
             return "precomputed"
         return None
 
+    def questions_for(self, adapter: str, key: str) -> list[dict[str, Any]]:
+        """The questions this runtime already holds M1 answers for, on one image.
+
+        Questions and confidences only — never the answers. The list is a
+        prompt for the presenter, not a preview of the result.
+        """
+        seen: dict[str, dict[str, Any]] = {}
+        for (k, _), row in self._cache.get(adapter, {}).items():
+            if k == key:
+                seen.setdefault(row["question"], {"question": row["question"],
+                                                  "confidence": float(row.get("confidence", 0.0))})
+        return sorted(seen.values(), key=lambda q: -q["confidence"])
+
     def not_serving_reason(self, adapter: str) -> str:
         return self._live_why.get(adapter, "") or "no inference path for this pack"
 
