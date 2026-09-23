@@ -203,6 +203,7 @@ export function optical(s: Scene, seed = 7, withCloud = true, id = 'optical'): R
     source: `${s.name}_optical.tif`, acquired: s.truth.acquired,
     meta: {
       platform: 'Sentinel-2 (synthetic)',
+      display_gain: 2.2,     // reflectance × 2.2 — divided out before any physical threshold
       cloud_pct: Math.round((withCloud ? cloudPx / n : 0) * 1000) / 10,
       synthetic: true,
     },

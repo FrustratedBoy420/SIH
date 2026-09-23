@@ -1,0 +1,86 @@
+{
+  "ece": 0.0508,
+  "n": 216,
+  "bins": 10,
+  "required_n": 200,
+  "accuracy": 0.935,
+  "mean_confidence": 0.938,
+  "reliability": [
+    {
+      "lo": 0.6,
+      "hi": 0.7,
+      "n": 3,
+      "confidence": 0.693,
+      "accuracy": 0.0
+    },
+    {
+      "lo": 0.7,
+      "hi": 0.8,
+      "n": 3,
+      "confidence": 0.722,
+      "accuracy": 0.0
+    },
+    {
+      "lo": 0.8,
+      "hi": 0.9,
+      "n": 43,
+      "confidence": 0.88,
+      "accuracy": 1.0
+    },
+    {
+      "lo": 0.9,
+      "hi": 1.0,
+      "n": 167,
+      "confidence": 0.961,
+      "accuracy": 0.952
+    }
+  ],
+  "by_kind": {
+    "change": {
+      "n": 36,
+      "accuracy": 0.778,
+      "mean_confidence": 0.97
+    },
+    "fusion:built": {
+      "n": 36,
+      "accuracy": 0.917,
+      "mean_confidence": 0.938
+    },
+    "fusion:cloud": {
+      "n": 36,
+      "accuracy": 1.0,
+      "mean_confidence": 0.88
+    },
+    "fusion:recovered": {
+      "n": 36,
+      "accuracy": 0.917,
+      "mean_confidence": 0.901
+    },
+    "grounding:vegetation": {
+      "n": 36,
+      "accuracy": 1.0,
+      "mean_confidence": 0.97
+    },
+    "grounding:water": {
+      "n": 36,
+      "accuracy": 1.0,
+      "mean_confidence": 0.97
+    }
+  },
+  "design": {
+    "scenes": 36,
+    "seeds": [
+      1,
+      12
+    ],
+    "noise_sd": [
+      0.0,
+      0.03,
+      0.06
+    ],
+    "size_px": 128,
+    "correct_if": "area within \u00b130% of truth; cloud cover within \u00b15 points of opacity > 0.15"
+  },
+  "measured_at": "2026-09-19T16:20:49Z",
+  "version": "0.4.0"
+}

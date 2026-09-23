@@ -10,10 +10,10 @@ imagery can actually support the question, and returns an answer with the
 evidence behind it.
 
 ```bash
-python3 -m satquery.cli selftest     # 49 checks, ~2 s
-python3 -m satquery.cli demo         # one cross-modal run, printed
-python3 -m satquery.cli eval         # metrics and the A–E ablation
-python3 -m satquery.cli serve        # http://127.0.0.1:8000
+pip install -e .                     # Python 3.11+; pinned, no GDAL
+satquery selftest                    # 69 checks, ~5 s
+satquery serve --build               # UI + API on http://127.0.0.1:8000 (--build needs Node 20+)
+docker compose up                    # or: the same, containerised, offline once built
 ```
 
 ---
@@ -77,19 +77,26 @@ which path answered each query.
 State this before anything else, because a judge who finds an undisclosed
 simulation stops believing the disclosed ones.
 
-**Simulated — the pixel values.** Cartosat-2S and RISAT imagery cannot be
-obtained and the ISRO/SAC evaluation set is explicitly undisclosed. Scenes come
-from `satquery/scene.py`.
+**Real — the demo imagery.** The built-in scenes are 512 × 512 px, 10 m crops
+of west Hyderabad (Kokapet, Gandipet / Osman Sagar, the Outer Ring Road) in
+EPSG:32644, stored exactly as the missions ship them: Sentinel-2 L2A digital
+numbers (S2B 2024-08-10 under monsoon cloud; S2A 2018-05-19 and S2B 2025-03-28
+for change) and Sentinel-1 RTC γ⁰ (S1A 2024-08-13). They load through the same
+reader as an upload. `tools/fetch_scenes.mjs` + `tools/bake_scenes.py`
+reproduce them. *Contains modified Copernicus Sentinel data 2018, 2024, 2025.*
+They have no ground truth, so their numbers are measurements, not scores.
 
-**Constructed on purpose — the cloud placement.** `scene.py` puts the cloud deck
-over the built-up cluster deliberately. That is the case where optical and SAR
-genuinely differ, which is the case worth demonstrating. It is a designed
-scenario, not a discovery.
+**Simulated — the scoring scene.** Accuracy needs a pixel-level answer key,
+which no real scene has; Cartosat-2S and RISAT imagery cannot be obtained and
+the ISRO/SAC evaluation set is undisclosed. So `satquery/scene.py` generates the
+scenes behind every metric on the Results page, with the cloud deck placed over
+the built-up cluster on purpose — the case where optical and SAR differ.
 
 **Real — everything that reads the pixels.** Lee speckle filter, multi-level
 Otsu, run-based connected components, change vector analysis, NDVI/NDWI,
-phase-correlation co-registration, inverse affine geotransform, the router's
-classify–validate–select–sequence–execute cycle, and the confidence gate.
+phase-correlation co-registration, inverse UTM and affine geotransforms, the
+router's classify–validate–select–sequence–execute cycle, and the confidence
+gate — tuned to hold on real Sentinel data (`docs/10_Decision_Record.md`).
 
 **Trained — M1, the adapted VQA component of `docs/03_Model_Specification.md`
 §1 and §4.** A QLoRA adapter on `Qwen/Qwen2-VL-7B-Instruct`, trained on
@@ -140,6 +147,11 @@ three-class Otsu split had produced. `available()` now means *can serve*, and
 `satquery/tests.py` drives the whole path — stub packs, a real pack with no
 inference path, pre-computed hits and misses, SAR, and a count conflict.
 
+The other packs (M2–M4, when they exist) speak the claims contract in
+`satquery/adapted.py`, in process or over HTTP via `satquery runtime`: their
+claims join as evidence after the classical measurement, and a runtime that is
+down or slow leaves the classical result serving, with the trace saying why.
+
 **Not built — M2 grounding, M3 change, M4 optical–SAR adapters.** Deferred by
 `docs/10_Decision_Record.md` §1: the problem statement requires *at least one*
 adapted component, and one is what exists.
@@ -165,27 +177,26 @@ failing, and **no model is invoked**. Most implementations run the change model
 on a duplicated image and return a confident, meaningless answer.
 
 **The recovery.** Ask *"use the optical and SAR images together to identify
-built-up regions"*, then pull the modality stack apart. The answer quantifies
-how much built-up area lies beneath cloud and is therefore invisible to the
-optical sensor.
+built-up regions"* on the built-in pair: west Hyderabad in the August 2024
+monsoon. The answer quantifies the built-up area SAR found beneath cloud —
+invisible to the optical pass three days earlier — and the fused layer shows
+where.
 
 ---
 
 ## The workstation
 
 ```bash
-cd web && npm install && npm run build
-cd .. && python3 -m satquery.cli serve      # UI and API on one origin
+pip install -e .                   # FastAPI and uvicorn are pinned dependencies
+satquery serve --build             # builds web/dist once (npm ci + build), then UI + API on one origin
 ```
 
-The server needs **FastAPI and uvicorn** (`pip install fastapi uvicorn`); the
-earlier standard-library fallback has been removed, and `serve` says at start-up
-whether `web/dist` was found.
+Without a build, `/` explains how to make one and the API still answers.
 
 Development, with hot reload:
 
 ```bash
-python3 -m satquery.cli serve      # terminal 1 — API on :8000
+satquery serve                     # terminal 1 — API on :8000
 cd web && npm run dev              # terminal 2 — UI on :5173, proxying /api
 ```
 
@@ -199,21 +210,23 @@ cd web && node verify.mjs http://127.0.0.1:8000
 
 ## Measured
 
-Against ground truth the pipeline never reads. Reproduce with `cli eval`.
+Against ground truth the pipeline never reads, on the synthetic scoring scene.
+Reproduce with `satquery eval`, `satquery calibrate`, `satquery stress`,
+`satquery bench`.
 
-| Task | Metric | Value |
+| What | Metric | Value |
 |---|---|---|
 | Water grounding | IoU | 1.0000 |
 | Vegetation grounding | IoU | 0.9958 |
-| SAR built-up detection | F1 | 0.9450 |
+| SAR built-up detection | F1 | 0.9317 |
 | Bi-temporal change | F1 | 0.7698 |
-| Calibration | ECE | 0.0328 |
-| Cross-modal query | latency | ~90 ms at 512 px |
+| Calibration, 216 judged records over 36 scenes | ECE | 0.0508 |
+| Stress suite (EVL-08), behaviour under bad input | cases as expected | 16 / 16 |
+| Cross-modal query, 512 px real scene | p95 latency | 185 ms (target < 15 s) |
 
-**Router accuracy is deliberately not listed here.** The current figure is
-measured over the same labelled queries the routing rules were written from, so
-it reports construction rather than generalisation. It will be reported once a
-held-out paraphrase set exists — see `docs/10_Decision_Record.md`.
+**Calibration finds one weakness, reported rather than tuned away:** change
+detection states 0.97 confidence and is right 0.78 of the time. The Results
+page marks it overconfident.
 
 **VRSBench VQA is claimed, for M1**: 0.5270 zero-shot → 0.6600 adapted on
 2,000 held-out items, paired McNemar p = 1.2e-35 — with its caveats in
@@ -228,6 +241,28 @@ projections are refused into pixel space with a stated reason rather than
 guessed. Areas on geographic (EPSG:4326) imagery now account for latitude; they
 previously ran ~9 % high at the demo scene's 23 N, so the demo's hectare
 figures are ~9 % lower than in earlier versions of this README.
+
+**Router accuracy is deliberately not listed.** The in-sample figure is
+measured on the queries the rules were written from. The held-out figure needs
+`reference/router_heldout.jsonl`, written blind to the rules — see
+`reference/README.md`; `satquery heldout` scores it.
+
+---
+
+## Running it
+
+| | |
+|---|---|
+| `satquery serve [--build]` | UI + API on one origin; `--build` builds `web/dist` first if missing |
+| `docker compose up` | the same in a container, offline once built; `SATQUERY_PORT=8080` if 8000 is taken |
+| `docker compose --profile model up` | plus `satquery runtime` serving `./adapters`; set `SATQUERY_RUNTIME=http://runtime:8100` |
+| `satquery batch manifest.json --out results/` | evaluator mode: JSON / JSON Lines in, `results.jsonl` + GeoJSON out, offline; `--example m.json` writes a starter |
+| `satquery replay RUN_ID` · `POST /api/runs/{id}/replay` | re-run a stored run from its request and diff every field |
+| `satquery stress` · `calibrate` · `heldout` · `bench` | the measurements above |
+
+Environment: `SATQUERY_RUNTIME` (`inproc` or an URL), `SATQUERY_RUNTIME_TIMEOUT`
+(s, default 20), `SATQUERY_ANALYSIS_MAX_SIDE` (px, default 2048 — larger
+rasters are block-averaged and say so), `SATQUERY_VAR`, `SATQUERY_HOME`.
 
 ---
 

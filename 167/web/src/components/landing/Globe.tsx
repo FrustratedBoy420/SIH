@@ -80,7 +80,7 @@ export default function Globe({ marker, className }: GlobeProps) {
   const [failed, setFailed] = useState(false)
   const fail = useCallback(() => setFailed(true), [])
   // primitives, so a new array from the parent does not rebuild the scene
-  const [lat, lon] = marker ?? [23.5, 85.3]
+  const [lat, lon] = marker ?? [17.40, 78.31]   // the built-in scene, west Hyderabad
   return gl && !failed
     ? <GlobeGL lat={lat} lon={lon} className={className} onError={fail} />
     : <GlobeFlat lat={lat} lon={lon} className={className} />
@@ -183,7 +183,7 @@ function GlobeGL({ lat, lon, className, onError }: At & { onError: () => void })
     }
   }, [lat, lon, onError])
 
-  return <div ref={host} className={className} data-testid="globe" role="img" aria-label="Globe of the Earth drawn in square pixels, India highlighted, with a marker on the demo scene in eastern India. Drag to turn it." />
+  return <div ref={host} className={className} data-testid="globe" role="img" aria-label="Globe of the Earth drawn in square pixels, India highlighted, with a marker on the demo scene, west Hyderabad. Drag to turn it." />
 }
 
 /** No WebGL: the same dots, orthographic, drawn once. */
@@ -225,7 +225,7 @@ function GlobeFlat({ lat, lon, className }: At) {
   }, [lat, lon])
   return (
     <div className={className} data-testid="globe-fallback">
-      <canvas ref={canvas} className="mx-auto block aspect-square h-full max-w-full object-contain" role="img" aria-label="Globe of the Earth drawn in square pixels, India highlighted, with a marker on the demo scene in eastern India." />
+      <canvas ref={canvas} className="mx-auto block aspect-square h-full max-w-full object-contain" role="img" aria-label="Globe of the Earth drawn in square pixels, India highlighted, with a marker on the demo scene, west Hyderabad." />
     </div>
   )
 }

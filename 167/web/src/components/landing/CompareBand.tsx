@@ -12,7 +12,7 @@ export default function CompareBand({ data }: { data?: LandingData }) {
           <h2 id="compare-h" className="t-section">Two sensors, one scene</h2>
         </div>
         <p className="max-w-[540px] text-[17px] leading-[1.55] text-ink-2">
-          Optical records reflected sunlight — colour and material — and is blind under cloud. SAR sends its own pulse and records backscatter — structure and roughness — through cloud and at night. Drag the divider. The town under the cloud on the left is bright on the right, because walls and ground form corner reflectors.
+          Optical records reflected sunlight — colour and material — and is blind under cloud. SAR sends its own pulse and records backscatter — structure and roughness — through cloud and at night. Drag the divider. This is west Hyderabad in the August 2024 monsoon: the neighbourhoods hidden under cloud in the optical pass are bright in the radar pass three days later, because walls and ground form corner reflectors.
         </p>
       </div>
       {data && (

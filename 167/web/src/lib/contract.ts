@@ -62,6 +62,10 @@ export interface RasterSummary {
   looks?: number
   polarisation?: string
   synthetic?: boolean
+  /** a built-in scene: real Sentinel imagery shipped with the app, never deleted from the store */
+  builtin?: boolean
+  product?: string
+  attribution?: string
   band_order?: string
   normalisation?: string
   analysed_at?: string
@@ -189,7 +193,17 @@ export interface Evaluation {
   adaptation: { zero_shot: number | null; adapted: number | null; gain: number | null; split: string }
   /** optical-only / SAR-only / both. null until measured. */
   cross_modal: { optical: number | null; sar: number | null; both: number | null; metric: string }
-  calibration: { ece: number | null; n: number; bins: number; required_n: number }
+  calibration: {
+    ece: number | null; n: number; bins: number; required_n: number
+    accuracy?: number | null; mean_confidence?: number | null; measured_at?: string; version?: string
+    reliability?: { lo: number; hi: number; n: number; confidence: number; accuracy: number }[]
+    by_kind?: Record<string, { n: number; accuracy: number; mean_confidence: number }>
+    design?: { scenes: number; seeds: number[]; noise_sd: number[]; size_px: number; correct_if: string }
+  }
+  stress?: {
+    passed: number; total: number; measured_at: string; version: string
+    cases: { name: string; condition: string; expect: string; ok: boolean; observed: string }[]
+  }
   router_heldout: { accuracy: number | null; n: number }
   note: string
 }

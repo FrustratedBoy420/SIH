@@ -96,9 +96,16 @@ def load_packs(directory: str | Path = "adapters") -> dict[str, AdapterPack]:
     """
     root = Path(directory)
     packs: dict[str, AdapterPack] = {}
-    if not root.is_dir():
+    try:
+        if not root.is_dir():
+            return packs
+        dirs = sorted(p for p in root.iterdir() if p.is_dir())
+    except OSError as exc:
+        # e.g. a bind mount the container may not read (SELinux without :z)
+        import sys
+        print(f"  adapter packs: cannot read {root} ({exc.strerror}); serving none", file=sys.stderr)
         return packs
-    for d in sorted(p for p in root.iterdir() if p.is_dir()):
+    for d in dirs:
         manifest = d / "pack.json"
         if not manifest.exists():
             continue
@@ -161,7 +168,7 @@ def raster_rgb_u8(raster: Any) -> Any:
     """The exact pixels M1 is shown: the raster's display RGB, as uint8."""
     import numpy as np
 
-    rgb = np.clip(np.asarray(raster.rgb(), dtype=np.float32), 0.0, 1.0)
+    rgb = np.clip(np.asarray(raster.rgb(stretch=False), dtype=np.float32), 0.0, 1.0)
     return (rgb * 255.0 + 0.5).astype(np.uint8)
 
 
@@ -407,24 +414,36 @@ class HttpRuntime:
 
     transport = "http"
 
+    #: After a failed /packs, wait this long before asking again — so a runtime
+    #: that starts after the API is picked up, without hammering one that is down.
+    RETRY_S = 5.0
+
     def __init__(self, base: str, timeout: float = 20.0) -> None:
         self.base = base.rstrip("/")
         self.timeout = timeout
         self._packs: dict[str, AdapterPack] | None = None
+        self._failed_at = 0.0
+        self.reachable = False
 
     def _get(self, path: str) -> Any:
         with urllib.request.urlopen(f"{self.base}{path}", timeout=self.timeout) as r:
             return json.loads(r.read().decode("utf-8"))
 
     def packs(self) -> dict[str, AdapterPack]:
+        # Only a successful answer is cached. A failure is not "no packs
+        # forever": at the venue the runtime may come up after the API.
+        import time
         if self._packs is not None:
             return dict(self._packs)
+        if time.time() - self._failed_at < self.RETRY_S:
+            return {}
         try:
             raw = self._get("/packs")
         except (urllib.error.URLError, OSError, json.JSONDecodeError):
-            self._packs = {}
+            self._failed_at, self.reachable = time.time(), False
             return {}
         self._packs = {str(p["adapter"]): AdapterPack(**p) for p in raw.get("packs", [])}
+        self.reachable = True
         return dict(self._packs)
 
     def available(self, adapter: str) -> bool:
@@ -442,6 +461,14 @@ class HttpRuntime:
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:
                 return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            # the runtime answered with a typed error — pass it on as it was said
+            try:
+                err = json.loads(exc.read().decode("utf-8"))["error"]
+                raise SatQueryError(err["code"], err["message"], err["remedy"], status=exc.code) from exc
+            except (KeyError, ValueError, TypeError):
+                raise SatQueryError("runtime_error", f"The model runtime returned HTTP {exc.code}.",
+                                    "The classical path still serves this query.", status=503) from exc
         except (urllib.error.URLError, OSError) as exc:
             raise SatQueryError(
                 "runtime_unreachable",
@@ -450,11 +477,68 @@ class HttpRuntime:
                 "model runtime to restore the adapted path.", status=503) from exc
 
 
+def serve_runtime(host: str = "127.0.0.1", port: int = 8100,
+                  directory: str | Path = "adapters", quiet: bool = False):
+    """Serve an InProcessRuntime over HTTP — the venue transport's other end.
+
+    Two routes, the ones HttpRuntime calls:
+
+        GET  /packs    {"packs": [AdapterPack, ...]}
+        POST /infer    {"adapter", "task", "query", "images"} -> runtime reply
+
+    Stdlib only, loopback by default, so it runs on the venue laptop with no
+    extra install. Real inference lands in InProcessRuntime.infer; this
+    server does not change when it does. Returns the server; call
+    `serve_forever()` on it, or run it in a thread for tests.
+    """
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    runtime = InProcessRuntime(directory)
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, status: int, body: dict[str, Any]) -> None:
+            data = json.dumps(body).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self) -> None:                               # noqa: N802
+            if self.path == "/packs":
+                self._send(200, {"packs": [p.to_dict() for p in runtime.packs().values()]})
+            elif self.path == "/health":
+                self._send(200, {"ok": True, **describe(runtime)})
+            else:
+                self._send(404, {"error": {"code": "not_found", "message": self.path, "remedy": "GET /packs or POST /infer"}})
+
+        def do_POST(self) -> None:                              # noqa: N802
+            if self.path != "/infer":
+                self._send(404, {"error": {"code": "not_found", "message": self.path, "remedy": "POST /infer"}})
+                return
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                reply = runtime.infer(str(body.get("adapter", "")), str(body.get("task", "")),
+                                      {k: v for k, v in body.items() if k not in ("adapter", "task")})
+                self._send(200, reply)
+            except SatQueryError as exc:
+                self._send(exc.status, exc.payload())
+            except (ValueError, json.JSONDecodeError):
+                self._send(400, {"error": {"code": "bad_request", "message": "Body is not JSON.", "remedy": "Send application/json."}})
+
+        def log_message(self, fmt: str, *args: Any) -> None:
+            if not quiet:
+                super().log_message(fmt, *args)
+
+    return ThreadingHTTPServer((host, port), Handler)
+
+
 def load_runtime(spec: str | None = None, directory: str | Path = "adapters") -> ModelRuntime:
     """Build the runtime named by `spec` or by SATQUERY_RUNTIME."""
     spec = spec or os.environ.get("SATQUERY_RUNTIME", "inproc")
     if spec.startswith("http://") or spec.startswith("https://"):
-        return HttpRuntime(spec)
+        from .adapted import timeout
+        return HttpRuntime(spec, timeout=timeout())
     return InProcessRuntime(directory)
 
 
@@ -479,6 +563,7 @@ def describe(runtime: ModelRuntime) -> dict[str, Any]:
                            else ("remote" if a in serving else None)),
                   "precomputed": p.precomputed}
                   for a, p in sorted(packs.items())},
+        "runtime_reachable": getattr(runtime, "reachable", True),
         "engine": "neural+classical" if serving else "classical",
         "serving_plan": SERVING_PLAN,
     }

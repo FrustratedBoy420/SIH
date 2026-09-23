@@ -14,6 +14,7 @@ import { api } from '@/lib/api'
 import { num, PLACEHOLDER } from '@/lib/format'
 import { useEngineMode } from '@/lib/hooks'
 import BarChart from '@/components/charts/BarChart'
+import { cn } from '@/lib/utils'
 
 function Section({ n, title, req, children, lede }: { n: string; title: string; req: string; lede: string; children: React.ReactNode }) {
   return (
@@ -134,23 +135,82 @@ export default function Results() {
 
       <Section n="06" title="Calibration" req="NFR-06 · does 0.9 mean right nine times in ten?"
         lede="A confidence nobody validated invites trust it has not earned. Expected calibration error is reported only over at least 200 predictions, with the bins stated.">
-        <figure className="max-w-[440px]" data-testid="chart-calibration">
-          <svg viewBox="0 0 220 220" className="w-full" role="img" aria-label="Reliability diagram: no predictions plotted yet; the diagonal marks perfect calibration.">
-            {[0, 0.25, 0.5, 0.75, 1].map((v) => (
-              <g key={v}>
-                <line x1={30 + v * 180} x2={30 + v * 180} y1={10} y2={190} stroke="var(--color-rule)" strokeWidth={1} />
-                <line x1={30} x2={210} y1={190 - v * 180} y2={190 - v * 180} stroke="var(--color-rule)" strokeWidth={1} />
-                <text x={30 + v * 180} y={204} textAnchor="middle" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
-                <text x={24} y={193 - v * 180} textAnchor="end" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
-              </g>
-            ))}
-            <line x1={30} y1={190} x2={210} y2={10} stroke="var(--color-ink-2)" strokeDasharray="3 3" strokeWidth={1} />
-            <text x={120} y={100} textAnchor="middle" fontSize={10} fill="var(--color-ink-2)" className="mono">{PLACEHOLDER} · no bins yet</text>
-            <text x={120} y={217} textAnchor="middle" fontSize={8} fill="var(--color-ink-2)">confidence</text>
-          </svg>
-          <figcaption className="mono mt-2 text-[12px]">ECE {ev?.calibration.ece === null || ev?.calibration.ece === undefined ? PLACEHOLDER : ev.calibration.ece.toFixed(3)} · n = {ev?.calibration.n ?? 0} of ≥ {ev?.calibration.required_n ?? 200} · {ev?.calibration.bins ?? 10} equal-width bins</figcaption>
-        </figure>
-        <Pending owner="Shreyash" what="≥ 200 labelled predictions across tasks" />
+        <div className="grid gap-8 xl:grid-cols-[440px_minmax(0,1fr)]">
+          <figure className="max-w-[440px]" data-testid="chart-calibration">
+            <svg viewBox="0 0 220 220" className="w-full" role="img"
+              aria-label={ev?.calibration.reliability?.length ? `Reliability diagram: ${ev.calibration.reliability.map((b) => `confidence ${b.confidence}, accuracy ${b.accuracy}, n ${b.n}`).join('; ')}. The diagonal marks perfect calibration.` : 'Reliability diagram: no predictions plotted yet; the diagonal marks perfect calibration.'}>
+              {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+                <g key={v}>
+                  <line x1={30 + v * 180} x2={30 + v * 180} y1={10} y2={190} stroke="var(--color-rule)" strokeWidth={1} />
+                  <line x1={30} x2={210} y1={190 - v * 180} y2={190 - v * 180} stroke="var(--color-rule)" strokeWidth={1} />
+                  <text x={30 + v * 180} y={204} textAnchor="middle" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
+                  <text x={24} y={193 - v * 180} textAnchor="end" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
+                </g>
+              ))}
+              <line x1={30} y1={190} x2={210} y2={10} stroke="var(--color-ink-2)" strokeDasharray="3 3" strokeWidth={1} />
+              {ev?.calibration.reliability?.length
+                ? ev.calibration.reliability.map((b) => {
+                  const r = Math.max(2.5, Math.min(9, Math.sqrt(b.n) * 0.8))
+                  return <circle key={b.lo} cx={30 + b.confidence * 180} cy={190 - b.accuracy * 180} r={r} fill="var(--color-accent)" stroke="var(--color-surface)" strokeWidth={1.5}><title>{`confidence ${b.lo}–${b.hi}: mean ${b.confidence}, accuracy ${b.accuracy}, n ${b.n}`}</title></circle>
+                })
+                : <text x={120} y={100} textAnchor="middle" fontSize={10} fill="var(--color-ink-2)" className="mono">{PLACEHOLDER} · no bins yet</text>}
+              <text x={120} y={217} textAnchor="middle" fontSize={8} fill="var(--color-ink-2)">stated confidence</text>
+            </svg>
+            <figcaption className="mono mt-2 text-[12px]">ECE {ev?.calibration.ece === null || ev?.calibration.ece === undefined ? PLACEHOLDER : ev.calibration.ece.toFixed(3)} · n = {ev?.calibration.n ?? 0} of ≥ {ev?.calibration.required_n ?? 200} · {ev?.calibration.bins ?? 10} equal-width bins · dot area ∝ records</figcaption>
+          </figure>
+          {ev?.calibration.by_kind && (
+            <div className="min-w-0">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] border-collapse text-left text-[12.5px]" data-testid="calibration-by-kind">
+                <thead><tr className="border-b border-ink">{['Record', 'n', 'right', 'stated', 'gap'].map((h) => <th key={h} className="label py-2 pr-3 font-medium">{h}</th>)}</tr></thead>
+                <tbody>
+                  {Object.entries(ev.calibration.by_kind).map(([k, v]) => {
+                    const over = v.mean_confidence - v.accuracy
+                    return (
+                      <tr key={k} className="border-b border-rule">
+                        <td className="mono py-2 pr-3">{k}</td><td className="mono pr-3">{v.n}</td>
+                        <td className="mono pr-3">{v.accuracy.toFixed(3)}</td><td className="mono pr-3">{v.mean_confidence.toFixed(3)}</td>
+                        <td className={cn('whitespace-nowrap', over > 0.1 ? 'text-nir' : 'text-ink-2')}>{over > 0.1 ? `over by ${over.toFixed(2)}` : over < -0.1 ? `under by ${(-over).toFixed(2)}` : 'within 0.10'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              </div>
+              <p className="mt-3 text-[13px] text-ink-2">
+                <b className="font-medium text-ink">right</b> is the share of records the ground truth confirms; <b className="font-medium text-ink">stated</b> is their mean confidence. {ev.calibration.design && <>Recorded study: {ev.calibration.design.scenes} synthetic scenes ({ev.calibration.design.size_px} px, seeds {ev.calibration.design.seeds.join('–')}, pixel noise σ {ev.calibration.design.noise_sd.join(' / ')}), every record judged against ground truth — correct if {ev.calibration.design.correct_if}. </>}
+                {ev.calibration.measured_at && <>Measured {ev.calibration.measured_at.slice(0, 10)} by <span className="mono">satquery calibrate</span>{ev.calibration.version ? ` ${ev.calibration.version}` : ''}.</>}
+              </p>
+            </div>
+          )}
+        </div>
+        {!(ev?.calibration.n && ev.calibration.n >= (ev.calibration.required_n ?? 200)) && <Pending owner="Shreyash" what="≥ 200 labelled predictions across tasks" />}
+      </Section>
+
+      <Section n="07" title="Stress" req="EVL-08 · behaviour under bad input"
+        lede="Accuracy on a clean scene says little about trust. Each case breaks the scene one specific way and checks what a trustworthy system owes the user: refuse what it cannot answer, abstain when nothing clears the gate, flag and pay for doubt, stay within tolerance when the damage is mild.">
+        {ev?.stress ? (
+          <div data-testid="stress">
+            <p className="mb-4 text-[15px]"><b className="font-semibold">{ev.stress.passed} of {ev.stress.total}</b> cases behave as their expectation states.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] border-collapse text-left text-[12.5px]">
+                <thead><tr className="border-b border-ink">{['', 'Case', 'Condition', 'Expected', 'Observed'].map((h) => <th key={h} className="label py-2 pr-3 font-medium">{h}</th>)}</tr></thead>
+                <tbody>
+                  {ev.stress.cases.map((c) => (
+                    <tr key={c.name} className="border-b border-rule align-top">
+                      <td className={cn('py-2 pr-2 font-semibold', c.ok ? 'text-good' : 'text-nir')} aria-label={c.ok ? 'as expected' : 'not as expected'}>{c.ok ? '✓' : '✕'}</td>
+                      <td className="py-2 pr-3 font-medium">{c.name}</td>
+                      <td className="py-2 pr-3 text-ink-2">{c.condition}</td>
+                      <td className="py-2 pr-3">{c.expect}</td>
+                      <td className="mono py-2 text-[11.5px] text-ink-2">{c.observed}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-[13px] text-ink-2">Recorded {ev.stress.measured_at.slice(0, 10)} by <span className="mono">satquery stress</span> {ev.stress.version}; the API runs it live on every request.</p>
+          </div>
+        ) : <Pending owner="Shreyash" what="stress suite not recorded in this build" />}
       </Section>
 
       <p className="mt-6 max-w-[900px] text-[13px] text-ink-2">{ev?.note} Engine: {mode === 'http' ? 'API' : 'browser preview'}. Percentages here are fractions of one unless marked; {pct(0.5)} means 0.50.</p>

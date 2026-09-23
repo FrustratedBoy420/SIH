@@ -50,7 +50,7 @@ function Meta({ s }: { s: RasterSummary }) {
   ]
   if (s.georeferenced) rows.push(['Centre', `${lat(s.centre[0], 3)} ${lon(s.centre[1], 3)}`])
   if (s.polarisation) rows.push(['Pol.', String(s.polarisation)])
-  if (typeof s.cloud_pct === 'number') rows.push(['Cloud', `${s.cloud_pct.toFixed(1)} % (generator)`])
+  if (typeof s.cloud_pct === 'number') rows.push(['Cloud', `${s.cloud_pct.toFixed(1)} % (${s.builtin ? 'Sentinel SCL, this frame' : s.synthetic ? 'generator' : 'file metadata'})`])
   return (
     <div className="mt-2">
       <dl className="grid grid-cols-[62px_1fr] gap-x-2 gap-y-0.5 text-[11.5px]">
@@ -85,7 +85,7 @@ function Slot({ role, r, loading, error, onFile, onRemove, reading }: {
       <div className="flex items-center gap-2">
         <span className="inline-block h-3 w-[3px]" style={{ background: MARK[role] }} />
         <h3 className="text-[13px] font-semibold">{ROLE_LABEL[role]}</h3>
-        <span className={cn('mono ml-auto text-[10.5px]', reading ? 'text-accent' : 'text-ink-2')}>{loading ? 'reading…' : reading ? '● read by this run' : r ? (r.summary.synthetic ? 'built-in · synthetic' : 'uploaded') : 'empty'}</span>
+        <span className={cn('mono ml-auto text-[10.5px]', reading ? 'text-accent' : 'text-ink-2')}>{loading ? 'reading…' : reading ? '● read by this run' : r ? (r.summary.builtin ? 'built-in · Sentinel' : r.summary.synthetic ? 'built-in · synthetic' : 'uploaded') : 'empty'}</span>
         {r && !loading && <button type="button" aria-label={`Remove ${ROLE_LABEL[role]}`} onClick={onRemove} className="mono px-1 text-[12px] text-ink-2 hover:text-nir">✕</button>}
       </div>
 

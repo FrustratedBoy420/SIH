@@ -114,3 +114,8 @@ desktop.ini
 # and run output. Ignored, not deleted -- that call is the owner's.
 Mridul/
 dark-transit/
+# --- adapter packs staged for serving --------------------------------------
+# satquery serve / docker compose read packs from 167/adapters/. They hold
+# weights; the manifest of where each came from is 167/models/MANIFEST.md.
+/167/adapters/*
+!/167/adapters/README.md

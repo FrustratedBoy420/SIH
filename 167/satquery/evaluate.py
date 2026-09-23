@@ -273,7 +273,7 @@ def run_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
             vv = sar.named("vv")
             ndwi = cv.ndwi(opt.named("green"), opt.named("nir"))
             if "morphology" in caps:
-                vv = cv.lee_filter(vv, 7, 4)
+                vv = cv.tail_clip(cv.lee_filter(vv, 7, 4))
             if "components" in caps:
                 # the mode-aware threshold -- what the shipped system does
                 pred_b = vv >= cv.otsu_multi(vv, 3)[-1]
@@ -292,7 +292,7 @@ def run_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
         # E adds the measurement neither modality gives alone
         recovered = None
         if "evidence" in caps:
-            cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data), 1), 3)
+            cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data, opt.meta.get("display_gain", 1.0)), 1), 3)
             recovered = round(float((pred_b & cloud).sum() /
                                     max(pred_b.sum(), 1)) * 100, 2)
 
@@ -392,7 +392,120 @@ CAPABILITY_FORMULA = ("capability = 0.50 x mean_f1 + 0.25 x router_accuracy "
 CALIBRATION_N = 200
 CALIBRATION_BINS = 10
 
-HELDOUT_PATH = Path("reference/router_heldout.jsonl")
+#: Calibration study: what counts as a correct record, stated where it is used.
+#: Areas within ±30 % of the true area; cloud cover within ±5 percentage
+#: points of the fraction at opacity > 0.15, the level the cloud mask is built
+#: to catch (satquery/cv.py `cloud_mask`).
+CAL_AREA_TOL = 0.30
+CAL_CLOUD_TOL_PTS = 5.0
+CAL_CLOUD_OPACITY = 0.15
+#: Anchored to the package, not the working directory, so the API finds it wherever it is started.
+from .paths import home as _home, public as _public
+CALIBRATION_PATH = _public() / "calibration.json"
+
+
+def calibration_study(seeds: range = range(1, 13), noise: tuple[float, ...] = (0.0, 0.03, 0.06),
+                      size: int = 128) -> dict[str, Any]:
+    """Per-record calibration over many synthetic scenes (NFR-06, audit B8).
+
+    Each scene is run through the real pipeline — grounding for water and
+    vegetation, cross-modal fusion, and change on a bi-temporal pair — with
+    Gaussian noise added to the pixels to spread the difficulty. Every record
+    with an answer in the scene's ground truth is judged against it with the
+    tolerances above, and its stated confidence is set against that outcome.
+    """
+    rng = np.random.default_rng(0)
+    pipe = Pipeline()
+    recs: list[dict[str, Any]] = []
+
+    def noisy(r, sd):
+        if sd:
+            r.data = np.clip(r.data + rng.normal(0, sd, r.data.shape).astype(np.float32), 0, 1)
+        return r
+
+    def judge(kind, conf, got, want, tol_rel=None, tol_abs=None):
+        ok = (abs(got - want) <= tol_abs) if tol_abs is not None else \
+             (abs(got - want) <= tol_rel * max(want, 1e-9))
+        recs.append({"kind": kind, "confidence": round(float(conf), 4), "correct": bool(ok),
+                     "claimed": round(float(got), 3), "truth": round(float(want), 3)})
+
+    for seed in seeds:
+        for sd in noise:
+            sc = scenes.build(size=size, seed=seed)
+            opt_c, opt, sar = noisy(sc.optical(seed, with_cloud=False), sd), noisy(sc.optical(seed), sd), noisy(sc.sar(seed), sd)
+            ha = opt.transform.ground_sample_distance ** 2 / 10_000.0
+            cloud = sc.cloud > CAL_CLOUD_OPACITY
+            built = sc.classes == scenes.BUILT
+
+            for target, cls in (("water", scenes.WATER), ("vegetation", scenes.VEGETATION)):
+                r = pipe.run(f"highlight the {target}", Inputs(optical=opt_c))
+                for e in r.evidence.get("items", []):
+                    if e["claim"] == f"{target} regions located":
+                        judge(f"grounding:{target}", e["confidence"], e["mask_area_ha"],
+                              (sc.classes == cls).sum() * ha, tol_rel=CAL_AREA_TOL)
+
+            r = pipe.run("use the optical and SAR images together to identify built-up areas",
+                         Inputs(optical=opt, sar=sar))
+            for e in r.evidence.get("items", []):
+                if e["claim"] == "optical scene obscured by cloud":
+                    judge("fusion:cloud", e["confidence"], float(e["value"]), 100 * cloud.mean(),
+                          tol_abs=CAL_CLOUD_TOL_PTS)
+                elif e["claim"] == "built-up areas detected by backscatter":
+                    judge("fusion:built", e["confidence"], e["mask_area_ha"], built.sum() * ha, tol_rel=CAL_AREA_TOL)
+                elif e["claim"] == "built-up areas recovered by SAR beneath cloud":
+                    judge("fusion:recovered", e["confidence"], e["mask_area_ha"], (built & cloud).sum() * ha,
+                          tol_rel=CAL_AREA_TOL)
+
+            t1s, t2s, truth = scenes.bitemporal(size=size, seed=seed)
+            r = pipe.run("what changed between these two dates?",
+                         Inputs(t1=noisy(t1s.optical(seed, with_cloud=False), sd),
+                                t2=noisy(t2s.optical(seed, with_cloud=False), sd)))
+            for e in r.evidence.get("items", []):
+                if e["claim"] == "change detected between the two dates":
+                    judge("change", e["confidence"], e["mask_area_ha"], truth.sum() * ha, tol_rel=CAL_AREA_TOL)
+
+    conf = [r["confidence"] for r in recs]
+    correct = [r["correct"] for r in recs]
+    edges = np.linspace(0, 1, CALIBRATION_BINS + 1)
+    bins = []
+    for i in range(CALIBRATION_BINS):
+        m = [(c, y) for c, y in zip(conf, correct) if edges[i] < c <= edges[i + 1]]
+        if m:
+            bins.append({"lo": round(float(edges[i]), 2), "hi": round(float(edges[i + 1]), 2), "n": len(m),
+                         "confidence": round(float(np.mean([c for c, _ in m])), 3),
+                         "accuracy": round(float(np.mean([y for _, y in m])), 3)})
+    by_kind = {}
+    for k in sorted({r["kind"] for r in recs}):
+        ks = [r for r in recs if r["kind"] == k]
+        by_kind[k] = {"n": len(ks), "accuracy": round(float(np.mean([r["correct"] for r in ks])), 3),
+                      "mean_confidence": round(float(np.mean([r["confidence"] for r in ks])), 3)}
+    return {
+        "ece": expected_calibration_error(conf, correct, CALIBRATION_BINS) if len(recs) >= CALIBRATION_N else None,
+        "n": len(recs), "bins": CALIBRATION_BINS, "required_n": CALIBRATION_N,
+        "accuracy": round(float(np.mean(correct)), 3) if recs else None,
+        "mean_confidence": round(float(np.mean(conf)), 3) if recs else None,
+        "reliability": bins, "by_kind": by_kind,
+        "design": {"scenes": len(seeds) * len(noise), "seeds": [seeds.start, seeds.stop - 1],
+                   "noise_sd": list(noise), "size_px": size,
+                   "correct_if": f"area within ±{CAL_AREA_TOL:.0%} of truth; cloud cover within "
+                                 f"±{CAL_CLOUD_TOL_PTS:g} points of opacity > {CAL_CLOUD_OPACITY}"},
+        "measured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "version": __import__("satquery").__version__,
+    }
+
+
+def stored_calibration(path: str | Path = CALIBRATION_PATH) -> dict[str, Any] | None:
+    """The last recorded study (`satquery calibrate`), or None. Never recomputed on request."""
+    p = Path(path)
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
+HELDOUT_PATH = _home() / "reference" / "router_heldout.jsonl"
 
 
 def heldout_router(path: str | Path = HELDOUT_PATH) -> dict[str, Any]:
@@ -424,15 +537,23 @@ def heldout_router(path: str | Path = HELDOUT_PATH) -> dict[str, Any]:
 
     hits = 0
     confusion: dict[str, dict[str, int]] = {}
+    misses: list[dict[str, str]] = []
     for q, want in cases:
-        got = classify(q)[0]
+        task, _conf, rule = classify(q)
+        # the router's fallback is VQA with 'no rule matched': it recognised
+        # nothing, which is what the 'unknown' label asks for
+        got = "unknown" if "no rule matched" in rule else task
         confusion.setdefault(want, {}).setdefault(got, 0)
         confusion[want][got] += 1
         hits += got == want
+        if got != want:
+            misses.append({"query": q, "want": want, "got": got})
     return {
         "accuracy": round(hits / len(cases), 4) if cases else None,
         "n": len(cases),
         "confusion": confusion,
+        "misses": misses,
+        "required_n": 200,
         "note": f"{hits}/{len(cases)} on paraphrases held out of development.",
     }
 
@@ -454,12 +575,12 @@ def cross_modal_ablation(size: int = 256, seed: int = 7) -> dict[str, Any]:
     opt, sar = sc.optical(seed), sc.sar(seed)
     truth = sc.classes == scenes.BUILT
 
-    vv = cv.lee_filter(sar.named("vv"), 7, 4)
+    vv = cv.tail_clip(cv.lee_filter(sar.named("vv"), 7, 4))
     sar_pred = cv.closing(cv.opening(vv >= cv.otsu_multi(vv, 3)[-1], 1), 1)
 
     g = opt.rgb().mean(axis=2)
     ndwi = cv.ndwi(opt.named("green"), opt.named("nir"))
-    cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data), 1), 3)
+    cloud = cv.closing(cv.opening(cv.cloud_mask(opt.data, opt.meta.get("display_gain", 1.0)), 1), 3)
     # Optical built-up: bright, and not water. Cloud is left in, because an
     # optical-only system has no way to know it is looking at cloud rather
     # than at a bright roof — that error is the point of the comparison.
@@ -511,6 +632,12 @@ def m1_adaptation(adapters: str | Path | None = None) -> dict[str, Any]:
             "split": "VRSBench validation"}
 
 
+def _stress() -> dict[str, Any]:
+    """EVL-08, run live — the suite takes under a second."""
+    from . import stress
+    return stress.summary(stress.run_suite())
+
+
 def contract_report(size: int = 256, seed: int = 7,
                     source: str = "api") -> dict[str, Any]:
     """`GET /api/evaluation` — API-08.
@@ -544,9 +671,13 @@ def contract_report(size: int = 256, seed: int = 7,
         # into one table (audit B6).
         "adaptation": m1_adaptation(),
         "cross_modal": cross_modal_ablation(size, seed),
-        "calibration": {"ece": cal["ece"], "n": cal["n"],
-                        "bins": CALIBRATION_BINS,
-                        "required_n": CALIBRATION_N},
-        "router_heldout": {"accuracy": heldout["accuracy"], "n": heldout["n"]},
+        # The recorded study when one exists (satquery calibrate); otherwise
+        # the handful of probes above, which never reaches the 200 floor.
+        "calibration": stored_calibration() or {"ece": None, "n": cal["n"],
+                                                "bins": CALIBRATION_BINS,
+                                                "required_n": CALIBRATION_N},
+        "router_heldout": {"accuracy": heldout["accuracy"], "n": heldout["n"],
+                           "confusion": heldout["confusion"], "note": heldout["note"]},
+        "stress": _stress(),
         "note": base["note"],
     }

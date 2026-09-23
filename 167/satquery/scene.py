@@ -131,7 +131,7 @@ class Scene:
             band_names=["red", "green", "blue", "nir"],
             source=f"{self.name}_optical.tif",
             acquired=self.truth.get("acquired", ""),
-            meta={"platform": "Sentinel-2 (synthetic)",
+            meta={"platform": "Sentinel-2 (synthetic)", "display_gain": 2.2,
                   "cloud_pct": round(float((self.cloud > 0.3).mean() * 100), 1)},
         )
 

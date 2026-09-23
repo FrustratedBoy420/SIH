@@ -29,7 +29,7 @@ from typing import Any, Iterator
 
 from . import __version__
 from .errors import SatQueryError, not_found, too_large, unsupported
-from .raster import Raster, read as read_raster
+from .raster import Raster, fit_for_analysis, read as read_raster
 
 # --------------------------------------------------------------------------- #
 # limits — declared here, enforced at the door, reported in the error
@@ -111,13 +111,17 @@ class RasterStore:
             sensor = "sar" if role == "sar" else ("optical" if role == "optical" else "")
 
         try:
-            raster = read_raster(path, sensor=sensor)
+            raster = fit_for_analysis(read_raster(path, sensor=sensor))
         except SatQueryError:
             raise
         except Exception as exc:                                  # noqa: BLE001
             self.forget(raster_id)
+            # The decoder's own message names the server-side path; the user
+            # gets what kind of failure it was, never where the file sits (API-13).
+            kind = type(exc).__name__
             raise SatQueryError(
-                "unreadable", f"That file could not be read as imagery ({exc}).",
+                "unreadable", f"That file could not be read as imagery ({kind}): the "
+                "header is not a TIFF, PNG or JPEG the reader recognises.",
                 "Check that it is a valid GeoTIFF, PNG or JPEG and not "
                 "truncated.") from exc
 
@@ -163,7 +167,7 @@ class RasterStore:
         if not candidates:
             raise not_found("raster")
         meta = self.summary(raster_id)
-        raster = read_raster(candidates[0], sensor=str(meta.get("sensor", "")))
+        raster = fit_for_analysis(read_raster(candidates[0], sensor=str(meta.get("sensor", ""))))
         self._remember(raster_id, raster)
         return raster
 
@@ -214,7 +218,8 @@ class RunStore:
     def new_id() -> str:
         return f"run-{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{secrets.token_hex(3)}"
 
-    def save(self, result: dict[str, Any], seed: int | None = None) -> str:
+    def save(self, result: dict[str, Any], seed: int | None = None,
+             request: dict[str, Any] | None = None) -> str:
         run_id = str(result.get("run_id") or self.new_id())
         d = self.root / run_id
         d.mkdir(parents=True, exist_ok=True)
@@ -222,6 +227,10 @@ class RunStore:
                                     encoding="utf-8")
         (d / "evidence.geojson").write_text(
             json.dumps(result.get("geojson", {}), indent=2), encoding="utf-8")
+        if request is not None:
+            # what produced it — the query, raster ids by role, threshold — so
+            # the run can be replayed and checked (satquery/replay.py)
+            (d / "request.json").write_text(json.dumps(request, indent=2), encoding="utf-8")
         (d / "environment.json").write_text(json.dumps({
             "version": __version__,
             "engine": result.get("engine", "classical"),
@@ -241,6 +250,11 @@ class RunStore:
         if not p.exists():
             raise not_found("run")
         return json.loads(p.read_text(encoding="utf-8"))
+
+    def request(self, run_id: str) -> dict[str, Any] | None:
+        self.get(run_id)                               # validates the id
+        p = self.root / run_id / "request.json"
+        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
     def environment(self, run_id: str) -> dict[str, Any]:
         p = self.root / run_id / "environment.json"

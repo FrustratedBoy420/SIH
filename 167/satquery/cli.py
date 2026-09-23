@@ -7,7 +7,14 @@
     python -m satquery.cli datasets       what data is staged on this machine
     python -m satquery.cli models         the model registry and weight status
     python -m satquery.cli eval           metrics and the A-E ablation
-    python -m satquery.cli serve          the HTTP API on :8000
+    python -m satquery.cli serve          the HTTP API on :8000 (--build builds the UI)
+    python -m satquery.cli batch M.json   a manifest of queries, offline -> results.jsonl
+    python -m satquery.cli stress         EVL-08: behaviour under bad input
+    python -m satquery.cli calibrate      NFR-06: per-record calibration, >= 200 records
+    python -m satquery.cli heldout        RTR-07: router accuracy on the blind set
+    python -m satquery.cli bench          NFR-01/02: latency p50/p95
+    python -m satquery.cli replay RUN_ID  re-run a stored run and diff it
+    python -m satquery.cli runtime        serve adapter packs over HTTP (venue)
 """
 
 from __future__ import annotations
@@ -89,8 +96,147 @@ def main(argv: list[str] | None = None) -> int:
                     help="where rasters and runs are stored (default ./var)")
     sv.add_argument("--adapters", default="adapters",
                     help="directory of adapter packs")
+    sv.add_argument("--build", action="store_true",
+                    help="build the web interface first if web/dist is missing (needs npm)")
+
+    bn = sub.add_parser("bench", help="latency p50/p95 on the built-in scenes vs the NFR-01/02 targets")
+    bn.add_argument("--runs", type=int, default=20)
+
+    ho = sub.add_parser("heldout", help="router accuracy on the blind held-out set (RTR-07)")
+    ho.add_argument("--path", default=None, help="default: reference/router_heldout.jsonl")
+
+    bt = sub.add_parser("batch", help="run a manifest of queries offline; write results.jsonl")
+    bt.add_argument("manifest", nargs="?", help="JSON or JSON Lines manifest (paths relative to it)")
+    bt.add_argument("--out", default="batch-results", help="output directory")
+    bt.add_argument("--example", metavar="PATH", help="write a starter manifest over the built-in scenes and exit")
+
+    st = sub.add_parser("stress", help="EVL-08 stress suite: behaviour under bad input")
+    st.add_argument("--out", default=None, help="also record it (default web/public/stress.json with --record)")
+    st.add_argument("--record", action="store_true", help="write web/public/stress.json for the Results page")
+
+    cb = sub.add_parser("calibrate", help="per-record calibration study (>= 200 predictions), written for the Results page")
+    cb.add_argument("--out", default=None, help="default: web/public/calibration.json in the repo")
+
+    rp = sub.add_parser("replay", help="re-run a stored run and report any difference")
+    rp.add_argument("run_id")
+    rp.add_argument("--var", default=None, help="where rasters and runs are stored (default ./var)")
+
+    rt = sub.add_parser("runtime", help="serve adapter packs over HTTP (the venue model runtime)")
+    rt.add_argument("--port", type=int, default=8100)
+    rt.add_argument("--host", default="127.0.0.1")
+    rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "bench":
+        # NFR-01/02: p95 < 8 s single-image, < 15 s cross-modal, on the venue
+        # laptop. Run this there; the numbers are only as true as the machine.
+        import platform
+        import time
+        from .server import scene_bundle
+        b = scene_bundle()
+        cases = [
+            ("RQ-1 describe", "single", "Describe the land-cover and major objects visible in this image.", Inputs(optical=b["t2"])),
+            ("RQ-2 water", "single", "Highlight the water body referred to in the query.", Inputs(optical=b["t2"])),
+            ("RQ-3 change", "single", "What changed between these two dates, and where did the change occur?", Inputs(t1=b["t1"], t2=b["t2"])),
+            ("RQ-4 cross-modal", "cross", "Use the optical and SAR images together to identify built-up and water-covered regions.", Inputs(optical=b["optical"], sar=b["sar"])),
+            ("refusal", "single", "What changed between these two dates?", Inputs(optical=b["t2"])),
+        ]
+        target = {"single": 8.0, "cross": 15.0}
+        pipe = Pipeline()
+        print(f"  {platform.processor() or platform.machine()} · {platform.platform()} · {args.runs} runs each, 512 px Sentinel scenes\n")
+        worst = True
+        for name, kind, q, inp in cases:
+            ts = []
+            for _ in range(args.runs):
+                t0 = time.perf_counter()
+                pipe.run(q, inp)
+                ts.append(time.perf_counter() - t0)
+            ts.sort()
+            p50, p95 = ts[len(ts) // 2], ts[min(len(ts) - 1, int(0.95 * len(ts)))]
+            ok = p95 < target[kind]
+            worst &= ok
+            print(f"  {'✓' if ok else '✗'} {name:18s} p50 {p50 * 1000:7.0f} ms   p95 {p95 * 1000:7.0f} ms   target p95 < {target[kind]:.0f} s")
+        return 0 if worst else 1
+
+    if args.cmd == "heldout":
+        r = evaluate.heldout_router(args.path or evaluate.HELDOUT_PATH)
+        if not r["n"]:
+            print(f"  {r['note']}\n  See reference/README.md for how to write it (blind to the rules).")
+            return 1
+        short = "" if r["n"] >= 200 else "  (below the 200 the TRD asks for)"
+        print(f"  accuracy {r['accuracy']:.3f} on n = {r['n']}{short}\n")
+        tasks = sorted({*r["confusion"], *(g for row in r["confusion"].values() for g in row)})
+        print("  want \\ got".ljust(22) + "".join(t[:12].rjust(13) for t in tasks))
+        for w in tasks:
+            if w in r["confusion"]:
+                print(f"  {w:20s}" + "".join(str(r["confusion"][w].get(g, 0)).rjust(13) for g in tasks))
+        for m in r["misses"][:40]:
+            print(f"  ✗ {m['want']} -> {m['got']}: {m['query']}")
+        return 0
+
+    if args.cmd == "batch":
+        from . import batch
+        if args.example:
+            from .paths import scenes as scenes_path
+            scenes_dir = scenes_path()
+            p = batch.write_example(args.example, Path(scenes_dir).resolve())
+            print(f"  example manifest -> {p}")
+            return 0
+        if not args.manifest:
+            print("  give a manifest, or --example PATH to write one")
+            return 2
+        s = batch.run(args.manifest, args.out, progress=True)
+        print(f"\n  {s['items']} items · {s['answered']} answered · {s['refused']} refused · "
+              f"{s['abstained']} abstained · {s['errors']} errors · {s['seconds']} s -> {args.out}/results.jsonl")
+        return 1 if s["errors"] else 0
+
+    if args.cmd == "stress":
+        from . import stress
+        cases = stress.run_suite()
+        for c in cases:
+            print(f"  {'✓' if c.ok else '✗'} {c.name:28s} {c.expect}")
+            print(f"      {c.observed}")
+        out = stress.summary(cases)
+        print(f"\n  {out['passed']}/{out['total']} behave as expected")
+        if args.out or args.record:
+            Path(args.out or stress.STRESS_PATH).write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+        return 0 if out["passed"] == out["total"] else 1
+
+    if args.cmd == "calibrate":
+        r = evaluate.calibration_study()
+        args.out = args.out or str(evaluate.CALIBRATION_PATH)
+        Path(args.out).write_text(json.dumps(r, indent=2) + "\n", encoding="utf-8")
+        print(f"  ECE {r['ece']} over n = {r['n']} records ({r['design']['scenes']} scenes) -> {args.out}")
+        for k, v in r["by_kind"].items():
+            print(f"    {k:22s} n {v['n']:3d}  accuracy {v['accuracy']:.3f}  mean confidence {v['mean_confidence']:.3f}")
+        return 0
+
+    if args.cmd == "replay":
+        from .replay import replay
+        from .server import resolve_inputs
+        from .store import RasterStore, RunStore
+        root = Path(args.var) if args.var else None
+        rasters = RasterStore(root / "rasters" if root else None)
+        runs = RunStore(root / "runs" if root else None)
+        pipe = Pipeline()
+        out = replay(runs.get(args.run_id), runs.request(args.run_id),
+                     lambda q, spec, thr: pipe.run(q, resolve_inputs(spec, rasters), thr).to_dict())
+        print(f"  {args.run_id}: {'identical' if out['identical'] else 'DIFFERS'}")
+        for d in out["differences"]:
+            print(f"    - {d}")
+        return 0 if out["identical"] else 1
+
+    if args.cmd == "runtime":
+        from .runtime import serve_runtime
+        srv = serve_runtime(args.host, args.port, args.adapters)
+        print(f"  model runtime -> http://{args.host}:{args.port}  (packs from {args.adapters}/)")
+        print(f"  point the API at it:  SATQUERY_RUNTIME=http://{args.host}:{args.port} satquery serve")
+        try:
+            srv.serve_forever()
+        except KeyboardInterrupt:
+            pass
+        return 0
 
     if args.cmd == "selftest":
         from . import tests
@@ -164,8 +310,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n  Task metrics\n")
         for t in rep["tasks"]:
             print(f"    {t['task']:<24} {t['metric']:<10} {t['value']:.4f}")
-        print(f"\n    calibration ECE       {rep['calibration']['ece']:.4f}"
-              f"  (n={rep['calibration']['n']})")
+        cal = evaluate.stored_calibration()
+        if cal and cal.get("ece") is not None:
+            print(f"\n    calibration ECE       {cal['ece']:.4f}  (n={cal['n']}, recorded "
+                  f"{cal['measured_at'][:10]} by `satquery calibrate`)")
+        else:
+            print("\n    calibration ECE       not measured — run `satquery calibrate` (needs >= 200 records)")
         print(f"\n  Ablation — same scene, layers added in turn\n")
         print(f"    {'':<4}{'configuration':<34}{'seg F1':>8}{'router':>8}"
               f"{'x-modal':>9}{'capability':>12}{'Δ vs A':>9}")
@@ -187,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "serve":
         from .server import serve
         serve(host=args.host, port=args.port, var=args.var,
-              adapters=args.adapters)
+              adapters=args.adapters, build=args.build)
         return 0
 
     return 1

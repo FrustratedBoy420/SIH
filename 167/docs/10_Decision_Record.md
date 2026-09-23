@@ -19,6 +19,8 @@ arguing it again from scratch.
 | Scope for submission | **M1 only.** The PS requires *"at least one"* adapted component. One is the target; M2–M4 are post-submission |
 | Training corpus | **VRSBench**, not the full BigEarthNet imagery — see §4 |
 | Web design | **Field Atlas** (19 Sep 2026), modelled on Earth Genome / Earth Index and Picterra; supersedes the "editorial instrument" direction. Spec in `06_Design_System.md` §1–§5 |
+| Demo imagery | **Real Sentinel-2 / Sentinel-1 over west Hyderabad** (19 Sep 2026), shipped in the missions' own formats; the generator is kept only for scoring, which needs ground truth. Moving to real data exposed calibration made on synthetic radiometry — cloud mask, SAR threshold, co-registration, normalisation, UTM — each re-measured on real data and fixed in both engines |
+| Runtime-down fallback | **Live classical measurement, not pre-computed results** (19 Sep 2026). The classical path always runs first, so when the model runtime is down or slow every query — uploads included, not only staged scenes — still gets a measured answer, labelled `classical` with the reason in the trace. `Result.precomputed` stays in the contract, unused |
 
 ---
 

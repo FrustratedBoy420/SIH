@@ -235,8 +235,8 @@ class Grounding(Specialist):
             return cv.ndvi(optical.named("nir"), optical.named("red")), "optical", \
                    "NDVI = (nir - red) / (nir + red)"
         if idx == "backscatter" and sar is not None:
-            vv = cv.lee_filter(sar.named("vv"), size=7, looks=4)
-            return vv, "sar", "Lee-filtered VV backscatter, 7x7, 4 looks"
+            vv = cv.tail_clip(cv.lee_filter(sar.named("vv"), size=7, looks=4))
+            return vv, "sar", "Lee-filtered VV backscatter, 7x7, 4 looks, tail clipped at p95"
         # Brightness is a defensible proxy for built-up surfaces only: roofs
         # and pavement are bright in every visible band. For water it is the
         # opposite of right — water is dark — and substituting it returned
@@ -374,7 +374,7 @@ class VQA(Specialist):
             shares["water"] = float((wat > 0.05).mean())
             shares["bare soil"] = float((veg <= 0.28).mean() - shares["water"])
         if sar is not None:
-            vv = cv.lee_filter(sar.named("vv"))
+            vv = cv.tail_clip(cv.lee_filter(sar.named("vv")))
             shares["built-up"] = float((vv > cv.otsu(vv)).mean())
 
         shares = {k: max(0.0, v) for k, v in shares.items()}
@@ -547,11 +547,12 @@ class Fusion(Specialist):
             confidence=0.95 if reg["offset_px"] <= TOLERANCE_PX else 0.30,
             modality="fused", method="geometric extent + phase correlation",
             supporting=[f"geometric {reg['geometric_px']:.2f} px",
-                        f"phase {reg['phase_px']:.2f} px",
+                        (f"phase {reg['phase_px']:.2f} px" if reg["phase_reliable"]
+                         else f"phase inconclusive (peak ratio {reg['phase_psr']}) — geometry used"),
                         f"same CRS: {reg['same_crs']}"]))
 
         # -- optical: where can we actually see? --------------------------- #
-        cloud = cv.cloud_mask(optical.data)
+        cloud = cv.cloud_mask(optical.data, optical.meta.get("display_gain", 1.0))
         cloud = cv.closing(cv.opening(cloud, 1), 2)
         cloud_pct = float(cloud.mean() * 100)
         es.add(self._ev(
@@ -564,7 +565,8 @@ class Fusion(Specialist):
 
         # -- SAR: structures, everywhere, cloud or not --------------------- #
         vv = cv.lee_filter(sar.named("vv"), size=7, looks=4)
-        thr = cv.otsu_multi(vv, classes=3)[-1]      # brightest mode only — see TARGETS
+        # brightest mode only — see TARGETS; chosen on the tail-clipped values
+        thr = cv.otsu_multi(cv.tail_clip(vv), classes=3)[-1]
         hard = cv.opening(vv >= thr, 1)
         hard = cv.closing(hard, 1)
         labels, n = cv.connected_components(hard)

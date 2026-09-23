@@ -118,7 +118,7 @@ export function evaluate(size = 256, seed = 7): Evaluation {
     } else {
       let vv = named(sar, 'vv')
       const nd = cv.ndwi(named(opt, 'green'), named(opt, 'nir'))
-      if (caps.includes('morphology')) vv = cv.leeFilter(vv, w, h, 7, 4)
+      if (caps.includes('morphology')) vv = cv.tailClip(cv.leeFilter(vv, w, h, 7, 4))
       if (caps.includes('components')) {
         pb = cv.threshold(vv, cv.otsuMulti(vv)[1]); pw = cv.threshold(nd, cv.otsuMulti(nd)[1])
       } else {
@@ -133,7 +133,7 @@ export function evaluate(size = 256, seed = 7): Evaluation {
     const racc = caps.includes('router') ? router.value : null
     let recovered: number | null = null
     if (caps.includes('evidence')) {
-      const cloud = cv.closing(cv.opening(cv.cloudMask(opt.data), w, h, 1), w, h, 3)
+      const cloud = cv.closing(cv.opening(cv.cloudMask(opt.data, Number(opt.meta.display_gain ?? 1)), w, h, 1), w, h, 3)
       recovered = Math.round(cv.countTrue(cv.and(pb, cloud)) / Math.max(cv.countTrue(pb), 1) * 10000) / 100
     }
     const meanF1 = Math.round((b.f1 + wa.f1) / 2 * 10000) / 10000

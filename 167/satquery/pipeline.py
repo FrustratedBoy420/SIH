@@ -30,7 +30,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
-from . import __version__, validate
+from . import __version__, adapted, validate
 from .evidence import PIXEL_CRS, Evidence, EvidenceSet
 from .raster import Raster
 from .router import Inputs, Plan, REGISTRY, plan as make_plan
@@ -138,6 +138,10 @@ class Pipeline:
         self.vqa = VQA()
         self.change = Change()
         self.fusion = Fusion()
+        self._refresh()
+
+    def _refresh(self) -> None:
+        """Which specialists have a pack right now — asked per run, not once."""
         for tool, spec in self._tools().items():
             spec.adapter_loaded = self.runtime.available(REGISTRY[tool]["adapter"])
 
@@ -150,6 +154,7 @@ class Pipeline:
         t0 = time.time()
         thr = self.threshold if threshold is None else threshold
         tr = Trace()
+        self._refresh()
 
         # 1 — input validation (VAL-01). No model is touched anywhere above
         # the execute step, which is what makes a refusal cost milliseconds.
@@ -214,7 +219,12 @@ class Pipeline:
         staged = False
         for tool in p.tools:
             sub = self._execute(tool, query, inputs, p.params["threshold"])
-            ran, note = self._adapted(tool, query, inputs, sub)
+            # M1 answers in words, from its own pre-computed or live path; every
+            # other pack speaks the claims contract in adapted.py.
+            if REGISTRY[tool]["adapter"] == REGISTRY["rs_vqa"]["adapter"]:
+                ran, note = self._adapted(tool, query, inputs, sub)
+            else:
+                ran, note = self._consult(tool, query, inputs, sub, tr)
             if (tool == "grounding" and not ran and _out_of_vocabulary(sub)
                     and _asks_in_words(query)):
                 # "Where is the vehicle?" goes to grounding, whose vocabulary is
@@ -305,6 +315,11 @@ class Pipeline:
 
         # 7 — phrase (evidence only — no pixels)
         text = answer(p.task, es, query)
+        if "no rule matched" in p.rule:
+            # The router did not recognise the question. Say so before the
+            # description it fell back to, rather than answer as if it had.
+            text = ("No specific question was recognised, so this is a general "
+                    "description of the scene. " + text)
         gj = es.geojson()
         tr.add("Evidence returned",
                f"{len(gj['features'])} feature(s) · "
@@ -323,6 +338,20 @@ class Pipeline:
     def _spec_for(self, tool: str):
         return self._tools().get(tool)
 
+    def _rasters_for(self, tool: str, i: Inputs) -> dict[str, Raster]:
+        """The inputs a tool reads, by role — what the runtime is shown."""
+        if tool == "change_vqa":
+            return {k: r for k, r in (("t1", i.t1), ("t2", i.t2)) if r is not None}
+        if tool == "optical_sar":
+            return {k: r for k, r in (("optical", i.optical), ("sar", i.sar)) if r is not None}
+        o, s = self._single(i)
+        return {k: r for k, r in (("optical", o), ("sar", s)) if r is not None}
+
+    def _reference(self, tool: str, i: Inputs) -> Raster | None:
+        """The raster whose pixel grid the runtime's boxes are in."""
+        rs = list(self._rasters_for(tool, i).values())
+        return (i.t2 if tool == "change_vqa" else None) or (rs[0] if rs else None)
+
     @staticmethod
     def _single(i: Inputs) -> tuple[Raster | None, Raster | None]:
         """Pick the optical and SAR rasters for a single-image task.
@@ -333,6 +362,33 @@ class Pipeline:
         optical = i.optical or (i.t1 if i.t1 and i.t1.sensor != "sar" else None)             or (i.t2 if i.t2 and i.t2.sensor != "sar" else None)
         sar = i.sar or (i.t1 if i.t1 and i.t1.sensor == "sar" else None)             or (i.t2 if i.t2 and i.t2.sensor == "sar" else None)
         return optical, sar
+
+    def _consult(self, tool: str, query: str, inputs: Inputs, sub: EvidenceSet,
+                 tr: Any) -> tuple[bool, str]:
+        """Ask a claims-contract pack (every adapter but M1's); fold its claims into `sub`.
+
+        The classical measurement has already run. The runtime's claims join as
+        evidence, reconciled against it, never in place of it (CON-01, audit A3).
+        """
+        spec = self._spec_for(tool)
+        if not (spec and spec.adapter_loaded):
+            return False, ""
+        extra, outcome = adapted.consult(
+            self.runtime, REGISTRY[tool]["adapter"], tool, query,
+            self._rasters_for(tool, inputs), sub, self._reference(tool, inputs))
+        if not outcome["ran"]:
+            tr.add("Adapted model",
+                   f"{REGISTRY[tool]['adapter']} unavailable — {outcome['reason']}; "
+                   "the classical measurement serves this tool", ok=False,
+                   code=outcome["code"])
+            return False, ""
+        for item in extra:
+            sub.add(item)
+        tr.add("Adapted model",
+               f"{outcome['pack']}{' (stub)' if outcome['stub'] else ''} · "
+               f"{outcome['claims']} claim(s)",
+               pack=outcome["pack"], stub=outcome["stub"])
+        return True, ""
 
     def _adapted(self, tool: str, query: str, inputs: Inputs,
                  sub: EvidenceSet) -> tuple[bool, str]:
@@ -583,9 +639,17 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
             parts.append(f"{n} region{'s' if n != 1 else ''} matched, covering "
                          f"{g.mask_area_ha:.2f} ha.")
             if g.boxes:
-                lat, lon = g.boxes[0].centre()
-                parts.append(f"The largest is centred at {abs(lat):.4f} {'N' if lat >= 0 else 'S'} {abs(lon):.4f} {'E' if lon >= 0 else 'W'} "
-                             f"and covers {g.boxes[0].area_ha:.2f} ha.")
+                b = g.boxes[0]
+                c = b.centre()
+                if c is not None:
+                    lat, lon = c
+                    parts.append(f"The largest is centred at {abs(lat):.4f} {'N' if lat >= 0 else 'S'} {abs(lon):.4f} {'E' if lon >= 0 else 'W'} "
+                                 f"and covers {b.area_ha:.2f} ha.")
+                else:
+                    # not georeferenced: place it in the image, never on the ground
+                    parts.append(f"The largest is centred at pixel ({(b.x0 + b.x1) / 2:.0f}, "
+                                 f"{(b.y0 + b.y1) / 2:.0f}) and covers {b.area_px} px; "
+                                 "the image has no coordinate system, so no ground area is stated.")
         else:
             parts.append("Nothing matching that description was located in this scene.")
 

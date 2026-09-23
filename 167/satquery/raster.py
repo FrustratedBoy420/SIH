@@ -353,8 +353,12 @@ class Raster:
     def has(self, name: str) -> bool:
         return name in self.band_names
 
-    def rgb(self) -> np.ndarray:
+    def rgb(self, stretch: bool = True) -> np.ndarray:
         """(rows, cols, 3) float32 in [0, 1] for display.
+
+        `stretch=False` returns the optical bands as they are: what M1 is shown.
+        Its pre-computed answers are keyed by a hash of those exact pixels, so a
+        display stretch here would turn every known image into a cache miss.
 
         Optical uses true colour where the bands exist. SAR is single-channel
         and is returned as greyscale — deliberately *not* colourised, because
@@ -366,9 +370,26 @@ class Raster:
             from .cv import percentile_stretch
             g = percentile_stretch(self.data[0], 1.0, 97.0)
             return np.repeat(g[:, :, None], 3, axis=2)
+        # Real imagery gets the browser engine's display stretch (each band
+        # 2nd–98th percentile, web/src/engine/render.ts); the generator's
+        # pixels are already display-stretched and say so with display_gain.
+        # Surface reflectance from Sentinel-style digital numbers caps the top
+        # at 0.3, as the missions' true-colour products do, so cloud does not
+        # take the whole range and leave the ground black.
+        from .cv import percentile_stretch
+        refl = self.meta.get("normalisation") == "digital numbers divided by 10000"
+
+        def show(x: np.ndarray) -> np.ndarray:
+            if not stretch or self.meta.get("display_gain"):
+                return x
+            if not refl:
+                return percentile_stretch(x, 2.0, 98.0)
+            a, b = np.percentile(x, [2.0, 98.0])
+            b = min(b, 0.3)
+            return np.clip((x - a) / max(b - a, 1e-9), 0, 1).astype(np.float32)
         for combo in (("red", "green", "blue"), ("r", "g", "b")):
             if all(self.has(b) for b in combo):
-                return np.stack([self.named(b) for b in combo], axis=2)
+                return np.stack([show(self.named(b)) for b in combo], axis=2)
         if self.bands >= 3:
             return np.transpose(self.data[:3], (1, 2, 0))
         g = self.data[0]
@@ -455,21 +476,22 @@ def read(path: str | Path, sensor: str = "", band_names: list[str] | None = None
     if _HAVE_RASTERIO:                                   # pragma: no cover
         with rasterio.open(path) as ds:
             arr = ds.read().astype(np.float32)
-            if arr.max() > 1.5:
-                arr = arr / (65535.0 if arr.max() > 255 else 255.0)
+            resolved = sensor or _guess_sensor(path.name, arr.shape[0])
+            arr, how = normalise(arr, resolved, ds.dtypes[0])
             t = ds.transform
             gt = GeoTransform(t.c, t.a, t.b, t.f, t.d, t.e)
             return Raster(
                 data=arr, transform=gt,
                 crs=str(ds.crs) if ds.crs else "EPSG:4326",
                 georeferenced=ds.crs is not None,
-                sensor=(resolved := sensor or _guess_sensor(path.name, arr.shape[0])),
+                sensor=resolved,
                 band_names=band_names or _default_band_names(arr.shape[0], resolved),
-                source=path.name,
+                source=path.name, meta={"normalisation": how},
             )
 
     with Image.open(path) as img:
         transform, crs, geo = _geokeys_from_pillow(img)
+        eight_bit = img.mode in ("1", "L", "P", "RGB", "RGBA", "CMYK")
         frames = []
         try:
             while True:
@@ -483,9 +505,8 @@ def read(path: str | Path, sensor: str = "", band_names: list[str] | None = None
         else:
             arr = np.stack(frames)
 
-    if arr.max() > 1.5:
-        arr = arr / (65535.0 if arr.max() > 255 else 255.0)
-    arr = np.clip(arr, 0.0, 1.0).astype(np.float32)
+    resolved = sensor or _guess_sensor(path.name, arr.shape[0])
+    arr, how = normalise(arr, resolved, "uint8" if eight_bit else "")
 
     height, width = arr.shape[1], arr.shape[2]
     return Raster(
@@ -493,10 +514,78 @@ def read(path: str | Path, sensor: str = "", band_names: list[str] | None = None
         transform=transform or GeoTransform.identity(width, height),
         crs=crs,
         georeferenced=geo,
-        sensor=(resolved := sensor or _guess_sensor(path.name, arr.shape[0])),
+        sensor=resolved,
         band_names=band_names or _default_band_names(arr.shape[0], resolved),
-        source=path.name,
+        source=path.name, meta={"normalisation": how},
     )
+
+
+def normalise(arr: np.ndarray, sensor: str, dtype: str = "") -> tuple[np.ndarray, str]:
+    """Per-sensor radiometric normalisation (ING-05), stated, never silent.
+
+    The same rules as the browser engine's `normalise` in web/src/engine/
+    upload.ts, so an upload reads identically through either engine:
+
+      SAR      negative values are dB → linear power; linear values above 1.5
+               are scaled by the 99.5th percentile of the first band
+      optical  0–1 reflectance is kept; 8-bit is /255; Sentinel-2 L1C/L2A
+               digital numbers (99.9th pct ≤ 12 000) are /10 000; 16-bit is
+               /65 535
+    """
+    arr = arr.astype(np.float32)
+    mx, mn = float(np.nanmax(arr)), float(np.nanmin(arr))
+    if sensor == "sar":
+        if mn < 0:
+            return (10.0 ** (arr / 10.0)).astype(np.float32), "backscatter supplied in dB; converted to linear power"
+        if mx > 1.5:
+            p = float(np.percentile(arr[0], 99.5))
+            return np.minimum(arr / p, 1.5).astype(np.float32), f"linear DN scaled by the 99.5th percentile ({p:.1f})"
+        return arr, "linear backscatter, unscaled"
+    if mx <= 1.5:
+        return np.clip(arr, 0.0, 1.5).astype(np.float32), "reflectance 0–1, unscaled"
+    # judged from the 99.9th percentile of the first band, not the brightest
+    # pixel, so saturated cloud cannot flip a Sentinel-2 scene to /65 535
+    top = float(np.percentile(arr[0], 99.9))
+    div = 255.0 if (dtype == "uint8" or top <= 255) else 10000.0 if top <= 12000 else 65535.0 if top <= 65535 else top
+    return np.clip(arr / div, 0.0, 1.0).astype(np.float32), f"digital numbers divided by {div:g}"
+
+
+def analysis_max_side() -> int:
+    """Longest side the API analyses at (SATQUERY_ANALYSIS_MAX_SIDE, default 2048)."""
+    import os
+    try:
+        return max(256, int(os.environ.get("SATQUERY_ANALYSIS_MAX_SIDE", "2048")))
+    except ValueError:
+        return 2048
+
+
+def fit_for_analysis(r: Raster, max_side: int | None = None) -> Raster:
+    """Block-average a large raster down to the analysis size, and say so (ING-06).
+
+    A full Sentinel-2 tile is ~120 MP; analysed at full size it is gigabytes
+    of float32 and minutes of filtering on a venue laptop. The factor is an
+    integer, so the geotransform stays exact — each output pixel is the mean
+    of a k x k block and its pixel size is k times the original. The result
+    carries `analysed_at` and `original_size`, as the browser engine's do.
+    Full-resolution tiling with stitching is not done: the classical
+    thresholds are global, and tiling would change them.
+    """
+    limit = max_side or analysis_max_side()
+    side = max(r.width, r.height)
+    if side <= limit:
+        return r
+    k = -(-side // limit)                                   # ceil division
+    h, w = (r.height // k) * k, (r.width // k) * k
+    data = r.data[:, :h, :w].reshape(r.bands, h // k, k, w // k, k).mean(axis=(2, 4)).astype(np.float32)
+    t = r.transform
+    transform = GeoTransform(t.origin_x, t.pixel_width * k, t.row_rotation * k,
+                             t.origin_y, t.col_rotation * k, t.pixel_height * k, crs=t.crs)
+    meta = dict(r.meta, original_size=f"{r.width}x{r.height}",
+                analysed_at=f"{w // k}x{h // k} px (block mean {k}x{k} of {r.width}x{r.height}; "
+                            f"SATQUERY_ANALYSIS_MAX_SIDE={limit})")
+    return Raster(data=data, transform=transform, crs=r.crs, georeferenced=r.georeferenced,
+                  sensor=r.sensor, band_names=list(r.band_names), source=r.source,
+                  acquired=r.acquired, meta=meta)
 
 
 def write_geotiff(raster: Raster, path: str | Path) -> Path:
@@ -599,7 +688,12 @@ def coregistration_offset(a: Raster, b: Raster) -> dict[str, Any]:
 
     Phase correlation is computed on downsampled gradient magnitude, which is
     robust to the radiometric difference between optical and SAR — the two
-    look nothing alike in brightness but share edges.
+    look nothing alike in brightness but share edges. It is trusted only when
+    its peak stands out: a peak-to-sidelobe ratio below 8 means the edges did
+    not match (cloud edges in the optical plate have no SAR counterpart), and
+    the estimate is reported as inconclusive rather than as a misalignment.
+    Measured: real Sentinel optical/SAR under 52 % cloud 5.1, pure noise 3.5;
+    synthetic optical/SAR 9.4–10.7, real T1/T2 22.5, a real 6 px shift 120.
     """
     ax0, ay0, ax1, ay1 = a.bounds()
     bx0, by0, bx1, by1 = b.bounds()
@@ -622,18 +716,22 @@ def coregistration_offset(a: Raster, b: Raster) -> dict[str, Any]:
     mag = np.abs(cross)
     corr = np.fft.ifft2(cross / np.where(mag < 1e-12, 1e-12, mag)).real
     peak = np.unravel_index(np.argmax(corr), corr.shape)
+    psr = float((corr.max() - corr.mean()) / max(corr.std(), 1e-12))
+    reliable = psr >= 8.0
     dy = peak[0] if peak[0] <= 64 else peak[0] - 128
     dx = peak[1] if peak[1] <= 64 else peak[1] - 128
     scale = a.width / 128.0
     phase_off_px = math.hypot(dx * scale, dy * scale)
 
-    offset = max(geo_off_px, phase_off_px)
+    offset = max(geo_off_px, phase_off_px) if reliable else geo_off_px
     return {
         "aligned": bool(offset < 1.0),
         "offset_px": round(float(offset), 3),
         "geometric_px": round(float(geo_off_px), 3),
         "phase_px": round(float(phase_off_px), 3),
-        "shift": [int(dx * scale), int(dy * scale)],
+        "phase_psr": round(psr, 1),
+        "phase_reliable": reliable,
+        "shift": [int(dx * scale), int(dy * scale)] if reliable else [0, 0],
         "same_crs": a.crs == b.crs,
         "same_shape": a.shape_hw == b.shape_hw,
     }

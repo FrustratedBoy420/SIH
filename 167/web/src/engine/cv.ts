@@ -280,15 +280,36 @@ export function ndwi(green: Float32Array, nir: Float32Array): Float32Array {
 }
 
 /** Cloud: bright, spectrally flat, no vegetation signal. Tuned for precision. */
-export function cloudMask(bands: Float32Array[], thresh = 0.85, spreadMax = 0.08, ndviMax = 0.12): Mask {
-  const [r, g, b] = bands
-  const nir = bands.length >= 4 ? bands[3] : null
-  const o = new Uint8Array(r.length)
+/**
+ * Clip the bright tail of linear backscatter at the 95th percentile before an
+ * Otsu split, so corner-reflector spikes do not take the whole top class.
+ * Only the threshold moves; see satquery/cv.py `tail_clip` for why the
+ * selected pixels are unchanged and for the measurements.
+ */
+export function tailClip(x: Float32Array, q = 95): Float32Array {
+  const [p] = percentile(x, [q])
+  const o = new Float32Array(x.length)
+  for (let i = 0; i < x.length; i++) o[i] = Math.min(x[i], p)
+  return o
+}
+
+/**
+ * Opaque cloud in surface reflectance: bright, near-white, bluish, no
+ * vegetation. `gain` is divided out first (the synthetic generator stores
+ * reflectance × 2.2). Same rule and thresholds as satquery/cv.py
+ * `cloud_mask`, where the precision/recall measurements are recorded.
+ */
+export function cloudMask(bands: Float32Array[], gain = 1, thresh = 0.26, relSpreadMax = 0.35, ndviMax = 0.3, blueRedMin = 0.9): Mask {
+  const [R, G, B] = bands
+  const N = bands.length >= 4 ? bands[3] : null
+  const o = new Uint8Array(R.length)
   for (let i = 0; i < o.length; i++) {
-    const br = (r[i] + g[i] + b[i]) / 3
-    const spread = Math.max(r[i], g[i], b[i]) - Math.min(r[i], g[i], b[i])
-    const veg = nir ? Math.abs((nir[i] - r[i]) / Math.max(nir[i] + r[i], 1e-6)) < ndviMax : true
-    o[i] = br > thresh && spread < spreadMax && veg ? 1 : 0
+    const r = R[i] / gain, g = G[i] / gain, b = B[i] / gain
+    const br = (r + g + b) / 3
+    const flat = (Math.max(r, g, b) - Math.min(r, g, b)) / (br + 1e-6) < relSpreadMax
+    const nir = N ? N[i] / gain : 0
+    const veg = N ? (nir - r) / Math.max(nir + r, 1e-6) < ndviMax : true
+    o[i] = br > thresh && flat && b >= blueRedMin * r && veg ? 1 : 0
   }
   return o
 }

@@ -69,7 +69,11 @@ function normalise(data: Float32Array[], sensor: Sensor, bitsPerSample: number):
     return 'linear backscatter, unscaled'
   }
   if (max <= 1.5) return 'reflectance 0–1, unscaled'
-  const div = bitsPerSample <= 8 || max <= 255 ? 255 : max <= 12000 ? 10000 : max <= 65535 ? 65535 : max
+  // The scale is judged from the 99.9th percentile of the first band, not the
+  // brightest pixel: a few saturated cloud pixels above 12 000 must not flip a
+  // Sentinel-2 scene from /10 000 to /65 535 and darken all of it.
+  const [top] = percentile(data[0], [99.9])
+  const div = bitsPerSample <= 8 || top <= 255 ? 255 : top <= 12000 ? 10000 : top <= 65535 ? 65535 : top
   for (const b of data) for (let i = 0; i < b.length; i++) b[i] = Math.min(Math.max(b[i] / div, 0), 1)
   return `digital numbers divided by ${div}`
 }
@@ -122,10 +126,15 @@ async function parsePicture(file: File, role: string, id: string, sensor: Sensor
 }
 
 async function parseTiff(file: File, role: string, id: string, sensor: Sensor, source: string): Promise<Raster> {
+  return parseTiffBuffer(await file.arrayBuffer(), role, id, sensor, source)
+}
+
+/** A GeoTIFF already in memory — an upload, or a built-in scene fetched from /scenes/. */
+export async function parseTiffBuffer(buf: ArrayBuffer, role: string, id: string, sensor: Sensor, source: string): Promise<Raster> {
   const { fromArrayBuffer } = await import('geotiff')
   let tiff
   try {
-    tiff = await fromArrayBuffer(await file.arrayBuffer())
+    tiff = await fromArrayBuffer(buf)
   } catch {
     throw new EngineError('unreadable_tiff', `"${source}" could not be read as a TIFF — the header is malformed or truncated.`, 'Re-export the raster as a standard GeoTIFF and upload again.')
   }
@@ -134,17 +143,31 @@ async function parseTiff(file: File, role: string, id: string, sensor: Sensor, s
   if (W * H > LIMITS.maxPixels) {
     throw new EngineError('too_many_pixels', `${W.toLocaleString('en-US')}×${H.toLocaleString('en-US')} px exceeds the ${LIMITS.maxPixels / 1e6} MP limit.`, 'Clip or downsample the scene; the API tiles large scenes, the preview does not.')
   }
-  const count = image.getSamplesPerPixel()
   const s = Math.min(1, LIMITS.analysisMaxSide / Math.max(W, H))
   const w = Math.max(1, Math.round(W * s)), h = Math.max(1, Math.round(H * s))
-  const rasters = await image.readRasters({ width: w, height: h, resampleMethod: 'bilinear' })
-  const data: Float32Array[] = []
-  for (let b = 0; b < count; b++) {
-    const src = rasters[b] as ArrayLike<number>
-    const f = new Float32Array(w * h)
-    for (let i = 0; i < f.length; i++) f[i] = Number(src[i])
-    data.push(f)
+  // Bands either interleave in one image or sit one per page, as the Python
+  // reader also accepts. Pages count as bands only when every page is the
+  // same size as the first — otherwise they are overviews, not bands.
+  const pages = [image]
+  if (image.getSamplesPerPixel() === 1) {
+    const n = await tiff.getImageCount()
+    for (let k = 1; k < n; k++) {
+      const pg = await tiff.getImage(k)
+      if (pg.getWidth() !== W || pg.getHeight() !== H || pg.getSamplesPerPixel() !== 1) break
+      pages.push(pg)
+    }
   }
+  const data: Float32Array[] = []
+  for (const pg of pages) {
+    const rasters = await pg.readRasters({ width: w, height: h, resampleMethod: 'bilinear' })
+    for (let b = 0; b < rasters.length; b++) {
+      const src = rasters[b] as ArrayLike<number>
+      const f = new Float32Array(w * h)
+      for (let i = 0; i < f.length; i++) f[i] = Number(src[i])
+      data.push(f)
+    }
+  }
+  const count = data.length
 
   // ---- georeferencing ----
   let crs = 'none', georeferenced = false, transform = IDENTITY

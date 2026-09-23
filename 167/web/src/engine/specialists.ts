@@ -59,7 +59,12 @@ function prep(r: Raster, n = 128): Float64Array {
   return m
 }
 
-/** Validate, not solve: geometric extent agreement plus phase-correlation peak on gradients. */
+/**
+ * Validate, not solve: geometric extent agreement plus phase-correlation peak
+ * on gradients. The phase estimate counts only when its peak-to-sidelobe
+ * ratio is ≥ 8 — see satquery/raster.py `coregistration_offset` for the
+ * measurements behind the cut-off.
+ */
 export function coregistrationOffset(a: Raster, b: Raster) {
   const [ax0, ay0, ax1] = bounds(a)
   const [bx0, by0] = bounds(b)
@@ -77,17 +82,21 @@ export function coregistrationOffset(a: Raster, b: Raster) {
     cr[i] = re / mag; ci[i] = im / mag
   }
   cv.fft2(cr, ci, n, true)
-  let best = -Infinity, peak = 0
-  for (let i = 0; i < n * n; i++) if (cr[i] > best) { best = cr[i]; peak = i }
+  let best = -Infinity, peak = 0, sum = 0, sq = 0
+  for (let i = 0; i < n * n; i++) { if (cr[i] > best) { best = cr[i]; peak = i } sum += cr[i]; sq += cr[i] * cr[i] }
+  const mean = sum / (n * n), sd = Math.sqrt(Math.max(sq / (n * n) - mean * mean, 0))
+  const psr = (best - mean) / Math.max(sd, 1e-12)
+  const reliable = psr >= 8
   let dy = Math.floor(peak / n), dx = peak % n
   if (dy > 64) dy -= n
   if (dx > 64) dx -= n
   const scale = a.width / n
   const phase = Math.hypot(dx * scale, dy * scale)
-  const offset = Math.max(geo, phase)
+  const offset = reliable ? Math.max(geo, phase) : geo
   const r3 = (v: number) => Math.round(v * 1000) / 1000
   return {
     aligned: offset < 1, offset_px: r3(offset), geometric_px: r3(geo), phase_px: r3(phase),
+    phase_psr: Math.round(psr * 10) / 10, phase_reliable: reliable,
     same_crs: a.crs === b.crs, same_shape: a.width === b.width && a.height === b.height,
   }
 }
@@ -127,7 +136,7 @@ function score(spec: Target, optical?: Raster, sar?: Raster): [Float32Array | nu
   if (spec.index === 'ndvi' && optical && has(optical, 'nir') && has(optical, 'red'))
     return [cv.ndvi(named(optical, 'nir'), named(optical, 'red')), 'optical', 'NDVI = (nir - red) / (nir + red)']
   if (spec.index === 'backscatter' && sar)
-    return [cv.leeFilter(named(sar, 'vv'), sar.width, sar.height, 7, 4), 'sar', 'Lee-filtered VV backscatter, 7x7, 4 looks']
+    return [cv.tailClip(cv.leeFilter(named(sar, 'vv'), sar.width, sar.height, 7, 4)), 'sar', 'Lee-filtered VV backscatter, 7x7, 4 looks, tail clipped at p95']
   if (optical) return [grey(optical), 'optical', 'panchromatic brightness (no suitable index)']
   return [null, 'derived', 'no band combination supports this target']
 }
@@ -246,7 +255,7 @@ function dominant(optical: Raster | undefined, sar: Raster | undefined, es: Evid
     shares['bare soil'] = low / veg.length - shares.water
   }
   if (sar) {
-    const vv = cv.leeFilter(named(sar, 'vv'), sar.width, sar.height)
+    const vv = cv.tailClip(cv.leeFilter(named(sar, 'vv'), sar.width, sar.height))
     shares['built-up'] = cv.countTrue(cv.threshold(vv, cv.otsu(vv), true)) / vv.length
     // the Python uses a strict ">" here; >= differs by at most the threshold bin
   }
@@ -336,15 +345,17 @@ export function change(t1: Raster, t2: Raster, _q = '', thr = 0.45): EvidenceSet
 
 export function sarStructures(sar: Raster) {
   const { width: w, height: h } = sar
+  // threshold chosen on the tail-clipped values, applied to the raw ones —
+  // the same pixels either way, but callers averaging vv get true σ⁰
   const vv = cv.leeFilter(named(sar, 'vv'), w, h, 7, 4)
-  const thr = cv.otsuMulti(vv)[1]
+  const thr = cv.otsuMulti(cv.tailClip(vv))[1]
   const hard = cv.closing(cv.opening(cv.threshold(vv, thr), w, h, 1), w, h, 1)
   return { vv, thr, hard }
 }
 
 export function cloudOf(optical: Raster) {
   const { width: w, height: h } = optical
-  return cv.closing(cv.opening(cv.cloudMask(optical.data), w, h, 1), w, h, 2)
+  return cv.closing(cv.opening(cv.cloudMask(optical.data, Number(optical.meta.display_gain ?? 1)), w, h, 1), w, h, 2)
 }
 
 export function fusion(optical: Raster, sarIn: Raster, _q = '', thr = 0.45): EvidenceSet {
@@ -357,7 +368,7 @@ export function fusion(optical: Raster, sarIn: Raster, _q = '', thr = 0.45): Evi
     claim: reg.aligned ? 'co-registration verified' : 'co-registration outside tolerance',
     value: reg.offset_px, unit: 'px', confidence: reg.aligned ? 0.95 : 0.30, modality: 'fused',
     method: 'geometric extent + phase correlation',
-    supporting: [`geometric ${reg.geometric_px.toFixed(2)} px`, `phase ${reg.phase_px.toFixed(2)} px`, `same CRS: ${reg.same_crs}`],
+    supporting: [`geometric ${reg.geometric_px.toFixed(2)} px`, reg.phase_reliable ? `phase ${reg.phase_px.toFixed(2)} px` : `phase inconclusive (peak ratio ${reg.phase_psr}) — geometry used`, `same CRS: ${reg.same_crs}`],
   }))
 
   // optical: where can we actually see?
