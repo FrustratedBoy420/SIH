@@ -266,6 +266,10 @@ Environment: `SATQUERY_RUNTIME` (`inproc` or an URL), `SATQUERY_RUNTIME_TIMEOUT`
 rasters are block-averaged and say so), `SATQUERY_MAX_UPLOAD_MB` (default 200;
 lower it on a small host such as a 512 MB free tier), `SATQUERY_VAR`, `SATQUERY_HOME`.
 
+Online, with M1 live on a GPU that exists only while it is used: the API and
+interface on a free CPU host, the model runtime on Modal —
+[`docs/12_Deployment_Spec.md`](docs/12_Deployment_Spec.md).
+
 ---
 
 ## Reference
