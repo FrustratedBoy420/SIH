@@ -323,6 +323,14 @@ try {
     await page.screenshot({ path: `${SHOTS}/21-results.png`, fullPage: true })
     return (await page.locator(tid('formula')).innerText()).slice(0, 80)
   })
+  if (health) {
+    await check('results: M1 calibration beside the pipeline\'s', async () => {
+      const t = await page.locator(tid('m1-calibration')).innerText({ timeout: 10000 })
+      const bins = await page.locator(`${tid('chart-m1-calibration')} circle`).count()
+      if (bins < 3) throw new Error(`${bins} reliability bins drawn`)
+      return `${bins} bins · ${t.match(/withholds[^.]*/)?.[0] ?? ''}`.slice(0, 100)
+    })
+  }
   await check('unknown route shows 404 page', async () => {
     await page.goto(`${BASE}/nowhere`)
     await page.getByText('No data').waitFor()

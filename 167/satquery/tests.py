@@ -823,6 +823,26 @@ def _():
     ok(none["adapted"] is None, "a missing pack reported a measurement")
 
 
+@check("M1's calibration reaches the Results page, scored against the pipeline's gate")
+def _():
+    from .evaluate import m1_calibration
+
+    rows = [{"qtype": "count", "confidence": 0.3, "correct": False},
+            {"qtype": "count", "confidence": 0.4, "correct": True},
+            {"qtype": "colour", "confidence": 0.9, "correct": True},
+            {"qtype": "colour", "confidence": 0.8, "correct": False}]
+    with tempfile.TemporaryDirectory() as d:
+        f = pathlib.Path(d) / "m1.jsonl"
+        f.write_text("\n".join(json.dumps(r) for r in rows), encoding="utf-8")
+        got = m1_calibration(f)
+        none = m1_calibration(pathlib.Path(d) / "absent.jsonl")
+    ok(got["n"] == 4 and got["ece"] is None, f"ECE stated on {got['n']} records, under the 200 floor")
+    ok(got["gate"] == {"threshold": 0.45, "withheld": 2, "withheld_wrong": 1, "answered_accuracy": 0.5},
+       f"gate arithmetic wrong: {got['gate']}")
+    ok(set(got["by_kind"]) == {"count", "colour"}, f"kinds {sorted(got['by_kind'])}")
+    ok(none is None, "a missing file reported a calibration")
+
+
 @check("a remote runtime is sent pixels as PNG, never a raw array")
 def _():
     from .errors import SatQueryError

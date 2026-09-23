@@ -193,19 +193,28 @@ export interface Evaluation {
   adaptation: { zero_shot: number | null; adapted: number | null; gain: number | null; split: string }
   /** optical-only / SAR-only / both. null until measured. */
   cross_modal: { optical: number | null; sar: number | null; both: number | null; metric: string }
-  calibration: {
-    ece: number | null; n: number; bins: number; required_n: number
-    accuracy?: number | null; mean_confidence?: number | null; measured_at?: string; version?: string
-    reliability?: { lo: number; hi: number; n: number; confidence: number; accuracy: number }[]
-    by_kind?: Record<string, { n: number; accuracy: number; mean_confidence: number }>
+  calibration: Calibration & {
+    measured_at?: string; version?: string
     design?: { scenes: number; seeds: number[]; noise_sd: number[]; size_px: number; correct_if: string }
   }
+  /** M1 asked directly on VRSBench validation, binned like `calibration`. Absent in the preview engine. */
+  m1_calibration?: Calibration & {
+    source: string
+    gate: { threshold: number; withheld: number; withheld_wrong: number; answered_accuracy: number | null }
+  } | null
   stress?: {
     passed: number; total: number; measured_at: string; version: string
     cases: { name: string; condition: string; expect: string; ok: boolean; observed: string }[]
   }
   router_heldout: { accuracy: number | null; n: number }
   note: string
+}
+
+export interface Calibration {
+  ece: number | null; n: number; bins: number; required_n: number
+  accuracy?: number | null; mean_confidence?: number | null
+  reliability?: { lo: number; hi: number; n: number; confidence: number; accuracy: number }[]
+  by_kind?: Record<string, { n: number; accuracy: number; mean_confidence: number }>
 }
 
 export interface ApiError { code: string; message: string; remedy: string }

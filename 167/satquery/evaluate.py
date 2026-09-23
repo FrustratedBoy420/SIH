@@ -28,7 +28,7 @@ from typing import Any, Callable
 import numpy as np
 
 from . import cv, scene as scenes
-from .evidence import GeoBox
+from .evidence import EvidenceSet, GeoBox
 from .pipeline import Pipeline
 from .router import Inputs
 
@@ -404,6 +404,36 @@ from .paths import home as _home, public as _public
 CALIBRATION_PATH = _public() / "calibration.json"
 
 
+def _summarise(recs: list[dict[str, Any]]) -> dict[str, Any]:
+    """ECE, reliability bins and per-kind figures over judged records.
+
+    Each record carries `confidence`, `correct` and `kind`. Shared by the
+    pipeline's own study and M1's, so both are binned and scored alike.
+    """
+    conf = [r["confidence"] for r in recs]
+    correct = [r["correct"] for r in recs]
+    edges = np.linspace(0, 1, CALIBRATION_BINS + 1)
+    bins = []
+    for i in range(CALIBRATION_BINS):
+        m = [(c, y) for c, y in zip(conf, correct) if edges[i] < c <= edges[i + 1]]
+        if m:
+            bins.append({"lo": round(float(edges[i]), 2), "hi": round(float(edges[i + 1]), 2), "n": len(m),
+                         "confidence": round(float(np.mean([c for c, _ in m])), 3),
+                         "accuracy": round(float(np.mean([y for _, y in m])), 3)})
+    by_kind = {}
+    for k in sorted({r["kind"] for r in recs}):
+        ks = [r for r in recs if r["kind"] == k]
+        by_kind[k] = {"n": len(ks), "accuracy": round(float(np.mean([r["correct"] for r in ks])), 3),
+                      "mean_confidence": round(float(np.mean([r["confidence"] for r in ks])), 3)}
+    return {
+        "ece": expected_calibration_error(conf, correct, CALIBRATION_BINS) if len(recs) >= CALIBRATION_N else None,
+        "n": len(recs), "bins": CALIBRATION_BINS, "required_n": CALIBRATION_N,
+        "accuracy": round(float(np.mean(correct)), 3) if recs else None,
+        "mean_confidence": round(float(np.mean(conf)), 3) if recs else None,
+        "reliability": bins, "by_kind": by_kind,
+    }
+
+
 def calibration_study(seeds: range = range(1, 13), noise: tuple[float, ...] = (0.0, 0.03, 0.06),
                       size: int = 128) -> dict[str, Any]:
     """Per-record calibration over many synthetic scenes (NFR-06, audit B8).
@@ -464,27 +494,8 @@ def calibration_study(seeds: range = range(1, 13), noise: tuple[float, ...] = (0
                 if e["claim"] == "change detected between the two dates":
                     judge("change", e["confidence"], e["mask_area_ha"], truth.sum() * ha, tol_rel=CAL_AREA_TOL)
 
-    conf = [r["confidence"] for r in recs]
-    correct = [r["correct"] for r in recs]
-    edges = np.linspace(0, 1, CALIBRATION_BINS + 1)
-    bins = []
-    for i in range(CALIBRATION_BINS):
-        m = [(c, y) for c, y in zip(conf, correct) if edges[i] < c <= edges[i + 1]]
-        if m:
-            bins.append({"lo": round(float(edges[i]), 2), "hi": round(float(edges[i + 1]), 2), "n": len(m),
-                         "confidence": round(float(np.mean([c for c, _ in m])), 3),
-                         "accuracy": round(float(np.mean([y for _, y in m])), 3)})
-    by_kind = {}
-    for k in sorted({r["kind"] for r in recs}):
-        ks = [r for r in recs if r["kind"] == k]
-        by_kind[k] = {"n": len(ks), "accuracy": round(float(np.mean([r["correct"] for r in ks])), 3),
-                      "mean_confidence": round(float(np.mean([r["confidence"] for r in ks])), 3)}
     return {
-        "ece": expected_calibration_error(conf, correct, CALIBRATION_BINS) if len(recs) >= CALIBRATION_N else None,
-        "n": len(recs), "bins": CALIBRATION_BINS, "required_n": CALIBRATION_N,
-        "accuracy": round(float(np.mean(correct)), 3) if recs else None,
-        "mean_confidence": round(float(np.mean(conf)), 3) if recs else None,
-        "reliability": bins, "by_kind": by_kind,
+        **_summarise(recs),
         "design": {"scenes": len(seeds) * len(noise), "seeds": [seeds.start, seeds.stop - 1],
                    "noise_sd": list(noise), "size_px": size,
                    "correct_if": f"area within ±{CAL_AREA_TOL:.0%} of truth; cloud cover within "
@@ -632,6 +643,37 @@ def m1_adaptation(adapters: str | Path | None = None) -> dict[str, Any]:
             "split": "VRSBench validation"}
 
 
+def m1_calibration(path: str | Path | None = None) -> dict[str, Any] | None:
+    """M1's own calibration, from Mridul's recorded rows (audit B8), or None.
+
+    Rows are M1 asked directly — no router, no gate — on 300 VRSBench
+    validation questions (models/calibrate_m1.py). Binned exactly like the
+    pipeline's study, and scored against the gate the pipeline applies, so the
+    page can show what the gate withholds and how often that was wrong.
+    """
+    import json
+
+    p = Path(path) if path else Path(__file__).resolve().parent.parent / "models" / "results" / "m1_calibration.jsonl"
+    try:
+        rows = [json.loads(line) for line in p.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except (OSError, ValueError):
+        return None
+    recs = [{"confidence": float(r["confidence"]), "correct": bool(r["correct"]),
+             "kind": str(r.get("qtype") or "vqa")} for r in rows]
+    if not recs:
+        return None
+    gate = EvidenceSet().threshold
+    held = [r for r in recs if r["confidence"] < gate]
+    kept = [r for r in recs if r["confidence"] >= gate]
+    return {
+        **_summarise(recs),
+        "source": "M1 asked directly, no router or gate · VRSBench validation · models/calibrate_m1.py",
+        "gate": {"threshold": gate, "withheld": len(held),
+                 "withheld_wrong": sum(not r["correct"] for r in held),
+                 "answered_accuracy": round(float(np.mean([r["correct"] for r in kept])), 3) if kept else None},
+    }
+
+
 def _stress() -> dict[str, Any]:
     """EVL-08, run live — the suite takes under a second."""
     from . import stress
@@ -678,6 +720,7 @@ def contract_report(size: int = 256, seed: int = 7,
                                                 "required_n": CALIBRATION_N},
         "router_heldout": {"accuracy": heldout["accuracy"], "n": heldout["n"],
                            "confusion": heldout["confusion"], "note": heldout["note"]},
+        "m1_calibration": m1_calibration(),
         "stress": _stress(),
         "note": base["note"],
     }

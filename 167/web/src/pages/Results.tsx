@@ -15,6 +15,7 @@ import { num, PLACEHOLDER } from '@/lib/format'
 import { useEngineMode } from '@/lib/hooks'
 import BarChart from '@/components/charts/BarChart'
 import { cn } from '@/lib/utils'
+import type { Calibration } from '@/lib/contract'
 
 function Section({ n, title, req, children, lede }: { n: string; title: string; req: string; lede: string; children: React.ReactNode }) {
   return (
@@ -135,55 +136,26 @@ export default function Results() {
 
       <Section n="06" title="Calibration" req="NFR-06 · does 0.9 mean right nine times in ten?"
         lede="A confidence nobody validated invites trust it has not earned. Expected calibration error is reported only over at least 200 predictions, with the bins stated.">
-        <div className="grid gap-8 xl:grid-cols-[440px_minmax(0,1fr)]">
-          <figure className="max-w-[440px]" data-testid="chart-calibration">
-            <svg viewBox="0 0 220 220" className="w-full" role="img"
-              aria-label={ev?.calibration.reliability?.length ? `Reliability diagram: ${ev.calibration.reliability.map((b) => `confidence ${b.confidence}, accuracy ${b.accuracy}, n ${b.n}`).join('; ')}. The diagonal marks perfect calibration.` : 'Reliability diagram: no predictions plotted yet; the diagonal marks perfect calibration.'}>
-              {[0, 0.25, 0.5, 0.75, 1].map((v) => (
-                <g key={v}>
-                  <line x1={30 + v * 180} x2={30 + v * 180} y1={10} y2={190} stroke="var(--color-rule)" strokeWidth={1} />
-                  <line x1={30} x2={210} y1={190 - v * 180} y2={190 - v * 180} stroke="var(--color-rule)" strokeWidth={1} />
-                  <text x={30 + v * 180} y={204} textAnchor="middle" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
-                  <text x={24} y={193 - v * 180} textAnchor="end" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
-                </g>
-              ))}
-              <line x1={30} y1={190} x2={210} y2={10} stroke="var(--color-ink-2)" strokeDasharray="3 3" strokeWidth={1} />
-              {ev?.calibration.reliability?.length
-                ? ev.calibration.reliability.map((b) => {
-                  const r = Math.max(2.5, Math.min(9, Math.sqrt(b.n) * 0.8))
-                  return <circle key={b.lo} cx={30 + b.confidence * 180} cy={190 - b.accuracy * 180} r={r} fill="var(--color-accent)" stroke="var(--color-surface)" strokeWidth={1.5}><title>{`confidence ${b.lo}–${b.hi}: mean ${b.confidence}, accuracy ${b.accuracy}, n ${b.n}`}</title></circle>
-                })
-                : <text x={120} y={100} textAnchor="middle" fontSize={10} fill="var(--color-ink-2)" className="mono">{PLACEHOLDER} · no bins yet</text>}
-              <text x={120} y={217} textAnchor="middle" fontSize={8} fill="var(--color-ink-2)">stated confidence</text>
-            </svg>
-            <figcaption className="mono mt-2 text-[12px]">ECE {ev?.calibration.ece === null || ev?.calibration.ece === undefined ? PLACEHOLDER : ev.calibration.ece.toFixed(3)} · n = {ev?.calibration.n ?? 0} of ≥ {ev?.calibration.required_n ?? 200} · {ev?.calibration.bins ?? 10} equal-width bins · dot area ∝ records</figcaption>
-          </figure>
-          {ev?.calibration.by_kind && (
-            <div className="min-w-0">
-              <div className="overflow-x-auto">
-              <table className="w-full min-w-[420px] border-collapse text-left text-[12.5px]" data-testid="calibration-by-kind">
-                <thead><tr className="border-b border-ink">{['Record', 'n', 'right', 'stated', 'gap'].map((h) => <th key={h} className="label py-2 pr-3 font-medium">{h}</th>)}</tr></thead>
-                <tbody>
-                  {Object.entries(ev.calibration.by_kind).map(([k, v]) => {
-                    const over = v.mean_confidence - v.accuracy
-                    return (
-                      <tr key={k} className="border-b border-rule">
-                        <td className="mono py-2 pr-3">{k}</td><td className="mono pr-3">{v.n}</td>
-                        <td className="mono pr-3">{v.accuracy.toFixed(3)}</td><td className="mono pr-3">{v.mean_confidence.toFixed(3)}</td>
-                        <td className={cn('whitespace-nowrap', over > 0.1 ? 'text-nir' : 'text-ink-2')}>{over > 0.1 ? `over by ${over.toFixed(2)}` : over < -0.1 ? `under by ${(-over).toFixed(2)}` : 'within 0.10'}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              </div>
+        {ev && (
+          <CalibrationBlock cal={ev.calibration} testId="chart-calibration" tableId="calibration-by-kind">
+            <p className="mt-3 text-[13px] text-ink-2">
+              <b className="font-medium text-ink">right</b> is the share of records the ground truth confirms; <b className="font-medium text-ink">stated</b> is their mean confidence. {ev.calibration.design && <>Recorded study: {ev.calibration.design.scenes} synthetic scenes ({ev.calibration.design.size_px} px, seeds {ev.calibration.design.seeds.join('–')}, pixel noise σ {ev.calibration.design.noise_sd.join(' / ')}), every record judged against ground truth — correct if {ev.calibration.design.correct_if}. </>}
+              {ev.calibration.measured_at && <>Measured {ev.calibration.measured_at.slice(0, 10)} by <span className="mono">satquery calibrate</span>{ev.calibration.version ? ` ${ev.calibration.version}` : ''}.</>}
+            </p>
+          </CalibrationBlock>
+        )}
+        {ev?.m1_calibration && (
+          <div className="mt-12" data-testid="m1-calibration">
+            <h3 className="label mb-4 font-medium text-ink">M1, the adapted model — its own confidence</h3>
+            <CalibrationBlock cal={ev.m1_calibration} testId="chart-m1-calibration" tableId="m1-calibration-by-kind" kindLabel="Question type">
               <p className="mt-3 text-[13px] text-ink-2">
-                <b className="font-medium text-ink">right</b> is the share of records the ground truth confirms; <b className="font-medium text-ink">stated</b> is their mean confidence. {ev.calibration.design && <>Recorded study: {ev.calibration.design.scenes} synthetic scenes ({ev.calibration.design.size_px} px, seeds {ev.calibration.design.seeds.join('–')}, pixel noise σ {ev.calibration.design.noise_sd.join(' / ')}), every record judged against ground truth — correct if {ev.calibration.design.correct_if}. </>}
-                {ev.calibration.measured_at && <>Measured {ev.calibration.measured_at.slice(0, 10)} by <span className="mono">satquery calibrate</span>{ev.calibration.version ? ` ${ev.calibration.version}` : ''}.</>}
+                {ev.m1_calibration.source}. Confidence is the geometric mean probability of the answer's tokens — a different scale from the classical specialists', measured separately.
+                {' '}The pipeline withholds any record below {ev.m1_calibration.gate.threshold.toFixed(2)}: here that is {ev.m1_calibration.gate.withheld} of {ev.m1_calibration.n} answers, {ev.m1_calibration.gate.withheld_wrong} of which were wrong
+                {ev.m1_calibration.gate.answered_accuracy !== null && <>, and accuracy on what it does answer is {ev.m1_calibration.gate.answered_accuracy.toFixed(3)}</>}.
               </p>
-            </div>
-          )}
-        </div>
+            </CalibrationBlock>
+          </div>
+        )}
         {!(ev?.calibration.n && ev.calibration.n >= (ev.calibration.required_n ?? 200)) && <Pending owner="Shreyash" what="≥ 200 labelled predictions across tasks" />}
       </Section>
 
@@ -214,6 +186,60 @@ export default function Results() {
       </Section>
 
       <p className="mt-6 max-w-[900px] text-[13px] text-ink-2">{ev?.note} Engine: {mode === 'http' ? 'API' : 'browser preview'}. Percentages here are fractions of one unless marked; {pct(0.5)} means 0.50.</p>
+    </div>
+  )
+}
+
+/** Reliability diagram and per-kind table — the pipeline's study and M1's share it. */
+function CalibrationBlock({ cal, testId, tableId, kindLabel = 'Record', children }: {
+  cal: Calibration; testId: string; tableId: string; kindLabel?: string; children?: React.ReactNode
+}) {
+  return (
+    <div className="grid gap-8 xl:grid-cols-[440px_minmax(0,1fr)]">
+      <figure className="max-w-[440px]" data-testid={testId}>
+        <svg viewBox="0 0 220 220" className="w-full" role="img"
+          aria-label={cal.reliability?.length ? `Reliability diagram: ${cal.reliability.map((b) => `confidence ${b.confidence}, accuracy ${b.accuracy}, n ${b.n}`).join('; ')}. The diagonal marks perfect calibration.` : 'Reliability diagram: no predictions plotted yet; the diagonal marks perfect calibration.'}>
+          {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+            <g key={v}>
+              <line x1={30 + v * 180} x2={30 + v * 180} y1={10} y2={190} stroke="var(--color-rule)" strokeWidth={1} />
+              <line x1={30} x2={210} y1={190 - v * 180} y2={190 - v * 180} stroke="var(--color-rule)" strokeWidth={1} />
+              <text x={30 + v * 180} y={204} textAnchor="middle" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
+              <text x={24} y={193 - v * 180} textAnchor="end" className="mono" fontSize={8} fill="var(--color-ink-2)">{v}</text>
+            </g>
+          ))}
+          <line x1={30} y1={190} x2={210} y2={10} stroke="var(--color-ink-2)" strokeDasharray="3 3" strokeWidth={1} />
+          {cal.reliability?.length
+            ? cal.reliability.map((b) => {
+              const r = Math.max(2.5, Math.min(9, Math.sqrt(b.n) * 0.8))
+              return <circle key={b.lo} cx={30 + b.confidence * 180} cy={190 - b.accuracy * 180} r={r} fill="var(--color-accent)" stroke="var(--color-surface)" strokeWidth={1.5}><title>{`confidence ${b.lo}–${b.hi}: mean ${b.confidence}, accuracy ${b.accuracy}, n ${b.n}`}</title></circle>
+            })
+            : <text x={120} y={100} textAnchor="middle" fontSize={10} fill="var(--color-ink-2)" className="mono">{PLACEHOLDER} · no bins yet</text>}
+          <text x={120} y={217} textAnchor="middle" fontSize={8} fill="var(--color-ink-2)">stated confidence</text>
+        </svg>
+        <figcaption className="mono mt-2 text-[12px]">ECE {cal.ece === null || cal.ece === undefined ? PLACEHOLDER : cal.ece.toFixed(3)} · n = {cal.n} of ≥ {cal.required_n} · {cal.bins} equal-width bins · dot area ∝ records</figcaption>
+      </figure>
+      {cal.by_kind && (
+        <div className="min-w-0">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] border-collapse text-left text-[12.5px]" data-testid={tableId}>
+            <thead><tr className="border-b border-ink">{[kindLabel, 'n', 'right', 'stated', 'gap'].map((h) => <th key={h} className="label py-2 pr-3 font-medium">{h}</th>)}</tr></thead>
+            <tbody>
+              {Object.entries(cal.by_kind).map(([k, v]) => {
+                const over = v.mean_confidence - v.accuracy
+                return (
+                  <tr key={k} className="border-b border-rule">
+                    <td className="mono py-2 pr-3">{k}</td><td className="mono pr-3">{v.n}</td>
+                    <td className="mono pr-3">{v.accuracy.toFixed(3)}</td><td className="mono pr-3">{v.mean_confidence.toFixed(3)}</td>
+                    <td className={cn('whitespace-nowrap', over > 0.1 ? 'text-nir' : 'text-ink-2')}>{over > 0.1 ? `over by ${over.toFixed(2)}` : over < -0.1 ? `under by ${(-over).toFixed(2)}` : 'within 0.10'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          </div>
+          {children}
+        </div>
+      )}
     </div>
   )
 }

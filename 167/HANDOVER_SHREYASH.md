@@ -119,7 +119,7 @@ includes `Co-registration checked` (it was red on `main` before this).
 
 - [x] **Browser engine areas** *(`892cde8`: `pixelAreaM2` mirrors `pixel_area_m2`; identical to 1e-12 on a 4326 scene)* still ignore `cos(latitude)` (`engine/raster.ts:111`): preview mode shows hectares ~9 % above live mode for the same scene.
 - [x] **Stale demo inputs:** *(`dc90af3`: the first upload of your own clears the demo slots)* uploading an optical photo leaves the demo SAR loaded, so the header says "optical + SAR pair". The penalty no longer punishes it, but clearing demo slots on the first upload (or saying so) would be clearer.
-- [ ] **Calibration tile** asks for ≥ 200 labelled predictions. M1 has **300** in `models/results/m1_calibration.jsonl` (answer, confidence, correct) — the audit B8 hand-over. Confidence is well ordered (0.9+ → 97 % right; < 0.4 → 8 %), over-stated between 0.4 and 0.6.
+- [x] **Calibration tile** *(Results §06 now shows M1's own reliability diagram and per-question-type table from your 300 rows, scored against the 0.45 gate: 23 withheld, 19 of them wrong, 0.715 on what is answered)* asks for ≥ 200 labelled predictions. M1 has **300** in `models/results/m1_calibration.jsonl` (answer, confidence, correct) — the audit B8 hand-over. Confidence is well ordered (0.9+ → 97 % right; < 0.4 → 8 %), over-stated between 0.4 and 0.6.
 - [x] **Upload limit** *(`63282af`: `SATQUERY_MAX_UPLOAD_MB`, and an oversize file is refused before it is read)* is 200 MB; on a 512 MB free host (Render) that can kill the process. Lower it for any free deployment.
 
 ---
@@ -160,5 +160,5 @@ Numbers, caveats and the full record: `models/MANIFEST.md`.
   EPSG:27700, which really is unsupported, and a new check covers 3857.
 - **`adapted.py`** is my claims contract for M2–M4 and remote runtimes; M1
   keeps your `_adapted()`. `pipeline.py` routes by adapter.
-- Selftest is 72/72 and `verify.mjs` 41/41 against the live backend, with your
+- Selftest is 73/73 and `verify.mjs` 42/42 against the live backend, with your
   palette check folded in.
