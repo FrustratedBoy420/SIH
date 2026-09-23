@@ -37,6 +37,10 @@ Modality = Literal["optical", "sar", "fused", "temporal", "derived"]
 # geometry
 # --------------------------------------------------------------------------- #
 
+#: The CRS a FeatureCollection declares when its coordinates are pixels, not
+#: degrees — x right, y down, from the image's top-left corner.
+PIXEL_CRS = "urn:satquery:def:crs:image-pixels"
+
 @dataclass
 class GeoBox:
     """A rectangle, carried in both pixel and world coordinates."""

@@ -276,6 +276,28 @@ They are not where M1's 0.660 comes from. To show what M1 can do, show it real
 imagery: VRSBench validation images (never trained on), pre-computed with
 `--images`.
 
+**The whole system, end to end — first measurement, 23 Sep.** The pipeline
+(router, M1 live on a Kaggle T4, evidence gate, answer layer) was run over every
+question on 10 VRSBench validation images: **38 questions, exact match 0.605**.
+M1 answered 30 and was right on 23 (77 %). The other 8 abstained, for two
+reasons:
+
+- **3 "where is <object>?" questions never reached M1.** The router sends
+  "where is" to grounding, whose vocabulary is water, vegetation, built-up and
+  bare soil, so it abstained on vehicles and storage tanks. Grounding now falls
+  back to M1 for such *questions*, answered in words with no box drawn;
+  instructions ("highlight the unicorn") still abstain, because they ask for a
+  box nothing measured.
+- **5 were answered by M1 below the 0.45 gate** and not used. Whether that gate
+  suits M1's confidence scale is unmeasured — see `models/calibrate_m1.py`,
+  which records answer, confidence and correctness for ~300 validation
+  questions so the gate can be chosen from data.
+
+n = 38 is small (95 % interval roughly ±16 points); it shows *where* the system
+loses answers, not a figure to report. On these RGB-only images the classical
+path cannot measure anything (no NIR band), so M1 is the only source — the
+reverse of the generated demo scenes, where measurement is strong and M1 weak.
+
 **Confidence.** M1's confidence is the geometric mean probability of the tokens
 it generated. It is model-internal and not yet calibrated against outcomes
 (audit B8); the evidence gate treats it like any other record's confidence.

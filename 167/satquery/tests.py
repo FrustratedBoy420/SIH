@@ -410,6 +410,24 @@ def _():
     ok("hectares" in r.answer, f"answer is not an area: {r.answer[:80]}")
 
 
+@check("pixel coordinates are never declared as degrees")
+def _():
+    from PIL import Image
+    from .evidence import PIXEL_CRS
+    from .raster import read
+
+    p = tempfile.mktemp(suffix=".png")
+    img = np.zeros((96, 96, 3), np.uint8)
+    img[20:60, 20:60] = (20, 60, 200)                     # a blue block
+    Image.fromarray(img).save(p)
+    r = read(p, sensor="optical")
+    ok(not r.georeferenced, "a plain PNG was treated as georeferenced")
+    res = Pipeline(runtime=InProcessRuntime_empty()).run(
+        "Is there a water body in this image?", Inputs(optical=r))
+    name = res.geojson["crs"]["properties"]["name"]
+    ok(name == PIXEL_CRS, f"pixel-space output declared as {name}")
+
+
 # ------------------------------------------------------------ projections #
 #
 # Every demo scene is EPSG:4326, so for most of this project's life nothing
@@ -681,6 +699,32 @@ def _():
     for q in ("Is this a rural or urban area?", "What type of area is shown in this image?"):
         r = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=sc.optical(5)))
         ok(r.evidence["items"][0]["unit"] != "ha", f"{q!r} was answered in hectares: {r.answer[:60]}")
+
+
+@check("an object grounding cannot name is answered by M1 in words, with no box")
+def _():
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "Where is the vehicle located?"
+    with _m1_pack([{"image_key": _key_for(opt), "question": q,
+                    "answer": "Top-right", "confidence": 0.8}]) as rt:
+        r = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+    ok(r.tools == ["grounding"], f"routed to {r.tools}, expected grounding")
+    ok(r.answer.startswith("Top-right"), f"M1 did not answer: {r.answer[:80]}")
+    ok(r.engine == "neural+classical", f"engine {r.engine!r}")
+    ok(r.geojson["features"] == [], "a box was drawn that nothing measured")
+    ok(any("no box" in s["detail"] for s in r.trace), "the trace does not say no box was drawn")
+
+    # An instruction asks for a box, not words: with an M1 answer on file, the
+    # out-of-vocabulary instruction still abstains.
+    with _m1_pack([{"image_key": _key_for(opt), "question": "Highlight the unicorn.",
+                    "answer": "Top-left", "confidence": 0.9}]) as rt:
+        ru = Pipeline(runtime=rt).run("Highlight the unicorn.", Inputs(optical=opt))
+    ok("Top-left" not in ru.answer, f"an instruction was answered in words: {ru.answer[:60]}")
+
+    # Without M1 the honest outcome is unchanged: abstain, no box.
+    r0 = Pipeline(runtime=InProcessRuntime_empty()).run(q, Inputs(optical=opt))
+    ok(r0.abstained or "not" in r0.answer.lower(), f"classical claimed an answer: {r0.answer[:60]}")
 
 
 @check("a remote runtime is sent pixels as PNG, never a raw array")

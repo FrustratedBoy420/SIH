@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import platform
+import re
 import secrets
 import time
 from dataclasses import dataclass, field, asdict
@@ -30,7 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__, validate
-from .evidence import Evidence, EvidenceSet
+from .evidence import PIXEL_CRS, Evidence, EvidenceSet
 from .raster import Raster
 from .router import Inputs, Plan, REGISTRY, plan as make_plan
 from .errors import SatQueryError
@@ -202,11 +203,31 @@ class Pipeline:
 
         # 5 — execute
         es = EvidenceSet(threshold=p.params["threshold"])
+        # Every georeferenced position is converted to WGS84, so EPSG:4326 is
+        # right whenever there is a georeference at all. When there is none —
+        # a benchmark PNG — boxes are pixel coordinates, and the collection must
+        # say so: declared EPSG:4326, pixel (10, 40) is a place in Africa.
+        present = [r for r in (inputs.optical, inputs.sar, inputs.t1, inputs.t2) if r is not None]
+        if present and not any(r.georeferenced for r in present):
+            es.crs = PIXEL_CRS
         engine = "classical"
         staged = False
         for tool in p.tools:
             sub = self._execute(tool, query, inputs, p.params["threshold"])
             ran, note = self._adapted(tool, query, inputs, sub)
+            if (tool == "grounding" and not ran and _out_of_vocabulary(sub)
+                    and _asks_in_words(query)):
+                # "Where is the vehicle?" goes to grounding, whose vocabulary is
+                # water, vegetation, built-up and bare soil — so every such
+                # question about an object abstained, although M1 answers
+                # position questions (VRSBench object position: 0.57). M1 answers
+                # in words; no box is drawn, because none was measured.
+                m1_ran, m1_note = self._adapted("rs_vqa", query, inputs, sub)
+                if m1_ran:
+                    ran, note = True, ("target not in the grounding vocabulary; "
+                                       f"{m1_note}, answered in words — no box")
+                elif m1_note:
+                    note = m1_note
             for item in sub.items:
                 es.add(item)
             spec = self._spec_for(tool)
@@ -277,7 +298,9 @@ class Pipeline:
         text = answer(p.task, es, query)
         gj = es.geojson()
         tr.add("Evidence returned",
-               f"{len(gj['features'])} georeferenced feature(s) · {es.crs}",
+               f"{len(gj['features'])} feature(s) · "
+               + ("pixel space — the imagery is not georeferenced"
+                  if es.crs == PIXEL_CRS else es.crs),
                engine=engine, crs=es.crs)
 
         return Result(query=query, answer=text, confidence=es.confidence,
@@ -433,6 +456,17 @@ def _plural(n: int, word: str, plural: str | None = None) -> str:
     return word if n == 1 else (plural or word + "s")
 
 
+def _asks_in_words(query: str) -> bool:
+    """A question ("where is the ship?") can be answered in words; an
+    instruction ("highlight the ship") asks for a box, and a box nothing
+    measured must not be offered in its place — the unicorn still abstains."""
+    return bool(re.match(r"\s*(where|which|what)\b", (query or "").lower()))
+
+
+def _out_of_vocabulary(es: EvidenceSet) -> bool:
+    return any(e.claim == "target not in vocabulary" for e in es.items)
+
+
 _NUMBER_WORDS = {"zero": 0, "no": 0, "none": 0, "one": 1, "two": 2, "three": 3,
                  "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
                  "nine": 9, "ten": 10, "eleven": 11, "twelve": 12}
@@ -524,6 +558,10 @@ def answer(task: str, es: EvidenceSet, query: str = "") -> str:
             d = float(trend.value)
             parts.append(f"Built-up share {'rose' if d > 0 else 'fell'} by "
                          f"{abs(d):.2f} percentage points.")
+
+    elif task == "grounding" and items[0].claim == "M1 answer":
+        parts.append(f"{str(items[0].value).rstrip('.')}.")
+        m1_phrased = True
 
     elif task == "grounding":
         g = items[0]
