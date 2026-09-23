@@ -7,9 +7,11 @@
  *              results says so.
  *
  * Selection, first match wins: `?engine=` in the URL, the choice saved from
- * the engine badge, `VITE_ENGINE` at build time ('preview' | 'http' | 'auto').
- * 'auto' probes `/api/health`. The default is 'preview' until the API lands,
- * because a probe against a dead proxy logs a console error (NFR-12).
+ * the engine badge, `<meta name="sq-engine">` (the SatQuery server adds it to
+ * every page it serves, so a served build always talks to its own API), then
+ * `VITE_ENGINE` at build time ('preview' | 'http' | 'auto'). 'auto' probes
+ * `/api/health`. The build default is 'preview', because on a static host a
+ * probe against a missing API logs a console error (NFR-12).
  *
  * Contract assumptions the backend has not confirmed yet, stated so they are
  * checked rather than discovered:
@@ -50,7 +52,8 @@ async function probe(): Promise<boolean> {
 export function engineMode(): Promise<EngineMode> {
   if (resolved) return resolved
   const url = new URLSearchParams(location.search).get('engine')
-  const pick = url ?? safe.get(KEY) ?? (import.meta.env.VITE_ENGINE as string | undefined) ?? 'preview'
+  const served = document.querySelector<HTMLMetaElement>('meta[name="sq-engine"]')?.content
+  const pick = url ?? safe.get(KEY) ?? served ?? (import.meta.env.VITE_ENGINE as string | undefined) ?? 'preview'
   resolved = pick === 'http' ? Promise.resolve('http')
     : pick === 'auto' ? probe().then((ok) => (ok ? 'http' : 'preview'))
       : Promise.resolve('preview')

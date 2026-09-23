@@ -1162,6 +1162,30 @@ class _Api:
             return e.code, json.loads(e.read())
 
 
+@check("a page the server serves talks to the server, whatever the build default")
+def _():
+    import os
+    import urllib.request
+    home = pathlib.Path(tempfile.mkdtemp(prefix="satquery-home-"))
+    (home / "web" / "dist").mkdir(parents=True)
+    (home / "web" / "dist" / "index.html").write_text(
+        "<!doctype html><html><head><title>t</title></head><body></body></html>", encoding="utf-8")
+    old = os.environ.get("SATQUERY_HOME")
+    os.environ["SATQUERY_HOME"] = str(home)
+    try:
+        with _Api() as api:
+            pages = [urllib.request.urlopen(api.base + p, timeout=10).read().decode()
+                     for p in ("/", "/workstation")]
+    finally:
+        if old is None:
+            os.environ.pop("SATQUERY_HOME", None)
+        else:
+            os.environ["SATQUERY_HOME"] = old
+    for page in pages:
+        ok('<meta name="sq-engine" content="http"' in page,
+           "a served page would run the preview engine and never reach the API")
+
+
 @check("OPS-01 — a stored run replays from its record and comes out identical")
 def _():
     with _Api() as api:

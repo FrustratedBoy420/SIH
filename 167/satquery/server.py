@@ -450,16 +450,27 @@ def _mount_web(app) -> None:
     # route 404s — the exact moment a judge would try it.
     from starlette.exceptions import HTTPException as StarletteHTTPException
 
+    from fastapi.responses import HTMLResponse
+
+    # A page this server hands out talks to this server. The marker overrides
+    # the build's VITE_ENGINE (web/src/lib/api.ts), so a bundle built with the
+    # repo's default `preview` still reaches the API, M1 and uploads when served
+    # from here; the same bundle on a static host stays in preview.
+    index = (dist / "index.html").read_text(encoding="utf-8").replace(
+        "<head>", '<head>\n    <meta name="sq-engine" content="http" />', 1)
+
     class SinglePageApp(StaticFiles):
         """Static files, falling back to index.html for client-side routes."""
 
         async def get_response(self, path: str, scope):
+            if path in ("", ".", "index.html"):
+                return HTMLResponse(index)
             try:
                 return await super().get_response(path, scope)
             except StarletteHTTPException as exc:
                 if exc.status_code != 404:
                     raise
-                return await super().get_response("index.html", scope)
+                return HTMLResponse(index)
 
     app.mount("/", SinglePageApp(directory=str(dist), html=True), name="web")
 
