@@ -1,6 +1,6 @@
 # ADR-010 — Base model chosen by benchmark, not reputation
 
-**Status:** Proposed — pending the benchmark run
+**Status:** Accepted, 2026-09-18 — Qwen2-VL-7B-Instruct. It measured 0.527 zero-shot on VRSBench VQA; GeoChat did not load on a current transformers, which settled the choice (`models/MANIFEST.md`, "Measured runs")
 **Date:** 2026-09-09
 
 ## Context

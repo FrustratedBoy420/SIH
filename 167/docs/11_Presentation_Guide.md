@@ -575,11 +575,11 @@ flowchart TD
 
 | | Status |
 |---|---|
-| **The demo images' pixel values** | **Simulated.** Cartosat-2S and RISAT imagery is not publicly available, and ISRO's evaluation set is secret. Demo scenes come from a scene generator (`satquery/scene.py`) |
-| **Where the cloud sits** | **Placed deliberately** over the built-up area, because that is exactly the case where optical and SAR disagree and fusion earns its keep. A designed test, not a lucky discovery — say so |
+| **The demo images' pixel values** | **Real, but not ISRO's.** Four 512 px Sentinel crops of west Hyderabad (EPSG:32644, 10 m): Sentinel-2 L2A optical (10 Aug 2024), Sentinel-1 RTC SAR (13 Aug 2024), and a Sentinel-2 pair for change (May 2018, Mar 2025) — provenance in `web/public/scenes/scenes.json`. Cartosat-2S and RISAT imagery is not public and ISRO's evaluation set is secret. The scene generator (`satquery/scene.py`) is kept for tests, where ground truth must be known |
+| **Where the cloud sits** | **Real monsoon cloud, on a chosen date.** Nothing is painted in, but the crop and date (west Hyderabad, 10 Aug 2024) were picked because cloud covers part of the built-up area — the case where optical and SAR disagree and fusion earns its keep. Say so |
 | **Every algorithm that reads the pixels** | **Real.** Speckle filtering, thresholds, connected components, change vector analysis, NDVI/NDWI, alignment checking, coordinate conversion, the router, the confidence gate |
 | **Uploaded user images** | **Real.** The web app reads real GeoTIFFs |
-| **Adapted models** | Status and numbers are in the separate model document. The socket that loads them is built and tested with a stand-in (§8) |
+| **Adapted models** | **M1 is real and measured**: Qwen2-VL-7B + QLoRA, VRSBench VQA 52.7 → 66.0 (+13.3 pts, McNemar p = 1.2e-35), `models/MANIFEST.md`. On a laptop it serves answers pre-computed by that same model for known images, and the result says so; on a CUDA GPU it runs live. M2–M4 are not built |
 
 ---
 
