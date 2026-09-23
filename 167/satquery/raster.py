@@ -102,13 +102,13 @@ class GeoTransform:
 
     @property
     def kind(self) -> str:
-        """`geographic`, `utm`, or `unsupported`."""
+        """`geographic`, `utm`, `mercator`, or `unsupported`."""
         return crs_kind(self.crs)
 
     @property
     def can_georeference(self) -> bool:
         """Whether positions can be expressed as longitude/latitude."""
-        return self.kind in ("geographic", "utm")
+        return self.kind in ("geographic", "utm", "mercator")
 
     def pixel_to_lonlat(self, col: float, row: float) -> tuple[float, float]:
         """(lon, lat) in WGS84 for a pixel position, whatever the source CRS."""
@@ -119,6 +119,8 @@ class GeoTransform:
         if kind == "utm":
             zone, north = utm_zone(self.crs)
             return utm_to_lonlat(x, y, zone, north)
+        if kind == "mercator":
+            return mercator_to_lonlat(x, y)
         raise ValueError(
             f"{self.crs} is a projection this build cannot convert to "
             "longitude/latitude; positions stay in pixel space"
@@ -136,6 +138,11 @@ class GeoTransform:
         if self.kind == "geographic":
             _, lat = self.pixel_to_world(col, row)
             return det * _M_PER_DEG_LAT * _M_PER_DEG_LON_EQ * math.cos(math.radians(lat))
+        if self.kind == "mercator":
+            # Web Mercator stretches both axes by 1/cos(latitude): a "10 m"
+            # pixel at 17 N covers 9.56 m on the ground each way.
+            _, lat = self.pixel_to_lonlat(col, row)
+            return det * math.cos(math.radians(lat)) ** 2
         return det
 
     @property
@@ -150,6 +157,9 @@ class GeoTransform:
         if self.kind == "geographic":
             return (abs(self.pixel_width) * _M_PER_DEG_LON_EQ
                     * math.cos(math.radians(self.origin_y)))
+        if self.kind == "mercator":
+            _, lat = mercator_to_lonlat(self.origin_x, self.origin_y)
+            return abs(self.pixel_width) * math.cos(math.radians(lat))
         return abs(self.pixel_width)
 
     def as_tuple(self) -> tuple[float, ...]:
@@ -161,9 +171,9 @@ class GeoTransform:
 # Coordinate reference systems
 # --------------------------------------------------------------------------- #
 #
-# Only what this project meets: geographic WGS84, and UTM on WGS84 (EPSG:326zz
+# Only what this project meets: geographic WGS84, UTM on WGS84 (EPSG:326zz
 # north, 327zz south), which is how Cartosat, Sentinel-2 and most RISAT
-# products are delivered. Anything else is refused explicitly rather than
+# products are delivered, and Web Mercator (EPSG:3857), which web exports use. Anything else is refused explicitly rather than
 # guessed - a projection read in the wrong units produces confident numbers
 # that are wrong by orders of magnitude, and nothing downstream can tell.
 
@@ -187,7 +197,17 @@ def crs_kind(crs: str) -> str:
             return "unsupported"
         if 32601 <= n <= 32660 or 32701 <= n <= 32760:
             return "utm"
+        if n in (3857, 900913):
+            return "mercator"
     return "unsupported"
+
+
+def mercator_to_lonlat(x: float, y: float) -> tuple[float, float]:
+    """Inverse spherical (Web) Mercator, EPSG:3857 - what web map tiles and
+    many exported rasters use. The browser engine converts it the same way."""
+    lon = math.degrees(x / _WGS84_A)
+    lat = math.degrees(2 * math.atan(math.exp(y / _WGS84_A)) - math.pi / 2)
+    return lon, lat
 
 
 def utm_zone(crs: str) -> tuple[int, bool]:
@@ -291,7 +311,7 @@ class Raster:
             self.meta.setdefault(
                 "crs_note",
                 f"{self.crs} cannot be converted to longitude/latitude by this "
-                "build (geographic WGS84 and UTM are supported); results are "
+                "build (geographic WGS84, UTM and Web Mercator are supported); results are "
                 "reported in pixel space.")
 
     # -- shape ------------------------------------------------------------- #

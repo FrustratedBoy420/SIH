@@ -11,7 +11,7 @@ evidence behind it.
 
 ```bash
 pip install -e .                     # Python 3.11+; pinned, no GDAL
-satquery selftest                    # 71 checks, ~5 s
+satquery selftest                    # 72 checks, ~5 s
 satquery serve --build               # UI + API on http://127.0.0.1:8000 (--build needs Node 20+)
 docker compose up                    # or: the same, containerised, offline once built
 ```
@@ -236,8 +236,9 @@ either.
 **Projections.** Uploaded imagery in UTM (EPSG:326xx / 327xx) — how Cartosat
 and Sentinel-2 products are delivered — is converted to WGS84 for every
 position, box and GeoJSON vertex, and measured in metres. Until 23 Sep it was
-read as degrees: a 164 ha UTM image reported 48,948,962,480 ha. Other
-projections are refused into pixel space with a stated reason rather than
+read as degrees: a 164 ha UTM image reported 48,948,962,480 ha. Web Mercator
+(EPSG:3857) is converted too, with areas corrected for its 1/cos(latitude)
+stretch; both engines agree. Other projections are refused into pixel space with a stated reason rather than
 guessed. Areas on geographic (EPSG:4326) imagery now account for latitude; they
 previously ran ~9 % high at the demo scene's 23 N, so the demo's hectare
 figures are ~9 % lower than in earlier versions of this README.

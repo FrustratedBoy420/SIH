@@ -519,10 +519,29 @@ def _():
     from .raster import GeoTransform, Raster
 
     sc = scenes.build(size=64, seed=5)
-    r = Raster(data=sc.optical(5).data, crs="EPSG:3857",
-               transform=GeoTransform(9_440_000.0, 10.0, 0.0, 2_670_000.0, 0.0, -10.0))
+    # British National Grid: a real projection this build does not convert.
+    r = Raster(data=sc.optical(5).data, crs="EPSG:27700",
+               transform=GeoTransform(530_000.0, 10.0, 0.0, 180_000.0, 0.0, -10.0))
     ok(not r.georeferenced, "an unconvertible projection was treated as georeferenced")
     ok("crs_note" in r.meta, "no note saying why positions are in pixel space")
+
+
+@check("Web Mercator is placed and measured on the ground, as the browser engine does")
+def _():
+    import math
+    from .raster import GeoTransform, Raster
+
+    sc = scenes.build(size=64, seed=5)
+    # 10 m Mercator pixels near Hyderabad, 17.4 N
+    r = Raster(data=sc.optical(5).data, crs="EPSG:3857",
+               transform=GeoTransform(8_717_000.0, 10.0, 0.0, 1_988_000.0, 0.0, -10.0))
+    ok(r.georeferenced and r.transform.kind == "mercator", f"kind {r.transform.kind}")
+    lon, lat = r.centre()
+    ok(abs(lon - 78.31) < 0.01 and abs(lat - 17.58) < 0.01, f"centre {lon:.4f}, {lat:.4f}")
+    got = r.transform.pixel_area_m2(32, 32)
+    expect = 100.0 * math.cos(math.radians(lat)) ** 2
+    ok(abs(got - expect) / expect < 1e-3, f"pixel area {got:.2f} m2, expected {expect:.2f}")
+    ok(got < 95.0, "Mercator metres taken as ground metres — areas ~10 % high at 17 N")
 
 
 @check("a UTM GeoTIFF round-trips with its projection intact")

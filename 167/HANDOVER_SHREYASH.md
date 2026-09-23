@@ -154,10 +154,11 @@ Numbers, caveats and the full record: `models/MANIFEST.md`.
   reflectance (0–0.3) is a dark image. Before re-running the precompute,
   decide whether M1 should see the stretched RGB instead; precompute and
   serving must use the same one.
-- **EPSG:3857.** Your check treats it as unconvertible, so the API puts it in
-  pixel space; the browser engine reprojects it. I left yours. If you agree,
-  add a `mercator` kind to `crs_kind` (area = det · cos²lat) and flip the test.
+- **EPSG:3857 — changed, tell me if you disagree.** The API now converts Web
+  Mercator like the browser engine (`mercator` kind; area = det · cos²lat;
+  both engines agree to 1e-12). Your "cannot be converted" check now uses
+  EPSG:27700, which really is unsupported, and a new check covers 3857.
 - **`adapted.py`** is my claims contract for M2–M4 and remote runtimes; M1
   keeps your `_adapted()`. `pipeline.py` routes by adapter.
-- Selftest is 71/71 and `verify.mjs` 41/41 against the live backend, with your
+- Selftest is 72/72 and `verify.mjs` 41/41 against the live backend, with your
   palette check folded in.
