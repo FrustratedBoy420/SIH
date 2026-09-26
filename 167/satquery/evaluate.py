@@ -30,6 +30,7 @@ import numpy as np
 from . import cv, scene as scenes
 from .evidence import EvidenceSet, GeoBox
 from .pipeline import Pipeline
+from .runtime import classical_only
 from .router import Inputs
 
 
@@ -346,7 +347,7 @@ def full_report(size: int = 256, seed: int = 7) -> dict[str, Any]:
              eval_change(size, seed), eval_router()]
 
     # calibration over a spread of real pipeline runs
-    pipe = Pipeline()
+    pipe = Pipeline(runtime=classical_only())
     sc = scenes.build(size=size, seed=seed)
     opt, sar = sc.optical(seed), sc.sar(seed)
     conf, correct = [], []
@@ -445,7 +446,7 @@ def calibration_study(seeds: range = range(1, 13), noise: tuple[float, ...] = (0
     tolerances above, and its stated confidence is set against that outcome.
     """
     rng = np.random.default_rng(0)
-    pipe = Pipeline()
+    pipe = Pipeline(runtime=classical_only())
     recs: list[dict[str, Any]] = []
 
     def noisy(r, sd):

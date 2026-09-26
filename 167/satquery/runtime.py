@@ -677,6 +677,17 @@ def load_runtime(spec: str | None = None, directory: str | Path = "adapters") ->
     return InProcessRuntime(directory)
 
 
+def classical_only() -> InProcessRuntime:
+    """A runtime holding no packs, for measuring the classical path.
+
+    The evaluation and stress harnesses run synthetic scenes against ground
+    truth. They measure the classical specialists, and must neither depend on
+    whichever runtime the deployment configures nor pay a network round trip to
+    it per pipeline — hosted, that made `/api/evaluation` three times slower.
+    """
+    return InProcessRuntime("/nonexistent/satquery-no-packs")
+
+
 def describe(runtime: ModelRuntime) -> dict[str, Any]:
     """What `/api/health` says about the model side (API-05)."""
     packs = runtime.packs()

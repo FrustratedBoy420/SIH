@@ -22,6 +22,7 @@ import numpy as np
 from . import scene as scenes
 from .errors import SatQueryError
 from .pipeline import Pipeline, Result
+from .runtime import classical_only
 from .raster import GeoTransform, Raster, read as read_raster
 from .router import Inputs
 
@@ -55,7 +56,7 @@ def _copy(r: Raster, data: np.ndarray | None = None, **kw) -> Raster:
 
 
 def run_suite() -> list[Case]:
-    pipe = Pipeline()
+    pipe = Pipeline(runtime=classical_only())
     sc = scenes.build(size=SIZE, seed=SEED)
     opt_clear, opt, sar = sc.optical(SEED, with_cloud=False), sc.optical(SEED), sc.sar(SEED)
     water_ha = _ha(sc, sc.classes == scenes.WATER, opt_clear)

@@ -824,6 +824,43 @@ def _():
        f"an unreachable runtime was called ready: {text!r}")
 
 
+@check("the evaluation and stress harnesses never contact a configured model runtime")
+def _():
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from . import stress
+
+    hits: list[str] = []
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):                                         # noqa: N802
+            hits.append(self.path)
+            self.send_response(503)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        do_POST = do_GET
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    prior = os.environ.get("SATQUERY_RUNTIME")
+    os.environ["SATQUERY_RUNTIME"] = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        evaluate.full_report(size=96, seed=3)
+        evaluate.calibration_study(seeds=range(1, 2), noise=(0.0,), size=96)
+        stress.run_suite()
+    finally:
+        srv.shutdown()
+        os.environ.pop("SATQUERY_RUNTIME", None)
+        if prior is not None:
+            os.environ["SATQUERY_RUNTIME"] = prior
+    ok(not hits, f"the harness asked the model runtime {len(hits)} time(s): {hits[:3]} — hosted, "
+                 "each is a network round trip, and the measurement is of the classical path")
+
+
 @check("the shipped pre-computed pack answers the built-in scenes as this stack renders them")
 def _():
     from .paths import home

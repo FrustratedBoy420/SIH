@@ -32,6 +32,9 @@ image = (
     # One container: uploads and stored runs live in that container's /data, so
     # a second container would not see them. It scales to zero when idle.
     max_containers=1, min_containers=0, scaledown_window=20 * 60, timeout=300,
+    # Modal's default is a fraction of a core; the landing page runs a real
+    # cross-modal query and the evaluation on load (5.7 s at the default).
+    cpu=2.0, memory=2048,
 )
 @modal.concurrent(max_inputs=16)
 @modal.asgi_app(label="satquery")
