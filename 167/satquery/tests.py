@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import inspect
 import json
+import os
 import pathlib
 import tempfile
 import time
@@ -29,6 +30,7 @@ from typing import Callable
 import numpy as np
 
 from . import cv, datasets, evaluate, scene as scenes
+from .errors import SatQueryError
 from .evidence import Evidence, EvidenceSet, GeoBox
 from .pipeline import Pipeline, answer, save_run
 from .raster import GeoTransform, coregistration_offset
@@ -659,6 +661,190 @@ def _():
         r = Pipeline(runtime=rt).run(q, Inputs(sar=sar))
     ok(r.engine == "classical", "M1 answered a SAR-only query")
     ok(any("SAR input" in s["detail"] for s in r.trace), "the reason is not in the trace")
+
+
+# ------------------------------------------------- online deployment (doc 12) #
+#
+# The hosted build splits the API from the GPU runtime. Nothing here loads a
+# 7B: a fake stands in for `M1Live.answer`, so the transport, the decoding and
+# the fallback are exercised exactly as they run on Modal.
+
+
+@contextlib.contextmanager
+def _fake_live(seen: list | None = None, answer: str = "Live answer", conf: float = 0.9):
+    """Make every M1 pack 'live' with a fake model; record what it was shown."""
+    from .runtime import M1Live
+
+    possible, run = M1Live.possible, M1Live.answer
+
+    def fake(self, rgb_u8, question):
+        if seen is not None:
+            seen.append((rgb_u8.copy(), question))
+        return answer, conf
+
+    M1Live.possible = staticmethod(lambda pack: (True, ""))
+    M1Live.answer = fake
+    try:
+        yield
+    finally:
+        M1Live.possible, M1Live.answer = possible, run
+
+
+@contextlib.contextmanager
+def _served(directory):
+    import threading
+    from .runtime import serve_runtime
+
+    srv = serve_runtime("127.0.0.1", 0, directory, quiet=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{srv.server_address[1]}"
+    finally:
+        srv.shutdown()
+
+
+@check("P0-1 — a live M1 answers over HTTP from the PNG it is sent, key checked")
+def _():
+    import numpy as np
+    from .runtime import HttpRuntime, raster_rgb_u8
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "What type of area is shown in this image?"
+    seen: list = []
+    with _fake_live(seen), _m1_pack([]) as local, _served(local.directory) as url:
+        rt = HttpRuntime(url, timeout=10)
+        r = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+        ok(r.engine == "neural+classical", f"engine {r.engine!r} over HTTP with a live pack")
+        first = r.evidence["items"][0]
+        ok(first["claim"] == "M1 answer" and first["source_version"] == "live",
+           f"the reply's source is not live: {first['source_version']!r}")
+        ok(len(seen) == 1 and np.array_equal(seen[0][0], raster_rgb_u8(opt)),
+           "the model was not shown the pixels the API hashed")
+        try:
+            rt.infer("adapter_A_rs_general", "vqa", {
+                "question": q, "image_key": "0" * 64, "_rgb_u8": raster_rgb_u8(opt)})
+            ok(False, "an image that does not match its key was answered")
+        except SatQueryError as exc:
+            ok(exc.code == "bad_image" and exc.status == 400,
+               f"mismatched key gave {exc.code!r} / {exc.status}")
+        ok(len(seen) == 1, "the model ran on an image that failed its key check")
+
+
+@check("P0-2 — proxy-auth headers are sent when configured, and only then")
+def _():
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from .runtime import HttpRuntime
+
+    got: list[dict] = []
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):                                         # noqa: N802
+            got.append({k.lower(): v for k, v in self.headers.items()})
+            data = b'{"packs": []}'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    env = {k: os.environ.pop(k, None) for k in ("SATQUERY_RUNTIME_KEY", "SATQUERY_RUNTIME_SECRET")}
+    try:
+        url = f"http://127.0.0.1:{srv.server_address[1]}"
+        HttpRuntime(url, timeout=5).packs()
+        ok("modal-key" not in got[-1], "auth headers were sent with nothing configured")
+        os.environ["SATQUERY_RUNTIME_KEY"], os.environ["SATQUERY_RUNTIME_SECRET"] = "wk-1", "ws-2"
+        HttpRuntime(url, timeout=5).packs()
+        ok(got[-1].get("modal-key") == "wk-1" and got[-1].get("modal-secret") == "ws-2",
+           f"configured headers missing: {sorted(got[-1])}")
+    finally:
+        srv.shutdown()
+        for k, v in env.items():
+            os.environ.pop(k, None)
+            if v is not None:
+                os.environ[k] = v
+
+
+@check("P0-3 — one handler serves the wire contract; a failing runtime answers, it does not hang up")
+def _():
+    from .runtime import handle
+
+    class Boom:
+        transport = "test"
+
+        def packs(self):
+            return {}
+
+        def available(self, a):
+            return False
+
+        def infer(self, a, t, p):
+            raise KeyError("boom")
+
+    status, body = handle(Boom(), "GET", "/packs")
+    ok(status == 200 and body == {"packs": []}, f"/packs gave {status} {body}")
+    status, body = handle(Boom(), "GET", "/health")
+    ok(status == 200 and body["ok"] and body["engine"] == "classical", f"/health gave {status}")
+    status, body = handle(Boom(), "GET", "/nope")
+    ok(status == 404 and body["error"]["code"] == "not_found", f"unknown route gave {status}")
+    status, body = handle(Boom(), "POST", "/infer", b"not json")
+    ok(status == 400 and body["error"]["code"] == "bad_request", f"bad JSON gave {status}")
+    status, body = handle(Boom(), "POST", "/infer", b"[1]")
+    ok(status == 400, f"a JSON array gave {status}")
+    status, body = handle(Boom(), "POST", "/infer", b'{"adapter": "a", "task": "vqa"}')
+    ok(status == 500 and body["error"]["code"] == "runtime_error", f"a crash gave {status} {body}")
+
+
+@check("P1-2 — remote down: a known image is answered pre-computed, an unknown one classical")
+def _():
+    from .runtime import FallbackRuntime, HttpRuntime, load_runtime
+    sc = scenes.build(size=96, seed=5)
+    opt = sc.optical(5)
+    q = "What type of area is shown in this image?"
+    down = HttpRuntime("http://127.0.0.1:9", timeout=1)           # nothing listens on port 9
+    down.RETRY_S = 0.0
+    with _m1_pack([{"image_key": _key_for(opt), "question": q,
+                    "answer": "Industrial", "confidence": 0.81}]) as local:
+        rt = FallbackRuntime(down, local)
+        known = Pipeline(runtime=rt).run(q, Inputs(optical=opt))
+        ok(known.engine == "neural+classical" and known.answer.startswith("Industrial"),
+           f"a known image was not answered from the cache: {known.engine!r}")
+        ok(any("M1 precomputed" in s["detail"] for s in known.trace),
+           "the trace does not say the answer was pre-computed")
+        ok(known.precomputed, "the pre-computed answer is not flagged as staged")
+        other = scenes.build(size=96, seed=6).optical(6)
+        unknown = Pipeline(runtime=rt).run(q, Inputs(optical=other))
+        ok(unknown.engine == "classical" and unknown.evidence["items"],
+           f"an unknown image with the runtime down gave {unknown.engine!r}")
+        ok(any("did not answer" in s["detail"] for s in unknown.trace),
+           "the trace does not say the runtime did not answer")
+        ok(isinstance(load_runtime("https://example.invalid", local.directory), FallbackRuntime),
+           "an https runtime with local packs is not wrapped with the fallback")
+        ok(isinstance(load_runtime("http://127.0.0.1:8100", local.directory), HttpRuntime)
+           and not isinstance(load_runtime("http://127.0.0.1:8100", local.directory), FallbackRuntime),
+           "the venue transport changed")
+        ok(type(load_runtime("https://example.invalid", "no-such-dir")) is HttpRuntime,
+           "an https runtime with no local packs got a fallback with nothing behind it")
+
+
+@check("P1-3 — the remote's mode comes from /health, so the palette can say M1 runs live")
+def _():
+    from .runtime import FallbackRuntime, HttpRuntime
+    with _fake_live(), _m1_pack([]) as local, _served(local.directory) as url:
+        rt = HttpRuntime(url, timeout=5)
+        ok(rt.mode("adapter_A_rs_general") == "live", f"mode {rt.mode('adapter_A_rs_general')!r}")
+        ok(rt.mode("adapter_Z") is None, "an adapter the runtime does not hold has a mode")
+        ok(FallbackRuntime(rt, local).mode("adapter_A_rs_general") == "live",
+           "the fallback hides the remote's mode")
+    with _m1_pack([{"image_key": "k", "question": "q", "answer": "a", "confidence": 1}]) as local:
+        down = HttpRuntime("http://127.0.0.1:9", timeout=1)
+        ok(down.mode("adapter_A_rs_general") is None, "an unreachable runtime reports a mode")
+        ok(FallbackRuntime(down, local).mode("adapter_A_rs_general") == "precomputed",
+           "with the remote down, the local cache's mode is not reported")
 
 
 @check("M1 disagreeing with a measured count is a recorded conflict, not an answer")

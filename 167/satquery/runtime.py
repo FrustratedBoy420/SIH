@@ -192,6 +192,23 @@ def png_b64(rgb_u8: Any) -> str:
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
 
+def decode_png_b64(b64: str) -> Any:
+    """The uint8 RGB array a `png_b64` payload carries — the inverse of `png_b64`.
+
+    PNG is lossless, so these are the pixels the sender hashed into `image_key`.
+    """
+    import numpy as np
+    from PIL import Image
+
+    try:
+        with Image.open(io.BytesIO(base64.b64decode(b64, validate=True))) as im:
+            return np.array(im.convert("RGB"), dtype=np.uint8)
+    except Exception as exc:                                      # noqa: BLE001
+        raise SatQueryError(
+            "bad_image", "The image in the request is not a decodable PNG.",
+            "Send the image as a base64-encoded PNG in `image_png_b64`.", status=400) from exc
+
+
 def _read_precomputed(pack_dir: Path) -> dict[tuple[str, str], dict[str, Any]]:
     path = Path(pack_dir) / "precomputed.jsonl"
     rows: dict[tuple[str, str], dict[str, Any]] = {}
@@ -383,14 +400,28 @@ class InProcessRuntime:
                 "not_implemented", f"Pack {pack.pack_id!r} has no {task!r} inference path.",
                 "The classical specialist serves this capability.", status=501)
 
-        rgb, question = payload["_rgb_u8"], payload["question"]
+        rgb, question = payload.get("_rgb_u8"), payload["question"]
+        key = payload.get("image_key")
+        if rgb is None and payload.get("image_png_b64"):
+            # a remote caller: the same pixels as a PNG, and the key they hashed
+            rgb = decode_png_b64(payload["image_png_b64"])
+            if key and image_key(rgb) != key:
+                raise SatQueryError(
+                    "bad_image", "The image decoded from the request does not match its image_key.",
+                    "Send the exact uint8 RGB pixels the key was computed from, "
+                    "losslessly (PNG).", status=400)
+        if key is None and rgb is not None:
+            key = image_key(rgb)
         if adapter in self._live:
+            if rgb is None:
+                raise SatQueryError(
+                    "bad_image", "A live M1 answer needs the image, and the request has none.",
+                    "Send `image_png_b64`.", status=400)
             ans, conf = self._live[adapter].answer(rgb, question)
             return {"engine": "neural+classical", "pack": pack.pack_id, "stub": False,
                     "source": "live", "answer": ans, "confidence": round(conf, 4)}
 
-        row = self._cache.get(adapter, {}).get(
-            (payload["image_key"], normalise_question(question)))
+        row = self._cache.get(adapter, {}).get((key, normalise_question(question)))
         if row is None:
             raise SatQueryError(
                 "not_precomputed",
@@ -418,16 +449,45 @@ class HttpRuntime:
     #: that starts after the API is picked up, without hammering one that is down.
     RETRY_S = 5.0
 
+    #: How long a successful /health answer is trusted for `mode()`. Short, so a
+    #: runtime that finishes loading is noticed within a page interaction.
+    HEALTH_TTL_S = 30.0
+
     def __init__(self, base: str, timeout: float = 20.0) -> None:
         self.base = base.rstrip("/")
         self.timeout = timeout
         self._packs: dict[str, AdapterPack] | None = None
         self._failed_at = 0.0
+        self._health: dict[str, Any] | None = None
+        self._health_at = 0.0
         self.reachable = False
 
+    @staticmethod
+    def _auth() -> dict[str, str]:
+        """Modal proxy-auth headers, when configured. Unset (the venue): none."""
+        key = os.environ.get("SATQUERY_RUNTIME_KEY")
+        secret = os.environ.get("SATQUERY_RUNTIME_SECRET")
+        return {"Modal-Key": key, "Modal-Secret": secret} if key and secret else {}
+
     def _get(self, path: str) -> Any:
-        with urllib.request.urlopen(f"{self.base}{path}", timeout=self.timeout) as r:
+        req = urllib.request.Request(f"{self.base}{path}", headers=self._auth())
+        with urllib.request.urlopen(req, timeout=self.timeout) as r:
             return json.loads(r.read().decode("utf-8"))
+
+    def mode(self, adapter: str) -> str | None:
+        """How the runtime serves this adapter (`live`, `precomputed`, None), from /health."""
+        import time
+        now = time.time()
+        if self._health is None or now - self._health_at > self.HEALTH_TTL_S:
+            if self._health is None and now - self._failed_at < self.RETRY_S:
+                return None
+            try:
+                self._health, self._health_at = self._get("/health"), now
+                self.reachable = True
+            except (urllib.error.URLError, OSError, json.JSONDecodeError):
+                self._failed_at, self._health, self.reachable = now, None, False
+                return None
+        return ((self._health or {}).get("packs", {}).get(adapter) or {}).get("mode")
 
     def packs(self) -> dict[str, AdapterPack]:
         # Only a successful answer is cached. A failure is not "no packs
@@ -457,7 +517,7 @@ class HttpRuntime:
             wire["image_png_b64"] = png_b64(payload["_rgb_u8"])
         body = json.dumps({"adapter": adapter, "task": task, **wire}).encode()
         req = urllib.request.Request(f"{self.base}/infer", data=body,
-                                     headers={"Content-Type": "application/json"})
+                                     headers={"Content-Type": "application/json", **self._auth()})
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:
                 return json.loads(r.read().decode("utf-8"))
@@ -477,18 +537,50 @@ class HttpRuntime:
                 "model runtime to restore the adapted path.", status=503) from exc
 
 
+def handle(runtime: ModelRuntime, method: str, path: str,
+           body: bytes = b"") -> tuple[int, dict[str, Any]]:
+    """The runtime's wire contract as one function: (status, JSON reply).
+
+    Every server that fronts a runtime — the stdlib one below, the Modal ASGI
+    app — calls this and only this, so there is one behaviour, not two.
+
+        GET  /packs    {"packs": [AdapterPack, ...]}
+        GET  /health   {"ok": true, ...describe(runtime)}
+        POST /infer    {"adapter", "task", ...payload} -> runtime reply
+        errors         {"error": {"code", "message", "remedy"}}
+    """
+    def err(status: int, code: str, message: str, remedy: str) -> tuple[int, dict[str, Any]]:
+        return status, {"error": {"code": code, "message": message, "remedy": remedy}}
+
+    if method == "GET" and path == "/packs":
+        return 200, {"packs": [p.to_dict() for p in runtime.packs().values()]}
+    if method == "GET" and path == "/health":
+        return 200, {"ok": True, **describe(runtime)}
+    if method == "POST" and path == "/infer":
+        try:
+            req = json.loads(body or b"{}")
+            if not isinstance(req, dict):
+                raise ValueError("not an object")
+        except ValueError:
+            return err(400, "bad_request", "Body is not a JSON object.", "Send application/json.")
+        try:
+            return 200, runtime.infer(str(req.get("adapter", "")), str(req.get("task", "")),
+                                      {k: v for k, v in req.items() if k not in ("adapter", "task")})
+        except SatQueryError as exc:
+            return exc.status, exc.payload()
+        except Exception as exc:                                  # noqa: BLE001
+            # Answered, not dropped: a closed connection reads as "unreachable".
+            return err(500, "runtime_error", f"The model runtime failed ({type(exc).__name__}).",
+                       "The classical path still serves this query.")
+    return err(404, "not_found", path, "GET /packs, GET /health or POST /infer")
+
+
 def serve_runtime(host: str = "127.0.0.1", port: int = 8100,
                   directory: str | Path = "adapters", quiet: bool = False):
     """Serve an InProcessRuntime over HTTP — the venue transport's other end.
 
-    Two routes, the ones HttpRuntime calls:
-
-        GET  /packs    {"packs": [AdapterPack, ...]}
-        POST /infer    {"adapter", "task", "query", "images"} -> runtime reply
-
     Stdlib only, loopback by default, so it runs on the venue laptop with no
-    extra install. Real inference lands in InProcessRuntime.infer; this
-    server does not change when it does. Returns the server; call
+    extra install. The routes are `handle()`'s. Returns the server; call
     `serve_forever()` on it, or run it in a thread for tests.
     """
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -505,26 +597,11 @@ def serve_runtime(host: str = "127.0.0.1", port: int = 8100,
             self.wfile.write(data)
 
         def do_GET(self) -> None:                               # noqa: N802
-            if self.path == "/packs":
-                self._send(200, {"packs": [p.to_dict() for p in runtime.packs().values()]})
-            elif self.path == "/health":
-                self._send(200, {"ok": True, **describe(runtime)})
-            else:
-                self._send(404, {"error": {"code": "not_found", "message": self.path, "remedy": "GET /packs or POST /infer"}})
+            self._send(*handle(runtime, "GET", self.path))
 
         def do_POST(self) -> None:                              # noqa: N802
-            if self.path != "/infer":
-                self._send(404, {"error": {"code": "not_found", "message": self.path, "remedy": "POST /infer"}})
-                return
-            try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-                reply = runtime.infer(str(body.get("adapter", "")), str(body.get("task", "")),
-                                      {k: v for k, v in body.items() if k not in ("adapter", "task")})
-                self._send(200, reply)
-            except SatQueryError as exc:
-                self._send(exc.status, exc.payload())
-            except (ValueError, json.JSONDecodeError):
-                self._send(400, {"error": {"code": "bad_request", "message": "Body is not JSON.", "remedy": "Send application/json."}})
+            raw = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            self._send(*handle(runtime, "POST", self.path, raw))
 
         def log_message(self, fmt: str, *args: Any) -> None:
             if not quiet:
@@ -533,12 +610,71 @@ def serve_runtime(host: str = "127.0.0.1", port: int = 8100,
     return ThreadingHTTPServer((host, port), Handler)
 
 
+class FallbackRuntime:
+    """A remote runtime with a local pre-computed cache behind it (NFR-05, ADP-09).
+
+    The hosted API reaches a GPU that may be cold, down, or out of credit. When
+    it does not answer, M1's pre-computed answers for known images are still
+    served — labelled `precomputed`, as always — and anything else falls back
+    to the classical specialist, with the trace saying why. A typed error the
+    remote *did* return (a bad image, no pre-computed answer) is passed on:
+    that runtime is up and has said what it means.
+    """
+
+    transport = "http+local"
+
+    #: Remote failures that mean "no answer", not "an answer that was no".
+    UNREACHABLE = ("runtime_unreachable", "runtime_error")
+
+    def __init__(self, primary: HttpRuntime, local: InProcessRuntime) -> None:
+        self.primary, self.local = primary, local
+
+    @property
+    def reachable(self) -> bool:
+        return self.primary.reachable
+
+    def packs(self) -> dict[str, AdapterPack]:
+        return self.primary.packs() or self.local.packs()
+
+    def mode(self, adapter: str) -> str | None:
+        return self.primary.mode(adapter) or self.local.mode(adapter)
+
+    def available(self, adapter: str) -> bool:
+        return self.primary.available(adapter) or self.local.available(adapter)
+
+    def questions_for(self, adapter: str, key: str) -> list[dict[str, Any]]:
+        return self.local.questions_for(adapter, key)
+
+    def not_serving_reason(self, adapter: str) -> str:
+        return self.local.not_serving_reason(adapter)
+
+    def infer(self, adapter: str, task: str, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return self.primary.infer(adapter, task, payload)
+        except SatQueryError as exc:
+            if exc.code not in self.UNREACHABLE or not self.local.available(adapter):
+                raise
+            try:
+                return self.local.infer(adapter, task, payload)
+            except SatQueryError as local_exc:
+                raise SatQueryError(
+                    local_exc.code,
+                    f"The model runtime did not answer, and M1 has no pre-computed "
+                    f"answer for this image and question. {local_exc.message}",
+                    local_exc.remedy, status=local_exc.status) from local_exc
+
+
 def load_runtime(spec: str | None = None, directory: str | Path = "adapters") -> ModelRuntime:
     """Build the runtime named by `spec` or by SATQUERY_RUNTIME."""
     spec = spec or os.environ.get("SATQUERY_RUNTIME", "inproc")
     if spec.startswith("http://") or spec.startswith("https://"):
         from .adapted import timeout
-        return HttpRuntime(spec, timeout=timeout())
+        remote = HttpRuntime(spec, timeout=timeout())
+        # A hosted API keeps the pre-computed answers of any pack it carries, so
+        # a cold or unreachable GPU degrades to "known images only", not to nothing.
+        if spec.startswith("https://") and load_packs(directory):
+            return FallbackRuntime(remote, InProcessRuntime(directory))
+        return remote
     return InProcessRuntime(directory)
 
 
