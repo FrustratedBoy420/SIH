@@ -98,6 +98,12 @@ export default function Workstation() {
   const run = useCallback(async (q: string) => {
     const text = q.trim()
     setQuery(text)
+    if (!text) {
+      // An empty question is not a request; sending it only earned a 422.
+      setQueryError({ code: 'empty_question', message: 'Type a question first.',
+                      remedy: 'Ask something about this imagery, or pick one from the examples (⌘K).' })
+      return
+    }
     setQueryError(null)
     st().setRunning(true)
     const inputs = st().inputs
