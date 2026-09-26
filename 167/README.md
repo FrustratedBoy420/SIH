@@ -1,3 +1,10 @@
+---
+title: SatQuery AI
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # SatQuery AI — SIH26167
 
 **An agentic vision-language assistant for multimodal remote-sensing imagery.**

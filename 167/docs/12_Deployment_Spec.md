@@ -291,3 +291,45 @@ repository.
 | D1 | Adapter repo public or private | Mridul | Public (PS deliverable; licence permits) |
 | D2 | Whose account holds the Modal workspace | Team | One shared workspace; credits are per workspace |
 | D3 | Space name and whether it is linked from the deck | Shreyash | `satquery-ai`, linked on the last slide |
+
+---
+
+## 12. Status — 26 Sep 2026
+
+**Built and tested on `main`** (selftest 80/80, each new check mutation-tested):
+P0-1, P0-2, P0-3, P1-1, P1-2, P1-3, P2-1, `deploy/modal_runtime.py`,
+`deploy/requirements-runtime.txt`, `deploy/parity.py`, Space front-matter in
+`README.md`. P1-1 was checked in the built image: `/api/evaluation` returns
+`adaptation.adapted == 66.0` and a 300-record calibration; `/api/health` shows M1
+`precomputed` (147 answers) from the shipped pack, no weights in the image.
+
+**Not done — needs an account or weights that are not in the repo:**
+
+| Step | Blocked on |
+|---|---|
+| §7.1 step 1: adapter to the Hub | `adapter_model.safetensors` is not on the machine this was built on (Kaggle output or Mridul's laptop) |
+| §7.1 step 3: `modal setup`, `fetch`, `deploy`, proxy-auth token | a Modal login (D2) |
+| §7.1 step 4: parity | the deployed URL + a VRSBench copy: `python deploy/parity.py --url … --data …` |
+| §7.1 step 5: the Space | a Hugging Face login; D3 |
+| P1-4 | The pins in `requirements-runtime.txt` are **candidates**. Only peft (0.19.1) is recorded by the training run; its transformers was the unreleased 5.18.0.dev0. They become the pins when parity passes |
+| P2-2 | optional, not started |
+
+**Deviations from the text above**
+
+- §4.2 *Volume*: the volume holds only `adapter_model.safetensors` (and the HF
+  cache). The container copies `pack.json`, `adapter_config.json` and
+  `precomputed.jsonl` from the image and symlinks the weights in at start, so
+  changing a manifest needs a deploy, not a re-fetch of 16 GB.
+- §4.2 *Endpoints*: the ASGI app carries `label="satquery-runtime-web"`, so the
+  URL is `https://<workspace>--satquery-runtime-web.modal.run` as §9 says.
+- §4.2: `startup_timeout` is 15 min. The model load is `enter`, and the request
+  `timeout` of 120 s would otherwise cut it off.
+- §4.1: `training_record.json` gives the pack as 31.6 MB; this spec said 20.2 MB.
+  Check the file that is actually uploaded.
+- `SATQUERY_HF_SECRET=<modal secret name>` at deploy time adds a Modal secret
+  for a private adapter repo; unset, none is used.
+- P1-2 wraps only `https://` runtimes. The venue's `http://` transport is unchanged.
+- P1-1: the image now carries M1's pack manifest and pre-computed answers in
+  `/app/adapters`, so a bare `docker compose up` serves M1 pre-computed for known
+  images (mode `precomputed`) where before it served none. A `./adapters` mount
+  still replaces it.
