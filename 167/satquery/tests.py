@@ -799,6 +799,40 @@ def _():
     ok(status == 500 and body["error"]["code"] == "runtime_error", f"a crash gave {status} {body}")
 
 
+@check("P1-1 — M1's measured numbers and calibration are found from the project home, not the source tree")
+def _():
+    real = pathlib.Path(__file__).resolve().parent.parent
+    # Different from the source tree's own files (n=300, adapted 66.0), so a
+    # lookup that still goes through this file's location cannot pass.
+    lines = (real / "models" / "results" / "m1_calibration.jsonl").read_text(encoding="utf-8").splitlines()
+    rows = "\n".join(lines[:10])
+    manifest = json.dumps({**json.loads((real / "models" / "adapters" / "m1-rs-vqa" / "pack.json")
+                                        .read_text(encoding="utf-8")), "adapted": 0.5})
+    prior = os.environ.get("SATQUERY_HOME")
+    with tempfile.TemporaryDirectory() as d:
+        home = pathlib.Path(d)
+        (home / "models" / "results").mkdir(parents=True)
+        (home / "models" / "results" / "m1_calibration.jsonl").write_text(rows, encoding="utf-8")
+        for layout in (("models", "adapters"), ("adapters",)):     # source tree, Docker image
+            pack = home.joinpath(*layout, "m1-rs-vqa")
+            pack.mkdir(parents=True)
+            (pack / "pack.json").write_text(manifest, encoding="utf-8")
+            os.environ["SATQUERY_HOME"] = d
+            try:
+                adapted = evaluate.m1_adaptation()
+                calibration = evaluate.m1_calibration()
+            finally:
+                os.environ.pop("SATQUERY_HOME", None)
+                if prior is not None:
+                    os.environ["SATQUERY_HOME"] = prior
+            ok(adapted and adapted["adapted"] == 50.0,
+               f"M1's measured score not read from {'/'.join(layout)} under the home: {adapted}")
+            ok(calibration is not None and calibration["n"] == 10,
+               "M1's calibration was not read from the project home")
+            import shutil
+            shutil.rmtree(pack)
+
+
 @check("P1-2 — remote down: a known image is answered pre-computed, an unknown one classical")
 def _():
     from .runtime import FallbackRuntime, HttpRuntime, load_runtime

@@ -26,6 +26,10 @@ RUN pip install --no-compile . && useradd --system --uid 10001 satquery \
 # the interface, the built-in scenes and the recorded evaluation runs
 COPY --from=web /src/web/dist web/dist
 COPY web/public web/public
+# M1's pack manifest and pre-computed answers (never its weights) where the
+# runtime reads packs, and the measured calibration the Results page draws.
+COPY models/adapters/ /app/adapters/
+COPY models/results/ /app/models/results/
 USER satquery
 EXPOSE 8000
 HEALTHCHECK --interval=20s --timeout=5s --start-period=20s --retries=3 \

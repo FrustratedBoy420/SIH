@@ -12,5 +12,16 @@ docs
 research
 notebooks
 ml
-models
 adapters
+
+# models/: training code and run outputs stay out; what the hosted Results page
+# and the API's pre-computed fallback read goes in. Never weights (doc 12, P1-1).
+models/*
+!models/adapters
+models/adapters/*/*
+!models/adapters/*/pack.json
+!models/adapters/*/precomputed.jsonl
+!models/adapters/*/adapter_config.json
+!models/results
+models/results/*
+!models/results/m1_calibration.jsonl

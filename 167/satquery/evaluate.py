@@ -625,8 +625,14 @@ def m1_adaptation(adapters: str | Path | None = None) -> dict[str, Any]:
     """
     import json
 
-    root = Path(adapters) if adapters else Path(__file__).resolve().parent.parent / "models" / "adapters"
-    for manifest in sorted(root.glob("*/pack.json")) if root.is_dir() else []:
+    from .paths import home
+
+    # Resolved through the project home, not this file: a `pip install .` puts
+    # satquery in site-packages, where "next to this file" holds no models/.
+    # `adapters/` is where the runtime reads packs (Docker image, venue mount).
+    roots = [Path(adapters)] if adapters else [home() / "models" / "adapters", home() / "adapters"]
+    manifests = sorted(m for root in roots if root.is_dir() for m in root.glob("*/pack.json"))
+    for manifest in manifests:
         try:
             m = json.loads(manifest.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -653,7 +659,9 @@ def m1_calibration(path: str | Path | None = None) -> dict[str, Any] | None:
     """
     import json
 
-    p = Path(path) if path else Path(__file__).resolve().parent.parent / "models" / "results" / "m1_calibration.jsonl"
+    from .paths import home
+
+    p = Path(path) if path else home() / "models" / "results" / "m1_calibration.jsonl"
     try:
         rows = [json.loads(line) for line in p.read_text(encoding="utf-8").splitlines() if line.strip()]
     except (OSError, ValueError):
