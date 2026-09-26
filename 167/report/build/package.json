@@ -1,0 +1,16 @@
+{
+  "name": "satquery-report-build",
+  "version": "1.0.0",
+  "description": "Builds the SatQuery AI technical report (PDF + DOCX) from content.mjs",
+  "main": "build.mjs",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "docx": "^9.7.2",
+    "mermaid": "^11.17.2",
+    "puppeteer-core": "^25.12.0"
+  },
+  "private": true
+}

@@ -114,3 +114,7 @@ desktop.ini
 # and run output. Ignored, not deleted -- that call is the owner's.
 Mridul/
 dark-transit/
+
+# report build: dependencies and intermediates (outputs live in 167/report/)
+167/report/build/node_modules/
+167/report/build/out/
