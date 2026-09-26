@@ -324,8 +324,10 @@ P0-1, P0-2, P0-3, P1-1, P1-2, P1-3, P2-1, `deploy/modal_runtime.py`,
   URL is `https://<workspace>--satquery-runtime-web.modal.run` as §9 says.
 - §4.2: `startup_timeout` is 15 min. The model load is `enter`, and the request
   `timeout` of 120 s would otherwise cut it off.
-- §4.1: `training_record.json` gives the pack as 31.6 MB; this spec said 20.2 MB.
-  Check the file that is actually uploaded.
+- §4.1: the weights file is 20,218,120 bytes (20.2 MB), as this spec said;
+  `training_record.json`'s `pack_mb` of 31.6 was not reconciled (it may count more
+  than this file). Uploaded 26 Sep as `shreyashsri79/satquery-m1-rs-vqa` (D1: public),
+  checksum verified after a download from the Hub.
 - `SATQUERY_HF_SECRET=<modal secret name>` at deploy time adds a Modal secret
   for a private adapter repo; unset, none is used.
 - P1-2 wraps only `https://` runtimes. The venue's `http://` transport is unchanged.

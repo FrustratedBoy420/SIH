@@ -220,6 +220,12 @@ models/adapters/m1-rs-vqa/
 - **Weights verified**: SHA-256 prefix `2ea5192277839e63`, identical to r2's
   `checkpoint-375` and different from `checkpoint-370` — the pack is the
   fully-trained adapter that scored 0.6600.
+- **Durable copy**: <https://huggingface.co/shreyashsri79/satquery-m1-rs-vqa>
+  (public, `apache-2.0`), commit `818ef1e6c7087e44379a71bba525e1015fbb6b51`, 26 Sep 2026.
+  Holds `adapter_model.safetensors`, `adapter_config.json`, `pack.json` and a model
+  card. The weights were downloaded back from the Hub and match the full SHA-256
+  `2ea5192277839e63c4d6e4204d272e1dd632c379f45116cc676f6f9bf30e75e4`
+  (20,218,120 bytes). The Modal runtime fetches from here (`docs/12_Deployment_Spec.md`).
 - **Licence**: base model `apache-2.0`, verified on the Hub model card
   2026-09-23. The deliverable is weights handed to a government agency; this
   is the check that makes that possible.
