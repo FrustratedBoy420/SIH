@@ -296,6 +296,20 @@ repository.
 
 ## 12. Status — 26 Sep 2026
 
+**Done on the platforms:** adapter on the Hub (`shreyashsri79/satquery-m1-rs-vqa`,
+checksum verified); base model + adapter on the Modal volume `satquery-models`
+(five shards at revision `eed13092…`, adapter 20,218,120 bytes).
+**Blocked on accounts:** the T4 deploy (Modal wants a payment method on the
+workspace) and the API host (D4).
+
+**D4 — where the API + UI runs**, now that a free HF Docker Space is not available:
+
+| Option | Cost | Notes |
+|---|---|---|
+| Modal, CPU app in the same workspace | inside the free credit, scales to zero | Nothing new to sign up for. Needs a small `deploy/modal_api.py` wrapping the same image as the `Dockerfile`; cold start of a few seconds |
+| HF PRO + the Space as designed | about $9/month | Spec unchanged; nothing new to write |
+| Another free host (Render, Fly, Koyeb…) | free tier, usually a card | New account and new config |
+
 **Built and tested on `main`** (selftest 80/80, each new check mutation-tested):
 P0-1, P0-2, P0-3, P1-1, P1-2, P1-3, P2-1, `deploy/modal_runtime.py`,
 `deploy/requirements-runtime.txt`, `deploy/parity.py`, Space front-matter in
@@ -310,7 +324,7 @@ P0-1, P0-2, P0-3, P1-1, P1-2, P1-3, P2-1, `deploy/modal_runtime.py`,
 | §7.1 step 1: adapter to the Hub | `adapter_model.safetensors` is not on the machine this was built on (Kaggle output or Mridul's laptop) |
 | §7.1 step 3: `modal setup`, `fetch`, `deploy`, proxy-auth token | a Modal login (D2) |
 | §7.1 step 4: parity | the deployed URL + a VRSBench copy: `python deploy/parity.py --url … --data …` |
-| §7.1 step 5: the Space | a Hugging Face login; D3 |
+| §7.1 step 5: the Space | **Blocked, 26 Sep:** `hf repos create … --type space --sdk docker` answers "hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription". §2's "free" assumption for the API host no longer holds. Decision D4 below |
 | P1-4 | The pins in `requirements-runtime.txt` are **candidates**. Only peft (0.19.1) is recorded by the training run; its transformers was the unreleased 5.18.0.dev0. They become the pins when parity passes |
 | P2-2 | optional, not started |
 
