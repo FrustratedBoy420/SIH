@@ -208,6 +208,7 @@ class QueryBody(BaseModel):
 
 def build_app(var: str | Path | None = None, adapters: str = "adapters"):
     from fastapi import Body, FastAPI, File, Form, Request, Response, UploadFile
+    from fastapi.exceptions import RequestValidationError
     from fastapi.responses import JSONResponse
 
     root = Path(var) if var else None
@@ -225,6 +226,23 @@ def build_app(var: str | Path | None = None, adapters: str = "adapters"):
     @app.exception_handler(SatQueryError)
     async def _typed(_: Request, exc: SatQueryError):
         return JSONResponse(exc.payload(), status_code=exc.status)
+
+    @app.exception_handler(RequestValidationError)
+    async def _invalid(_: Request, exc: RequestValidationError):
+        # FastAPI's own 422 is `{"detail": [...]}`, which the interface cannot
+        # read: it fell back to "Check that the API is running" for a request
+        # the API had read perfectly well and refused. Say which field.
+        found = []
+        for e in exc.errors()[:3]:
+            loc = list(e.get("loc", ()))
+            where = ".".join(str(p) for p in (loc[1:] if loc[:1] in (["body"], ["query"], ["path"]) else loc))
+            found.append(f"{where or 'the request'}: {e.get('msg', 'is not valid')}")
+        return JSONResponse(
+            {"error": {"code": "invalid_request",
+                       "message": "The request was refused — " + "; ".join(found) + ".",
+                       "remedy": "Correct that field and ask again. The question must be "
+                                 "1–500 characters, each input a raster id, and the "
+                                 "threshold between 0 and 1."}}, status_code=422)
 
     @app.exception_handler(Exception)
     async def _unexpected(_: Request, exc: Exception):

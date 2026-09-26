@@ -1550,6 +1550,32 @@ def _():
     ok("5 KB" in msg and "1000B" in msg, f"the error does not state size and limit: {err}")
 
 
+@check("API-12 — a request the API refuses as invalid names the field, in the typed error shape")
+def _():
+    import urllib.error
+    import urllib.request
+
+    def post(base, body):
+        req = urllib.request.Request(base + "/api/query", data=json.dumps(body).encode(), method="POST",
+                                     headers={"Content-Type": "application/json"})
+        try:
+            urllib.request.urlopen(req, timeout=10)
+            return 200, {}
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    with _Api() as api:
+        cases = {"query": {"query": "x" * 501, "inputs": {"optical": "demo:optical"}},
+                 "threshold": {"query": "ok?", "inputs": {"optical": "demo:optical"}, "threshold": 7},
+                 "inputs": {"query": "ok?", "inputs": {"optical": None}}}
+        for field, body in cases.items():
+            code, err = post(api.base, body)
+            ok(code == 422, f"{field}: returned {code}")
+            e = err.get("error") or {}
+            ok(e.get("code") == "invalid_request" and field in e.get("message", "") and e.get("remedy"),
+               f"{field}: the 422 does not name the field in the typed shape: {err}")
+
+
 @check("OPS-01 — a stored run replays from its record and comes out identical")
 def _():
     with _Api() as api:
