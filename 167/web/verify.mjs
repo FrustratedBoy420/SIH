@@ -370,6 +370,44 @@ try {
   await c.close()
 }
 
+/* --------------------------------------------------------- sample photos */
+// A fresh page: loading a photo replaces the built-in scene the earlier checks use.
+{
+  const c = await browser.newContext({ viewport: { width: 1600, height: 940 } })
+  const p = await c.newPage(); watch(p)
+  await p.goto(BASE + '/workstation')
+  await p.locator(tid('samples')).waitFor({ timeout: 30000 })
+  await check('sample photos: eight thumbnails, all load', async () => {
+    const n = await p.locator('[data-testid^="sample-"]').count()
+    if (n !== 8) throw new Error(`${n} photos`)
+    await p.waitForFunction(() => [...document.querySelectorAll('[data-testid^="sample-"] img')].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20000 })
+    return `${n} photos`
+  })
+  await check('sample photos: a click fills Optical and the question, even during the first load', async () => {
+    // immediately, while the default scene is still loading: the default must not land on top
+    await p.locator(tid('sample-08281_0000')).click()
+    await p.locator(tid('slot-optical')).getByText('08281_0000.png').first().waitFor({ timeout: 30000 })
+    await p.waitForTimeout(6000)                       // let the default scene finish in the background
+    const optical = await p.locator(tid('slot-optical')).innerText()
+    if (!optical.includes('08281_0000.png')) throw new Error('the default scene replaced the chosen photo')
+    const q = await p.locator(tid('query-input')).inputValue()
+    if (!/bridges/i.test(q)) throw new Error(`question is ${JSON.stringify(q)}`)
+    return q
+  })
+  await check('sample photos: the upload button loads a file into Optical', async () => {
+    await p.locator(tid('file-own')).setInputFiles(path.join('public', 'samples', '09054_0000.png'))
+    await p.locator(tid('slot-optical')).getByText('09054_0000.png').first().waitFor({ timeout: 30000 })
+    return 'ok'
+  })
+  await check('empty question is not sent', async () => {
+    await p.locator(tid('query-input')).fill('  ')
+    await p.locator(tid('query-submit')).click()
+    await p.locator('[role="alert"]').filter({ hasText: 'Type a question first' }).waitFor({ timeout: 5000 })
+    return 'asks for a question'
+  })
+  await c.close()
+}
+
 /* ---------------------------------------------------------- phone width */
 {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })

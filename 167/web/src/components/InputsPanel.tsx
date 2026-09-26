@@ -15,6 +15,7 @@ import { ROLES } from '@/lib/contract'
 import { lat, lon, ROLE_LABEL, utc } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { SCENARIOS, type Scenario } from '@/lib/examples'
+import { SAMPLES, sampleUrl, type Sample } from '@/lib/samples'
 import type { DemoKind } from '@/engine/client'
 
 const MARK: Record<Role, string> = { optical: 'var(--color-optical)', sar: 'var(--color-sar)', t1: 'var(--color-nir)', t2: 'var(--color-nir)' }
@@ -124,8 +125,10 @@ function Slot({ role, r, loading, error, onFile, onRemove, reading }: {
   )
 }
 
-export default function InputsPanel({ inputs, loading, errors, onFile, onRemove, onDemo, onScenario, reading = [] }: {
+export default function InputsPanel({ inputs, loading, errors, onFile, onRemove, onDemo, onScenario, onSample, reading = [] }: {
   onScenario: (s: Scenario) => void
+  /** a bundled real photo: loaded into Optical with a suggested question */
+  onSample: (s: Sample) => void
   /** roles the replaying run read — their slots light while the trace lands */
   reading?: Role[]
   inputs: Partial<Record<Role, LoadedRaster>>
@@ -136,8 +139,9 @@ export default function InputsPanel({ inputs, loading, errors, onFile, onRemove,
   onDemo: (k: DemoKind) => void
 }) {
   const pairs: [Role, Role, string][] = [['optical', 'sar', 'Optical ↔ SAR'], ['t1', 't2', 'T1 ↔ T2']]
+  const own = useRef<HTMLInputElement>(null)
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="scroll-thin flex h-full min-h-0 flex-col overflow-y-auto">
       <div className="border-b border-ink px-4 pb-3 pt-3">
         <h2 className="label !text-ink">Try a demo scene</h2>
         <p className="mt-1 text-[11.5px] leading-snug text-ink-2">Loads a built-in scene and asks its question.</p>
@@ -161,8 +165,30 @@ export default function InputsPanel({ inputs, loading, errors, onFile, onRemove,
           ))}
         </p>
       </div>
+      <div className="border-b border-ink px-4 pb-3 pt-3" data-testid="samples">
+        <h2 className="label !text-ink">Try a real photo</h2>
+        <p className="mt-1 text-[11.5px] leading-snug text-ink-2">Click one: it loads into Optical with a question M1 answers well. Or bring your own.</p>
+        <ul className="mt-2 grid grid-cols-4 gap-1.5">
+          {SAMPLES.map((sm) => (
+            <li key={sm.file}>
+              <button type="button" data-testid={`sample-${sm.file.replace('.png', '')}`} onClick={() => onSample(sm)} title={`${sm.title} — ${sm.question}`}
+                className="group block w-full text-left">
+                <img src={sampleUrl(sm)} alt={sm.title} loading="lazy" className="aspect-square w-full border border-rule object-cover group-hover:border-accent" />
+                <span className="mono mt-0.5 block truncate text-[9.5px] leading-tight text-ink-2 group-hover:text-ink">{sm.title}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button type="button" data-testid="upload-own" onClick={() => own.current?.click()}
+          className="mt-2.5 flex w-full items-center justify-center gap-2 border border-ink px-3 py-1.5 text-[12.5px] font-medium hover:bg-surface-2">
+          <span aria-hidden>⇪</span> Upload your own image…
+        </button>
+        <input ref={own} type="file" accept=".tif,.tiff,.png,.jpg,.jpeg" className="hidden" data-testid="file-own"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile('optical', f); e.target.value = '' }} />
+        <p className="mono mt-1.5 text-[9.5px] leading-snug text-ink-3">Photos: VRSBench validation split, CC-BY-4.0 (Li, Ding, Elhoseiny).</p>
+      </div>
       <h2 className="label border-b border-rule px-4 py-2 !text-ink">Inputs</h2>
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4">
+      <div className="px-4">
         {ROLES.map((role) => (
           <Slot key={role} role={role} r={inputs[role]} loading={loading[role]} error={errors[role]} reading={reading.includes(role)}
             onFile={(f) => onFile(role, f)} onRemove={() => onRemove(role)} />

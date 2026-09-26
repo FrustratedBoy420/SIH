@@ -20,6 +20,7 @@ import { cn, download } from '@/lib/utils'
 import AnswerBlock, { type Remedy } from '@/components/AnswerBlock'
 import EvidenceList from '@/components/EvidenceList'
 import InputsPanel from '@/components/InputsPanel'
+import { sampleUrl, type Sample } from '@/lib/samples'
 import QueryBar from '@/components/QueryBar'
 import SceneRegion, { layerOptions } from '@/components/SceneRegion'
 import TracePanel from '@/components/TracePanel'
@@ -43,20 +44,29 @@ export default function Workstation() {
   const [queryError, setQueryError] = useState<ApiError | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const booted = useRef(false)
+  // Roles the visitor has acted on. The first-visit demo load is a default, not
+  // a choice: it must not land on top of a photo they picked while it loaded.
+  const chosen = useRef(new Set<Role>())
 
   /* ------------------------------------------------------------- inputs */
 
-  const loadDemo = useCallback(async (kind: DemoKind) => {
+  const loadDemo = useCallback(async (kind: DemoKind, opts: { boot?: boolean } = {}) => {
     const roles = DEMO_ROLES[kind]
+    if (!opts.boot) roles.forEach((r) => chosen.current.add(r))
     roles.forEach((r) => st().setLoading(r, true))
     try {
       const list = await api.demo(kind, 512)
+      if (opts.boot && chosen.current.size) {
+        roles.filter((r) => !chosen.current.has(r)).forEach((r) => st().setLoading(r, false))
+        return
+      }
       list.forEach((r) => st().setInput(r.role, r))
       setErrors((e) => { const n = { ...e }; roles.forEach((r) => delete n[r]); return n })
     } finally { roles.forEach((r) => st().setLoading(r, false)) }
   }, [])
 
   const onFile = useCallback(async (role: Role, f: File) => {
+    chosen.current.add(role)
     st().setLoading(role, true)
     setErrors((e) => ({ ...e, [role]: undefined }))
     try {
@@ -75,6 +85,20 @@ export default function Workstation() {
       setErrors((x) => ({ ...x, [role]: asApiError(e) }))
     } finally { st().setLoading(role, false) }
   }, [])
+
+  // A bundled real photo takes the same road as an upload: fetched as a file,
+  // read, validated, and shown with what the system made of it.
+  const onSample = useCallback(async (sm: Sample) => {
+    try {
+      const blob = await (await fetch(sampleUrl(sm))).blob()
+      await onFile('optical', new File([blob], sm.file, { type: blob.type || 'image/png' }))
+      setQuery(sm.question)
+      setQueryError(null)
+      input.current?.focus()
+    } catch (e) {
+      setErrors((x) => ({ ...x, optical: asApiError(e) }))
+    }
+  }, [onFile])
 
   const onRemove = useCallback((role: Role) => {
     const r = st().inputs[role]
@@ -131,7 +155,7 @@ export default function Workstation() {
     const scene = (params.get('scene') ?? 'crossmodal') as DemoKind | 'none'
     const q = params.get('q')
     const has = Object.keys(st().inputs).length > 0
-    const ready = scene !== 'none' && !has ? loadDemo(scene in DEMO_ROLES ? scene as DemoKind : 'crossmodal') : Promise.resolve()
+    const ready = scene !== 'none' && !has ? loadDemo(scene in DEMO_ROLES ? scene as DemoKind : 'crossmodal', { boot: true }) : Promise.resolve()
     ready.then(() => { if (q) run(q) })
   }, [loadDemo, run, params])
 
@@ -238,7 +262,7 @@ export default function Workstation() {
       </div>
 
       <aside className={cn(card, 'lg:row-span-2 lg:row-start-2 lg:min-h-0 lg:overflow-hidden')} aria-label="Inputs">
-        <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo} onScenario={scenario}
+        <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo} onScenario={scenario} onSample={onSample}
           reading={s.replaying && result ? result.manifest.rasters.map((r) => r.role).filter((r): r is Role => !!r && (ROLES as string[]).includes(r)) : []} />
       </aside>
 
