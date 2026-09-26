@@ -112,7 +112,7 @@ check it.
 
 `M1Live` loads the adapter with `PeftModel.from_pretrained(pack.path)`, so the
 pack directory must hold the weights beside `pack.json`. A one-off
-`modal run deploy/modal_runtime.py::fetch` fills the volume; containers only
+`modal run deploy/modal_fetch.py --adapter-repo <repo>` fills the volume; containers only
 read it.
 
 **Class**
@@ -202,7 +202,7 @@ Nothing hangs: `SATQUERY_RUNTIME_TIMEOUT` (20 s) bounds every remote call.
    `MANIFEST.md`.
 2. **Code changes** P0-1…P1-4 on `main`; selftest green.
 3. **Modal**: `pip install modal && modal setup`; create secret `hf-token` if
-   the repo is private; `modal run deploy/modal_runtime.py::fetch` (fills the
+   the repo is private; `modal run deploy/modal_fetch.py --adapter-repo <repo>` (fills the
    volume: ~16 GB base + adapter, one time); `modal deploy
    deploy/modal_runtime.py`; create a proxy-auth token in the Modal dashboard.
 4. **Parity** (§8.1) against the deployed URL. Do not continue if it fails.
@@ -322,6 +322,13 @@ P0-1, P0-2, P0-3, P1-1, P1-2, P1-3, P2-1, `deploy/modal_runtime.py`,
   changing a manifest needs a deploy, not a re-fetch of 16 GB.
 - §4.2 *Endpoints*: the ASGI app carries `label="satquery-runtime-web"`, so the
   URL is `https://<workspace>--satquery-runtime-web.modal.run` as §9 says.
+- §4.2 / §7.1: the one-off download is its own app, `deploy/modal_fetch.py`
+  (CPU, `huggingface_hub` only, no torch), not `modal_runtime.py::fetch`. Modal
+  refuses any app that declares a T4 until a payment method is on the workspace,
+  and the download should not wait for that. Both apps use the volume
+  `satquery-models`.
+- §4.2: the image is Python 3.12, not 3.11: `numpy==2.5.3`, pinned to match
+  `pyproject.toml`, needs >= 3.12 (found when the first image build failed).
 - §4.2: `startup_timeout` is 15 min. The model load is `enter`, and the request
   `timeout` of 120 s would otherwise cut it off.
 - §4.1: the weights file is 20,218,120 bytes (20.2 MB), as this spec said;

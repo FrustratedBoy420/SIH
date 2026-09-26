@@ -1,8 +1,8 @@
 """SatQuery model runtime on Modal — M0 + M1 on a T4 (doc 12, §4.2).
 
-    modal run    deploy/modal_runtime.py::fetch --adapter-repo <hf-user>/<repo>   once
-    modal deploy deploy/modal_runtime.py                                          each release
-    SATQUERY_WARM=1 modal deploy deploy/modal_runtime.py                          judging window
+    modal run    deploy/modal_fetch.py --adapter-repo <hf-user>/<repo>   once, no GPU needed
+    modal deploy deploy/modal_runtime.py                                  each release (needs a T4)
+    SATQUERY_WARM=1 modal deploy deploy/modal_runtime.py                  judging window
 
 Run from `167/`. This file adds nothing to the contract: the routes are
 `satquery.runtime.handle`, the model is `InProcessRuntime` + `M1Live` — the path
@@ -35,7 +35,7 @@ volume = modal.Volume.from_name("satquery-models", create_if_missing=True)
 secrets = [modal.Secret.from_name(HF_SECRET)] if HF_SECRET else []
 
 image = (
-    modal.Image.debian_slim(python_version="3.11")
+    modal.Image.debian_slim(python_version="3.12")     # numpy 2.5 needs >= 3.12
     .pip_install_from_requirements(str(HERE / "requirements-runtime.txt"))
     .env({"HF_HOME": f"{MODELS}/hf"})
     .add_local_dir(str(ROOT / "models" / "adapters" / PACK), SEED, copy=True,
@@ -45,36 +45,7 @@ image = (
 
 
 # --------------------------------------------------------------------------- #
-# one-off: put the weights on the volume
-# --------------------------------------------------------------------------- #
-
-@app.function(image=image, volumes={MODELS: volume}, secrets=secrets,
-              timeout=3600, cpu=2, memory=8192)
-def fetch_weights(adapter_repo: str) -> dict:
-    """Base model at the pinned revision, and the adapter's weights, onto the volume."""
-    import json
-
-    from huggingface_hub import hf_hub_download, snapshot_download
-
-    pack = json.loads(Path(SEED, "pack.json").read_text(encoding="utf-8"))
-    base = snapshot_download(pack["base_model"], revision=pack.get("revision") or None,
-                             allow_patterns=["*.json", "*.safetensors", "*.txt", "*.model"])
-    dest = Path(MODELS, "adapters", PACK)
-    dest.mkdir(parents=True, exist_ok=True)
-    weights = hf_hub_download(adapter_repo, "adapter_model.safetensors")
-    shutil.copyfile(weights, dest / "adapter_model.safetensors")
-    volume.commit()
-    return {"base": base, "revision": pack.get("revision"),
-            "adapter_bytes": (dest / "adapter_model.safetensors").stat().st_size}
-
-
-@app.local_entrypoint()
-def fetch(adapter_repo: str):
-    print(fetch_weights.remote(adapter_repo))
-
-
-# --------------------------------------------------------------------------- #
-# the runtime
+# the runtime — the weights come from the volume that deploy/modal_fetch.py fills
 # --------------------------------------------------------------------------- #
 
 def build_asgi(runtime):
@@ -109,7 +80,7 @@ class Runtime:
 
         weights = Path(MODELS, "adapters", PACK, "adapter_model.safetensors")
         if not weights.is_file():
-            raise RuntimeError(f"{weights} is missing: run `modal run deploy/modal_runtime.py::fetch` first")
+            raise RuntimeError(f"{weights} is missing: run `modal run deploy/modal_fetch.py --adapter-repo <repo>` first")
         # pack = the manifest and pre-computed answers shipped with this deploy,
         # plus the weights from the volume — so a changed pack.json needs a
         # deploy, not a re-fetch of 16 GB.
