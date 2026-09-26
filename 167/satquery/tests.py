@@ -824,6 +824,24 @@ def _():
        f"an unreachable runtime was called ready: {text!r}")
 
 
+@check("the shipped pre-computed pack answers the built-in scenes as this stack renders them")
+def _():
+    from .paths import home
+    from .runtime import _read_precomputed
+    from .server import scene_bundle
+
+    pack = home() / "models" / "adapters" / "m1-rs-vqa"
+    if not (pack / "precomputed.jsonl").is_file():
+        return                                    # a checkout without the pack: nothing to check
+    held = {k for k, _ in _read_precomputed(pack)}
+    b = scene_bundle()
+    stale = [n for n in ("optical", "t1", "t2") if _key_for(b[n]) not in held]
+    ok(not stale,
+       f"pre-computed answers for {stale} are keyed to pixels this stack no longer produces, "
+       "so a GPU-less host would answer the built-in scenes classically: re-run "
+       "`python models/precompute_m1.py --runtime URL --demo-only --merge <pack>/precomputed.jsonl`")
+
+
 @check("P1-1 — M1's measured numbers and calibration are found from the project home, not the source tree")
 def _():
     real = pathlib.Path(__file__).resolve().parent.parent

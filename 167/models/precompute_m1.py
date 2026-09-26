@@ -173,33 +173,66 @@ def check(cache_path: Path, images: list[str]) -> int:
     return 0
 
 
-def produce(adapter_dir: Path, out: Path, sources: list[Source],
-            bundle: Path | None) -> int:
-    from satquery.runtime import M1Live
+def produce(adapter_dir: Path | None, out: Path, sources: list[Source],
+            bundle: Path | None, runtime: str | None = None,
+            merge: Path | None = None) -> int:
+    """Ask M1 every question and write the answers.
+
+    `runtime` asks a deployed runtime (a Modal T4, `deploy/modal_runtime.py`)
+    instead of loading the model here; its weights and stack passed the parity
+    gate (docs/12 §8.1), so its answers are the same computation. `merge` keeps
+    the rows of an existing cache for every image *not* re-asked, so one image
+    can be refreshed without redoing the rest.
+    """
+    from satquery.runtime import HttpRuntime, M1Live
 
     manifest = json.loads(PACK_JSON.read_text(encoding="utf-8"))
-    pack = AdapterPack(pack_id=manifest["pack_id"], component="M1",
-                       adapter=manifest["adapter"], base_model=manifest["base_model"],
-                       revision=manifest.get("revision", ""), path=str(adapter_dir),
-                       artefacts=sorted(p.name for p in adapter_dir.iterdir()))
-    ok, why = M1Live.possible(pack)
-    if not ok:
-        print(f"cannot run M1 here: {why}")
-        return 1
+    via = ""
+    if runtime:
+        remote = HttpRuntime(runtime, timeout=600.0)
 
-    m1 = M1Live(pack)
+        def ask(rgb, q, key):
+            reply = remote.infer(manifest["adapter"], "vqa",
+                                 {"question": q, "image_key": key, "_rgb_u8": rgb})
+            if reply.get("source") != "live":
+                raise SystemExit(f"the runtime answered {reply.get('source')!r}, not live")
+            return reply["answer"], float(reply["confidence"])
+        via = "deployed runtime (Modal T4)"
+    else:
+        pack = AdapterPack(pack_id=manifest["pack_id"], component="M1",
+                           adapter=manifest["adapter"], base_model=manifest["base_model"],
+                           revision=manifest.get("revision", ""), path=str(adapter_dir),
+                           artefacts=sorted(p.name for p in adapter_dir.iterdir()))
+        ok, why = M1Live.possible(pack)
+        if not ok:
+            print(f"cannot run M1 here: {why}")
+            return 1
+        m1 = M1Live(pack)
+
+        def ask(rgb, q, key):
+            return m1.answer(rgb, q)
+
     stamp = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     out.parent.mkdir(parents=True, exist_ok=True)
+    kept: list[str] = []
+    if merge:
+        redone = {s.name for s in sources}
+        kept = [l for l in merge.read_text(encoding="utf-8").splitlines()
+                if l.strip() and json.loads(l).get("image") not in redone]
     rows = []
     with out.open("w", encoding="utf-8") as sink:
+        for line in kept:
+            sink.write(line + "\n")
         for s in sources:
             rgb = raster_rgb_u8(s.raster)
             key = image_key(rgb)
             for q, truth, qtype in s.questions:
-                ans, conf = m1.answer(rgb, q)
+                ans, conf = ask(rgb, q, key)
                 row = {"image_key": key, "question": q, "answer": ans,
                        "confidence": round(conf, 4), "image": s.name, "qtype": qtype,
-                       "pack_id": pack.pack_id, "produced": stamp}
+                       "pack_id": manifest["pack_id"], "produced": stamp}
+                if via:
+                    row["via"] = via
                 if truth is not None:
                     row["truth"] = truth
                 rows.append(row)
@@ -259,20 +292,29 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--bundle", type=Path, help="folder to collect photos, answers and guide.md")
     ap.add_argument("--check", type=Path, help="report which answers this machine will find")
+    ap.add_argument("--runtime", metavar="URL",
+                    help="ask a deployed runtime instead of loading M1 here (proxy-auth from "
+                         "SATQUERY_RUNTIME_KEY / _SECRET)")
+    ap.add_argument("--merge", type=Path,
+                    help="keep this cache's rows for every image not re-asked, and write the union")
+    ap.add_argument("--demo-only", action="store_true",
+                    help="only the built-in scenes (with --merge: refresh just those)")
     args = ap.parse_args()
 
     if args.check:
         return check(args.check, args.images)
-    if not args.adapter_dir:
-        ap.error("--adapter-dir is required unless --check is given")
+    if not args.adapter_dir and not args.runtime:
+        ap.error("--adapter-dir or --runtime is required unless --check is given")
 
     extra = []
     if args.questions:
         extra = [l.strip() for l in args.questions.read_text(encoding="utf-8").splitlines() if l.strip()]
-    sources = (demo_sources()
-               + vrsbench_sources(args.vrsbench_val, args.data, args.seed)
-               + file_sources(args.images, extra))
-    return produce(args.adapter_dir, args.out, sources, args.bundle)
+    sources = demo_sources()
+    if not args.demo_only:
+        sources += (vrsbench_sources(args.vrsbench_val, args.data, args.seed)
+                    + file_sources(args.images, extra))
+    return produce(args.adapter_dir, args.out, sources, args.bundle,
+                   runtime=args.runtime, merge=args.merge)
 
 
 if __name__ == "__main__":

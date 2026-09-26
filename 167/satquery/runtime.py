@@ -659,8 +659,7 @@ class FallbackRuntime:
             except SatQueryError as local_exc:
                 raise SatQueryError(
                     local_exc.code,
-                    f"The model runtime did not answer, and M1 has no pre-computed "
-                    f"answer for this image and question. {local_exc.message}",
+                    f"The model runtime did not answer. {local_exc.message}",
                     local_exc.remedy, status=local_exc.status) from local_exc
 
 
