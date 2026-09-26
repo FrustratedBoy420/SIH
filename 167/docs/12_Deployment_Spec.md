@@ -294,39 +294,49 @@ repository.
 
 ---
 
-## 12. Status — 26 Sep 2026
+## 12. Status — 26 Sep 2026: deployed
 
-**Done on the platforms:** adapter on the Hub (`shreyashsri79/satquery-m1-rs-vqa`,
-checksum verified); base model + adapter on the Modal volume `satquery-models`
-(five shards at revision `eed13092…`, adapter 20,218,120 bytes).
-**Blocked on accounts:** the T4 deploy (Modal wants a payment method on the
-workspace) and the API host (D4).
-
-**D4 — where the API + UI runs**, now that a free HF Docker Space is not available:
-
-| Option | Cost | Notes |
-|---|---|---|
-| Modal, CPU app in the same workspace | inside the free credit, scales to zero | Nothing new to sign up for. Needs a small `deploy/modal_api.py` wrapping the same image as the `Dockerfile`; cold start of a few seconds |
-| HF PRO + the Space as designed | about $9/month | Spec unchanged; nothing new to write |
-| Another free host (Render, Fly, Koyeb…) | free tier, usually a card | New account and new config |
-
-**Built and tested on `main`** (selftest 80/80, each new check mutation-tested):
-P0-1, P0-2, P0-3, P1-1, P1-2, P1-3, P2-1, `deploy/modal_runtime.py`,
-`deploy/requirements-runtime.txt`, `deploy/parity.py`, Space front-matter in
-`README.md`. P1-1 was checked in the built image: `/api/evaluation` returns
-`adaptation.adapted == 66.0` and a 300-record calibration; `/api/health` shows M1
-`precomputed` (147 answers) from the shipped pack, no weights in the image.
-
-**Not done — needs an account or weights that are not in the repo:**
-
-| Step | Blocked on |
+| | URL |
 |---|---|
-| §7.1 step 1: adapter to the Hub | `adapter_model.safetensors` is not on the machine this was built on (Kaggle output or Mridul's laptop) |
-| §7.1 step 3: `modal setup`, `fetch`, `deploy`, proxy-auth token | a Modal login (D2) |
-| §7.1 step 4: parity | the deployed URL + a VRSBench copy: `python deploy/parity.py --url … --data …` |
-| §7.1 step 5: the Space | **Blocked, 26 Sep:** `hf repos create … --type space --sdk docker` answers "hosting Gradio and Docker Spaces on free cpu-basic requires a PRO subscription". §2's "free" assumption for the API host no longer holds. Decision D4 below |
-| P1-4 | The pins in `requirements-runtime.txt` are **candidates**. Only peft (0.19.1) is recorded by the training run; its transformers was the unreleased 5.18.0.dev0. They become the pins when parity passes |
-| P2-2 | optional, not started |
+| Interface + API | https://shreyashsri79--satquery.modal.run |
+| Model runtime (T4, proxy-auth) | https://shreyashsri79--satquery-runtime-web.modal.run |
+| Adapter | https://huggingface.co/shreyashsri79/satquery-m1-rs-vqa |
+
+**D4 decided: option A.** A free Hugging Face Docker Space is no longer available
+(`hf repos create … --type space --sdk docker`: "hosting … Docker Spaces on free
+cpu-basic requires a PRO subscription"), so the API + UI runs on Modal too, as
+`deploy/modal_api.py` (the repo `Dockerfile`, one CPU container, scales to zero).
+§2, §4.3 and §7.1 step 5 describe the Space; read them as this app. The Space
+front-matter in `README.md` is unused.
+
+### Acceptance, measured
+
+| # | Test | Result |
+|---|---|---|
+| 8.1 | Parity: 300 recorded answers re-asked through the deployed `/infer`, images from VRSBench `Images_val` | **300/300 identical** (need 299). Stack: `deploy/requirements-runtime.txt`, Modal T4 |
+| 8.2 | Warm latency: 20 single-image queries through the website, M1 live in every trace | **p50 2.6 s, p95 4.5 s** (target p95 < 8 s), from a laptop over the internet |
+| 8.3 | Cold start: first request after scale-to-zero | **59 s** to a live answer (`satquery warm`); the first inference took 8.9 s |
+| 8.4 | Fallback: runtime app stopped | Built-in scene, cached question: **M1 pre-computed**, labelled, palette lists 11 questions. Uncached question or unknown image: classical, trace says the runtime did not answer |
+| 8.5 | Auth: no key pair | **HTTP 401** ("missing credentials for proxy authorization"), before any container starts |
+| 8.6 | `node web/verify.mjs <site>` | **Not cleanly green.** Best run 38/40; a second run 35/40 with different failures (timing); later runs stopped at a `page.screenshot` timeout while this laptop's load average was 15. `no WebGL: stack degrades to 2D` failed in every run, **including against the same image in local Docker**, so it is not a hosting fault, but it is unexplained. `hero telemetry measured` failed twice on the slow pre-fix site and passed after; a direct probe shows the panel filling by 10–20 s. Re-run on a quiet machine before relying on it |
+
+Selftest: **82/82**.
+
+### Found while deploying (all fixed, on `main`)
+
+- **Remote M1 never worked** (P0-1): the runtime could not decode the PNG it was sent.
+- **`torchvision` missing** from the runtime pins: Qwen2-VL's processor imports it; the first boot crashed.
+- **`numpy==2.5.3` needs Python >= 3.12**: the first image build failed on 3.11.
+- **The built-in scenes missed the pre-computed cache.** Their 33 rows (`demo:optical`, `demo:t1`, `demo:t2`) were keyed to pixels this stack does not produce (local and container agree), so a GPU-less host answered them classically. Re-asked through the deployed runtime with `models/precompute_m1.py --runtime … --demo-only --merge`; a selftest now fails if a built-in scene misses. The 114 VRSBench-photo rows were untouched and still match.
+- **`/api/evaluation` was 5.4 s hosted, 1.5 s locally.** Each `Pipeline()` in the evaluation and stress harnesses built its own runtime client and called the GPU app. They now use `classical_only()`; hosted is 2.1 s warm.
+
+### Still open
+
+- **P2-2** (save the 4-bit base to the volume to shorten cold start): not started; 59 s was acceptable.
+- **8.6**: see above.
+- **The site is public**: anyone with the link can trigger the GPU. Bounded by `max_containers=1`, the workspace usage limit ($29.99) and a $0 spend limit; at the limit all workloads stop and the site's fallback takes over.
+- **D2 / D3**: workspace is `shreyashsri79` (personal); the deck link is undecided.
+- **Judging window** (§7.2): `SATQUERY_WARM=1 modal deploy deploy/modal_runtime.py` at T − 15 min, `satquery warm <runtime-url>` at T − 5 min, redeploy without `SATQUERY_WARM` afterwards. The download step is `modal run deploy/modal_fetch.py --adapter-repo …`, not `::fetch`.
 
 **Deviations from the text above**
 
