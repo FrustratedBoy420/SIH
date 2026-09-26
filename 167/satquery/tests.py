@@ -799,6 +799,31 @@ def _():
     ok(status == 500 and body["error"]["code"] == "runtime_error", f"a crash gave {status} {body}")
 
 
+@check("P2-1 — `satquery warm` says ready only when M1 is live and has answered")
+def _():
+    import io
+    from .cli import main
+    def run(url):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = main(["warm", url, "--timeout", "2"])
+        return code, out.getvalue()
+    with _fake_live(), _m1_pack([]) as local, _served(local.directory) as url:
+        code, text = run(url)
+        ok(code == 0 and "ready in" in text and "live" in text, f"live runtime: {code} {text!r}")
+    # pre-computed only, and it even holds the probe's answer: still not live
+    probe = {"image_key": _key_for(scenes.build(size=96, seed=5).optical(5)),
+             "question": "What type of area is shown in this image?",
+             "answer": "Industrial", "confidence": 0.9}
+    with _m1_pack([probe]) as local, _served(local.directory) as url:
+        code, text = run(url)
+        ok(code == 1 and "ready in" not in text and "not ready" in text,
+           f"a runtime that is not live was called ready: {text!r}")
+    code, text = run("http://127.0.0.1:9")
+    ok(code == 1 and "ready in" not in text and "not ready" in text,
+       f"an unreachable runtime was called ready: {text!r}")
+
+
 @check("P1-1 — M1's measured numbers and calibration are found from the project home, not the source tree")
 def _():
     real = pathlib.Path(__file__).resolve().parent.parent

@@ -1,0 +1,22 @@
+# The stack the Modal runtime image installs (doc 12, P1-4). Exact versions:
+# a different stack can change what M1 answers.
+#
+# STATUS: candidate pins. Only peft is recorded by the run that produced the
+# adapter (adapter_config.json: peft_version 0.19.1). That run's transformers
+# was 5.18.0.dev0 (models/MANIFEST.md), a pre-release with no wheel on PyPI, so
+# 5.17.0 is the nearest release, not the same code. torch, bitsandbytes and
+# accelerate were not recorded. These become the pins only once the parity run
+# (doc 12, §8.1) reproduces >= 299/300 of models/results/m1_calibration.jsonl on
+# them; if it does not, move one version at a time and record what changed.
+#
+# The last four match ../pyproject.toml so the runtime's `satquery` package
+# imports what the API's does.
+torch==2.14.0
+transformers==5.17.0
+peft==0.19.1
+bitsandbytes==0.50.2
+accelerate==1.15.0
+numpy==2.5.3
+pillow==12.3.0
+fastapi==0.141.1
+starlette==1.6.0

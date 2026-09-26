@@ -15,6 +15,7 @@
     python -m satquery.cli bench          NFR-01/02: latency p50/p95
     python -m satquery.cli replay RUN_ID  re-run a stored run and diff it
     python -m satquery.cli runtime        serve adapter packs over HTTP (venue)
+    python -m satquery.cli warm URL       wake a remote runtime; confirm M1 answers live
 """
 
 from __future__ import annotations
@@ -126,7 +127,45 @@ def main(argv: list[str] | None = None) -> int:
     rt.add_argument("--host", default="127.0.0.1")
     rt.add_argument("--adapters", default="adapters", help="directory of adapter packs")
 
+    wm = sub.add_parser("warm", help="wake a remote model runtime and confirm M1 answers live (before a judging window)")
+    wm.add_argument("url", help="the runtime's base URL, e.g. https://<workspace>--satquery-runtime-web.modal.run")
+    wm.add_argument("--timeout", type=float, default=600.0, help="seconds to wait for the cold start")
+
     args = ap.parse_args(argv)
+
+    if args.cmd == "warm":
+        # Doc 12 §7.2. A cold Modal container takes minutes to load M0 + M1; this
+        # waits it out so the first judge does not. Credentials, if the runtime
+        # needs them, come from SATQUERY_RUNTIME_KEY / _SECRET as they do for the API.
+        import time
+        from .runtime import HttpRuntime, image_key, raster_rgb_u8
+        t0 = time.time()
+        remote = HttpRuntime(args.url, timeout=30.0)
+        remote.RETRY_S = 0.0
+        mode = None
+        while time.time() - t0 < args.timeout:
+            mode = remote.mode("adapter_A_rs_general")
+            if mode == "live":
+                break
+            print(f"  waiting for M1 ({'unreachable' if not remote.reachable else mode or 'not serving'}) "
+                  f"{time.time() - t0:.0f}s", flush=True)
+            remote._health = None
+            time.sleep(min(5.0, max(args.timeout / 4, 0.1)))
+        if mode != "live":
+            print(f"  not ready after {args.timeout:.0f}s: M1 is {mode or 'not live'} at {args.url}")
+            return 1
+        rgb = raster_rgb_u8(scenes.build(size=96, seed=5).optical(5))
+        t1 = time.time()
+        try:
+            reply = remote.infer("adapter_A_rs_general", "vqa", {
+                "question": "What type of area is shown in this image?",
+                "image_key": image_key(rgb), "_rgb_u8": rgb})
+        except Exception as exc:                                  # noqa: BLE001
+            print(f"  M1 is up but did not answer: {exc}")
+            return 1
+        print(f"  ready in {time.time() - t0:.0f} s  (M1 {reply.get('source')}, "
+              f"first answer {time.time() - t1:.1f} s: {reply.get('answer')!r})")
+        return 0
 
     if args.cmd == "bench":
         # NFR-01/02: p95 < 8 s single-image, < 15 s cross-modal, on the venue
