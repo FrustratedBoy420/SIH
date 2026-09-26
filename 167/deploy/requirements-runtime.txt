@@ -12,6 +12,7 @@
 # The last four match ../pyproject.toml so the runtime's `satquery` package
 # imports what the API's does.
 torch==2.14.0
+torchvision==0.29.0       # requires torch==2.14.0; Qwen2-VL's processor imports it (found at first boot)
 transformers==5.17.0
 peft==0.19.1
 bitsandbytes==0.50.2
