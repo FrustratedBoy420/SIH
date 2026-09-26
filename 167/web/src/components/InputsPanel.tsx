@@ -15,7 +15,7 @@ import { ROLES } from '@/lib/contract'
 import { lat, lon, ROLE_LABEL, utc } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { SCENARIOS, type Scenario } from '@/lib/examples'
-import { SAMPLES, sampleUrl, type Sample } from '@/lib/samples'
+import { SAMPLES, thumbUrl, type Sample } from '@/lib/samples'
 import type { DemoKind } from '@/engine/client'
 
 const MARK: Record<Role, string> = { optical: 'var(--color-optical)', sar: 'var(--color-sar)', t1: 'var(--color-nir)', t2: 'var(--color-nir)' }
@@ -173,7 +173,7 @@ export default function InputsPanel({ inputs, loading, errors, onFile, onRemove,
             <li key={sm.file}>
               <button type="button" data-testid={`sample-${sm.file.replace('.png', '')}`} onClick={() => onSample(sm)} title={`${sm.title} — ${sm.question}`}
                 className="group block w-full text-left">
-                <img src={sampleUrl(sm)} alt={sm.title} loading="lazy" className="aspect-square w-full border border-rule object-cover group-hover:border-accent" />
+                <img src={thumbUrl(sm)} alt={sm.title} loading="lazy" className="aspect-square w-full border border-rule object-cover group-hover:border-accent" />
                 <span className="mono mt-0.5 block truncate text-[9.5px] leading-tight text-ink-2 group-hover:text-ink">{sm.title}</span>
               </button>
             </li>

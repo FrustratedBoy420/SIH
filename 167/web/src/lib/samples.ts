@@ -25,3 +25,5 @@ export const SAMPLES: Sample[] = [
 ]
 
 export const sampleUrl = (s: Sample) => `${import.meta.env.BASE_URL}samples/${s.file}`
+/** A 160 px JPEG for the gallery: the full photo is fetched only when one is chosen. */
+export const thumbUrl = (s: Sample) => `${import.meta.env.BASE_URL}samples/thumbs/${s.file.replace('.png', '.jpg')}`
