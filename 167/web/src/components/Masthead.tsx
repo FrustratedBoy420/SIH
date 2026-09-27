@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
 import EngineBadge from './EngineBadge'
 import Mark from './Mark'
+import StartDialog from './landing/StartDialog'
 import { api } from '@/lib/api'
 import { useStation } from '@/lib/store'
+import { useStartDialog } from '@/lib/uiStore'
 import { cn } from '@/lib/utils'
 
 const NAV: { to: string; label: string; short?: string }[] = [
@@ -36,6 +38,7 @@ export default function Masthead() {
   useEffect(() => { setRecent(api.runs()[0]?.run_id) }, [current, pathname])
   const report = current ?? recent
   const inStation = pathname.startsWith('/workstation')
+  const { open, setOpen } = useStartDialog()
 
   return (
     <header className={cn('no-print sticky top-0 z-50 border-b bg-paper transition-colors', scrolled || inStation ? 'border-ink' : 'border-transparent')}>
@@ -56,8 +59,9 @@ export default function Masthead() {
             : <span className={cn(item, 'cursor-not-allowed text-ink-3')} title="Run a query first — the report is of a run" aria-disabled="true" data-testid="nav-report">Report</span>}
         </nav>
         <EngineBadge className="hidden md:block" />
-        {!inStation && <Link to="/workstation" className="btn btn-sun btn-sm hidden lg:inline-flex">Ask the imagery</Link>}
+        {!inStation && <button type="button" onClick={() => setOpen(true)} className="btn btn-sun btn-sm hidden lg:inline-flex">Workstation</button>}
       </div>
+      <StartDialog open={open} onOpenChange={setOpen} />
     </header>
   )
 }

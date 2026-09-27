@@ -7,6 +7,7 @@
 import { lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { lat, lon, utc } from '@/lib/format'
+import { useStartDialog } from '@/lib/uiStore'
 import type { LandingData } from './useLanding'
 
 // three.js arrives after the headline has painted
@@ -15,6 +16,7 @@ const Globe = lazy(() => import('./Globe'))
 const GLOBE_BOX = 'mx-auto aspect-square w-full max-w-[min(680px,calc(100dvh-var(--chrome)-4rem))]'
 
 export default function Hero({ data }: { data?: LandingData }) {
+  const setStart = useStartDialog((s) => s.setOpen)
   const s = data?.optical.summary
   const rec = data?.result.evidence.items.find((e) => e.claim.includes('recovered by SAR'))
 
@@ -28,7 +30,7 @@ export default function Hero({ data }: { data?: LandingData }) {
           Upload optical, SAR or two-date satellite imagery and ask in plain language. SatQuery picks the right model, checks the imagery can support the question, and shows the evidence behind every answer.
         </p>
         <div className="mt-9 flex flex-wrap gap-4">
-          <Link to="/workstation" className="btn btn-sun" data-testid="hero-cta">Ask the imagery</Link>
+          <button type="button" onClick={() => setStart(true)} className="btn btn-sun" data-testid="hero-cta">Workstation</button>
           <Link to="/results" className="btn btn-ink">See the results</Link>
         </div>
 

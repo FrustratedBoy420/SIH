@@ -383,16 +383,30 @@ try {
     await p.waitForFunction(() => [...document.querySelectorAll('[data-testid^="sample-"] img')].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 20000 })
     return `${n} photos`
   })
-  await check('sample photos: a click fills Optical and the question, even during the first load', async () => {
+  await check('sample photos: a click loads Optical and suggests the question, even during the first load', async () => {
     // immediately, while the default scene is still loading: the default must not land on top
     await p.locator(tid('sample-08281_0000')).click()
     await p.locator(tid('slot-optical')).getByText('08281_0000.png').first().waitFor({ timeout: 30000 })
     await p.waitForTimeout(6000)                       // let the default scene finish in the background
     const optical = await p.locator(tid('slot-optical')).innerText()
     if (!optical.includes('08281_0000.png')) throw new Error('the default scene replaced the chosen photo')
-    const q = await p.locator(tid('query-input')).inputValue()
-    if (!/bridges/i.test(q)) throw new Error(`question is ${JSON.stringify(q)}`)
-    return q
+    // a recommendation, not a prefill: the box stays empty, the question is only the placeholder
+    const [val, ph] = await p.locator(tid('query-input')).evaluate((el) => [el.value, el.placeholder])
+    if (val !== '') throw new Error(`the box was pre-filled: ${JSON.stringify(val)}`)
+    if (!/bridges/i.test(ph)) throw new Error(`placeholder is ${JSON.stringify(ph)}`)
+    return ph
+  })
+  await check('query bar: typing offers matching example questions, and picking one fills the box', async () => {
+    await p.locator(tid('query-input')).fill('')
+    await p.locator(tid('query-input')).type('built', { delay: 20 })
+    await p.locator(tid('query-suggestions')).waitFor({ timeout: 5000 })
+    const n = await p.locator(`${tid('query-suggestions')} button`).count()
+    if (n < 2) throw new Error(`${n} matches for "built"`)
+    await p.locator(`${tid('query-suggestions')} button`, { hasText: 'How many built-up areas' }).click()
+    const filled = await p.locator(tid('query-input')).inputValue()
+    if (!/built-up areas/.test(filled)) throw new Error(`box holds ${JSON.stringify(filled)}`)
+    if (await p.locator(tid('query-suggestions')).count()) throw new Error('dropdown stayed open after a pick')
+    return `${n} matches, picked one`
   })
   await check('sample photos: the upload button loads a file into Optical', async () => {
     await p.locator(tid('file-own')).setInputFiles(path.join('public', 'samples', '09054_0000.png'))
@@ -404,6 +418,86 @@ try {
     await p.locator(tid('query-submit')).click()
     await p.locator('[role="alert"]').filter({ hasText: 'Type a question first' }).waitFor({ timeout: 5000 })
     return 'asks for a question'
+  })
+  await c.close()
+}
+
+/* ----------------------------------------------------------- start dialog */
+// The homepage's entry point: a choice (scene / image), not a jump straight
+// to a page. Each own context, so a picked photo never bleeds into another
+// check's workstation state.
+{
+  const c = await browser.newContext({ viewport: { width: 1600, height: 940 } })
+  const p = await c.newPage(); watch(p)
+  await p.goto(BASE)
+  await p.locator(tid('hero-cta')).waitFor({ timeout: 30000 })
+  await check('start dialog: the hero CTA says Workstation and opens it, Load scene active by default', async () => {
+    const label = await p.locator(tid('hero-cta')).innerText()
+    if (!/workstation/i.test(label)) throw new Error(`hero CTA reads ${JSON.stringify(label)}`)
+    await p.locator(tid('hero-cta')).click()
+    await p.locator(tid('start-dialog')).waitFor({ timeout: 10000 })
+    const selected = await p.locator(tid('start-tab-scene')).getAttribute('aria-selected')
+    if (selected !== 'true') throw new Error('Load scene is not the default tab')
+    await p.locator(tid('start-scene-crossmodal')).waitFor({ timeout: 5000 })
+    return label
+  })
+  await check('start dialog: no claim that M1 handles the library well', async () => {
+    const text = await p.locator(tid('start-dialog')).innerText()
+    if (/answers well|handles.*well/i.test(text)) throw new Error('dialog still claims M1 answers these well')
+    return 'no such claim'
+  })
+  await check('start dialog: Escape closes it', async () => {
+    await p.keyboard.press('Escape')
+    await p.locator(tid('start-dialog')).waitFor({ state: 'detached', timeout: 5000 })
+    return 'closed'
+  })
+  await check('start dialog: a scene card (optical only) deep-links the workstation to that scene', async () => {
+    await p.locator(tid('hero-cta')).click()
+    await p.locator(tid('start-scene-optical')).click()
+    await p.locator(tid('workstation')).waitFor({ timeout: 20000 })
+    if (!/scene=optical/.test(p.url())) throw new Error(`URL is ${p.url()}`)
+    await p.locator(tid('slot-optical')).getByText('built-in').first().waitFor({ timeout: 30000 })
+    const sar = await p.locator(tid('slot-sar')).innerText()
+    if (!/empty/i.test(sar)) throw new Error('SAR should stay empty for the optical-only scene')
+    return p.url()
+  })
+  await check('start dialog: Load image tab shows the sample library and an upload button', async () => {
+    await p.goto(BASE)
+    await p.locator(tid('hero-cta')).waitFor({ timeout: 30000 })
+    await p.locator(tid('hero-cta')).click()
+    await p.locator(tid('start-tab-image')).click()
+    const n = await p.locator('[data-testid^="start-sample-"]').count()
+    if (n !== 8) throw new Error(`${n} sample photos`)
+    await p.locator(tid('start-upload')).waitFor({ timeout: 5000 })
+    return `${n} photos + upload button`
+  })
+  await check('start dialog: picking a library photo opens the workstation with it loaded', async () => {
+    await p.locator(tid('start-sample-08281_0000')).click()
+    await p.locator(tid('workstation')).waitFor({ timeout: 20000 })
+    await p.locator(tid('slot-optical')).getByText('08281_0000.png').first().waitFor({ timeout: 30000 })
+    const [val, ph] = await p.locator(tid('query-input')).evaluate((el) => [el.value, el.placeholder])
+    if (val !== '') throw new Error(`box pre-filled: ${JSON.stringify(val)}`)
+    if (!/bridges/i.test(ph)) throw new Error(`placeholder is ${JSON.stringify(ph)}`)
+    return ph
+  })
+  await check('start dialog: uploading a file opens the workstation with it loaded', async () => {
+    await p.goto(BASE)
+    await p.locator(tid('hero-cta')).waitFor({ timeout: 30000 })
+    await p.locator(tid('hero-cta')).click()
+    await p.locator(tid('start-tab-image')).click()
+    await p.locator(tid('start-upload-input')).setInputFiles(path.join('public', 'samples', '09054_0000.png'))
+    await p.locator(tid('workstation')).waitFor({ timeout: 20000 })
+    await p.locator(tid('slot-optical')).getByText('09054_0000.png').first().waitFor({ timeout: 30000 })
+    return 'ok'
+  })
+  await check('start dialog: the masthead CTA on another page opens the same dialog', async () => {
+    await p.goto(BASE + '/results')
+    await p.locator(tid('nav-report')).waitFor({ timeout: 20000 })
+    const cta = p.locator('header button', { hasText: 'Workstation' })
+    await cta.waitFor({ timeout: 10000 })
+    await cta.click()
+    await p.locator(tid('start-scene-crossmodal')).waitFor({ timeout: 10000 })
+    return 'ok'
   })
   await c.close()
 }

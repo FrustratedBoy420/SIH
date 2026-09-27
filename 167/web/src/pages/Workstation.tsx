@@ -61,6 +61,7 @@ export default function Workstation() {
         return
       }
       list.forEach((r) => st().setInput(r.role, r))
+      if (roles.includes('optical')) st().setSuggestion(null)
       setErrors((e) => { const n = { ...e }; roles.forEach((r) => delete n[r]); return n })
     } finally { roles.forEach((r) => st().setLoading(r, false)) }
   }, [])
@@ -92,7 +93,7 @@ export default function Workstation() {
     try {
       const blob = await (await fetch(sampleUrl(sm))).blob()
       await onFile('optical', new File([blob], sm.file, { type: blob.type || 'image/png' }))
-      setQuery(sm.question)
+      st().setSuggestion(sm.question)
       setQueryError(null)
       input.current?.focus()
     } catch (e) {
@@ -104,6 +105,7 @@ export default function Workstation() {
     const r = st().inputs[role]
     if (r && !r.summary.synthetic && !r.summary.builtin) api.remove(r.local_id)
     st().setInput(role, undefined)
+    if (role === 'optical') st().setSuggestion(null)
   }, [])
 
   // derived layers follow the pairs
@@ -129,6 +131,7 @@ export default function Workstation() {
       return
     }
     setQueryError(null)
+    st().setSuggestion(null)
     st().setRunning(true)
     const inputs = st().inputs
     const ids: Partial<Record<Role, string>> = {}, local: Partial<Record<Role, string>> = {}
@@ -246,7 +249,7 @@ export default function Workstation() {
   }, [opticalId])
 
   return (
-    <div className="bg-surface-2 lg:grid lg:h-[calc(100dvh-var(--chrome))] lg:grid-cols-[292px_minmax(0,1fr)_404px] lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:gap-3 lg:p-3" data-testid="workstation">
+    <div className="bg-surface-2 lg:grid lg:h-[calc(100dvh-var(--chrome))] lg:grid-cols-[292px_minmax(0,1fr)_404px] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:gap-3 lg:p-3" data-testid="workstation">
       {/* scene header */}
       <div className={cn(card, 'col-span-3 flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 text-[12px]')}>
         <h1 className="t-display text-[20px]">Workstation</h1>
@@ -261,16 +264,23 @@ export default function Workstation() {
         </span>
       </div>
 
-      <aside className={cn(card, 'lg:row-span-2 lg:row-start-2 lg:min-h-0 lg:overflow-hidden')} aria-label="Inputs">
+      {/* the query bar: the first thing to find, not a footer under the scene */}
+      <div className="px-2 pb-1 pt-2 lg:col-span-3 lg:row-start-2 lg:p-0">
+        <QueryBar ref={input} value={query} onChange={setQuery} onSubmit={() => run(query)} running={s.running || s.replaying || reading} busy={reading && !s.running ? 'Reading inputs…' : undefined}
+          threshold={s.threshold} onThreshold={s.setThreshold} onPalette={() => setPalette(true)} inputsLabel={inputsLabel}
+          placeholderText={s.suggestion ?? undefined} examples={EXAMPLES.map((e) => e.q)} />
+      </div>
+
+      <aside className={cn(card, 'lg:row-start-3 lg:min-h-0 lg:overflow-hidden')} aria-label="Inputs">
         <InputsPanel inputs={s.inputs} loading={s.loading} errors={errors} onFile={onFile} onRemove={onRemove} onDemo={loadDemo} onScenario={scenario} onSample={onSample}
           reading={s.replaying && result ? result.manifest.rasters.map((r) => r.role).filter((r): r is Role => !!r && (ROLES as string[]).includes(r)) : []} />
       </aside>
 
-      <section className={cn(card, 'h-[64vh] min-h-0 overflow-hidden lg:row-start-2 lg:h-auto')} aria-label="Scene">
+      <section className={cn(card, 'h-[64vh] min-h-0 overflow-hidden lg:row-start-3 lg:h-auto')} aria-label="Scene">
         <SceneRegion items={items} onLoadCrossModal={() => loadDemo('crossmodal')} />
       </section>
 
-      <aside className="flex min-h-0 flex-col gap-3 lg:row-span-2 lg:row-start-2" aria-label="Evidence and trace">
+      <aside className="flex min-h-0 flex-col gap-3 lg:row-start-3" aria-label="Evidence and trace">
         <section className={cn(card, 'flex min-h-0 flex-[1.4] flex-col overflow-hidden')} aria-labelledby="ev-h">
           <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-rule px-4 pb-2.5 pt-3">
             <h2 id="ev-h" className="label">Answer & evidence</h2>
@@ -302,11 +312,6 @@ export default function Workstation() {
           </div>
         </section>
       </aside>
-
-      <div className="sticky bottom-8 z-40 px-2 pb-2 lg:static lg:col-start-2 lg:row-start-3 lg:p-0">
-        <QueryBar ref={input} value={query} onChange={setQuery} onSubmit={() => run(query)} running={s.running || s.replaying || reading} busy={reading && !s.running ? 'Reading inputs…' : undefined}
-          threshold={s.threshold} onThreshold={s.setThreshold} onPalette={() => setPalette(true)} inputsLabel={inputsLabel} />
-      </div>
 
       <CommandPalette open={palette} onOpenChange={setPalette} groups={groups} />
     </div>

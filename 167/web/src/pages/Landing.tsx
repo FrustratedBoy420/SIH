@@ -7,6 +7,7 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useStartDialog } from '@/lib/uiStore'
 import AskCards from '@/components/landing/AskCards'
 import CompareBand from '@/components/landing/CompareBand'
 import Hero from '@/components/landing/Hero'
@@ -27,6 +28,7 @@ const PROMISES = [
 export default function Landing() {
   const { data } = useLanding()
   const { data: registry } = useQuery({ queryKey: ['registry'], queryFn: api.registry })
+  const setStart = useStartDialog((s) => s.setOpen)
   return (
     <div data-testid="landing">
       <Hero data={data} />
@@ -67,7 +69,7 @@ export default function Landing() {
               Upload a GeoTIFF — optical, SAR, or two dates — and ask. It is described, routed or refused on exactly the terms the built-in scenes are.
             </p>
             <div className="mt-9 flex flex-wrap gap-4">
-              <Link to="/workstation" className="btn btn-sun" data-testid="cta-workstation">Open the workstation</Link>
+              <button type="button" onClick={() => setStart(true)} className="btn btn-sun" data-testid="cta-workstation">Open the workstation</button>
               <Link to="/data" className="btn border border-paper/40 text-paper hover:bg-paper hover:text-ink">Data and models</Link>
             </div>
           </div>

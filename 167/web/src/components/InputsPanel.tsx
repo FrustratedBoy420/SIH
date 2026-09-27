@@ -142,6 +142,34 @@ export default function InputsPanel({ inputs, loading, errors, onFile, onRemove,
   const own = useRef<HTMLInputElement>(null)
   return (
     <div className="scroll-thin flex h-full min-h-0 flex-col overflow-y-auto">
+      {/* First on purpose: bring your own imagery, or a real photo already staged
+          for M1, is the thing most worth finding — not the synthetic-feeling demo
+          list below it. The accent border and left mark match the query bar. */}
+      <div className="border-b-2 border-accent bg-accent-bg/40 px-4 pb-3 pt-3" data-testid="samples">
+        <h2 className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+          <span className="inline-block h-3 w-[3px] bg-accent" aria-hidden />
+          Try a real photo — or upload your own
+        </h2>
+        <p className="mt-1 text-[11.5px] leading-snug text-ink-2">Click a photo to load it into Optical, with a suggested question to start from.</p>
+        <ul className="mt-2 grid grid-cols-4 gap-1.5">
+          {SAMPLES.map((sm) => (
+            <li key={sm.file}>
+              <button type="button" data-testid={`sample-${sm.file.replace('.png', '')}`} onClick={() => onSample(sm)} title={`${sm.title} — ${sm.question}`}
+                className="group block w-full text-left">
+                <img src={thumbUrl(sm)} alt={sm.title} loading="lazy" className="aspect-square w-full border border-rule object-cover group-hover:border-accent" />
+                <span className="mono mt-0.5 block truncate text-[9.5px] leading-tight text-ink-2 group-hover:text-ink">{sm.title}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <button type="button" data-testid="upload-own" onClick={() => own.current?.click()}
+          className="mt-2.5 flex w-full items-center justify-center gap-2 border-2 border-accent bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-accent hover:bg-accent hover:text-surface">
+          <span aria-hidden>⇪</span> Upload your own image…
+        </button>
+        <input ref={own} type="file" accept=".tif,.tiff,.png,.jpg,.jpeg" className="hidden" data-testid="file-own"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile('optical', f); e.target.value = '' }} />
+        <p className="mono mt-1.5 text-[9.5px] leading-snug text-ink-3">Sample photos: VRSBench validation split, CC-BY-4.0 (Li, Ding, Elhoseiny).</p>
+      </div>
       <div className="border-b border-ink px-4 pb-3 pt-3">
         <h2 className="label !text-ink">Try a demo scene</h2>
         <p className="mt-1 text-[11.5px] leading-snug text-ink-2">Loads a built-in scene and asks its question.</p>
@@ -164,28 +192,6 @@ export default function InputsPanel({ inputs, loading, errors, onFile, onRemove,
               className="text-accent underline-offset-2 hover:underline">{d.label.toLowerCase()}</button>
           ))}
         </p>
-      </div>
-      <div className="border-b border-ink px-4 pb-3 pt-3" data-testid="samples">
-        <h2 className="label !text-ink">Try a real photo</h2>
-        <p className="mt-1 text-[11.5px] leading-snug text-ink-2">Click one: it loads into Optical with a question M1 answers well. Or bring your own.</p>
-        <ul className="mt-2 grid grid-cols-4 gap-1.5">
-          {SAMPLES.map((sm) => (
-            <li key={sm.file}>
-              <button type="button" data-testid={`sample-${sm.file.replace('.png', '')}`} onClick={() => onSample(sm)} title={`${sm.title} — ${sm.question}`}
-                className="group block w-full text-left">
-                <img src={thumbUrl(sm)} alt={sm.title} loading="lazy" className="aspect-square w-full border border-rule object-cover group-hover:border-accent" />
-                <span className="mono mt-0.5 block truncate text-[9.5px] leading-tight text-ink-2 group-hover:text-ink">{sm.title}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <button type="button" data-testid="upload-own" onClick={() => own.current?.click()}
-          className="mt-2.5 flex w-full items-center justify-center gap-2 border border-ink px-3 py-1.5 text-[12.5px] font-medium hover:bg-surface-2">
-          <span aria-hidden>⇪</span> Upload your own image…
-        </button>
-        <input ref={own} type="file" accept=".tif,.tiff,.png,.jpg,.jpeg" className="hidden" data-testid="file-own"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile('optical', f); e.target.value = '' }} />
-        <p className="mono mt-1.5 text-[9.5px] leading-snug text-ink-3">Photos: VRSBench validation split, CC-BY-4.0 (Li, Ding, Elhoseiny).</p>
       </div>
       <h2 className="label border-b border-rule px-4 py-2 !text-ink">Inputs</h2>
       <div className="px-4">

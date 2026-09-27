@@ -21,6 +21,10 @@ interface State {
   overlays: Record<Modality, boolean>
   selected: number | null
   separation: number
+  /** a recommended question, not a prefill — shown as the query bar's placeholder.
+   * Lives here, not in Workstation's own state, so a photo picked on the landing
+   * page's start dialog still offers its question after the navigation. */
+  suggestion: string | null
   setInput: (role: Role, r: LoadedRaster | undefined) => void
   setLoading: (role: Role, v: boolean) => void
   setDerived: (d: State['derived']) => void
@@ -32,6 +36,7 @@ interface State {
   toggleOverlay: (m: Modality) => void
   select: (i: number | null) => void
   setSeparation: (v: number) => void
+  setSuggestion: (v: string | null) => void
 }
 
 export const useStation = create<State>((set, get) => ({
@@ -47,6 +52,7 @@ export const useStation = create<State>((set, get) => ({
   overlays: { optical: true, sar: true, fused: true, temporal: true, derived: true },
   selected: null,
   separation: 0.55,
+  suggestion: null,
   setInput: (role, r) => set((s) => {
     const inputs = { ...s.inputs }
     if (r) inputs[role] = r
@@ -68,4 +74,5 @@ export const useStation = create<State>((set, get) => ({
   toggleOverlay: (m) => set((s) => ({ overlays: { ...s.overlays, [m]: !s.overlays[m] } })),
   select: (selected) => set({ selected }),
   setSeparation: (separation) => set({ separation }),
+  setSuggestion: (suggestion) => set({ suggestion }),
 }))
